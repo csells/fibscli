@@ -62,15 +62,29 @@ class _GameBoardState extends State<GameBoard> {
               // pips: top-left
               for (var i = 0; i != 6; ++i)
                 Positioned.fromRect(
-                  rect: Rect.fromLTWH(20 + 36.0 * i, 20, 34, 150),
+                  rect: Rect.fromLTWH(21 + 36.0 * i, 20, 34, 150),
                   child: Pip(i + 13),
                 ),
 
               // pips: top-right
               for (var i = 0; i != 6; ++i)
                 Positioned.fromRect(
-                  rect: Rect.fromLTWH(286 + 36.0 * i, 20, 34, 150),
-                  child: Pip(i + 13),
+                  rect: Rect.fromLTWH(285 + 36.0 * i, 20, 34, 150),
+                  child: Pip(i + 19),
+                ),
+
+              // bottom-left
+              for (var i = 0; i != 6; ++i)
+                Positioned.fromRect(
+                  rect: Rect.fromLTWH(21 + 36.0 * i, 250, 34, 150),
+                  child: Pip(i + 7),
+                ),
+              // pips: bottom-right
+              // <polygon points="284,400 302,250 318,400" fill="grey" stroke="black" />
+              for (var i = 0; i != 6; ++i)
+                Positioned.fromRect(
+                  rect: Rect.fromLTWH(285 + 36.0 * i, 250, 34, 150),
+                  child: Pip(i + 1),
                 ),
             ],
           ),
@@ -88,27 +102,29 @@ class Pip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipPath(
-      clipper: TriangleClipper(up: pip < 13),
-      child: CustomPaint(
-        painter: TrianglePainter(up: pip < 13, light: pip.isOdd),
-        child: Container(), // cause CustomPaint to take up entire available space
-      ),
-      //Container(),
+      clipper: PipClipper(pip),
+      child: CustomPaint(painter: PipPainter(pip)),
     );
   }
 }
 
-class TrianglePainter extends CustomPainter {
-  final bool up;
+class PipPainter extends CustomPainter {
+  static final _lightColor = Colors.grey[300];
+  static final _darkColor = Colors.grey;
+
+  final int pip;
   final Color _color;
-  TrianglePainter({@required this.up, @required bool light}) : _color = light ? Colors.grey[300] : Colors.grey;
+  PipPainter(this.pip) : _color = pip.isOdd ? _lightColor : _darkColor;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = TriangleClipper(up: up).getClip(size);
+    // draw the pip
+    final path = PipClipper(pip).getClip(size);
     final paint = Paint();
     paint.color = _color;
     canvas.drawPath(path, paint);
+
+    // outline the pip
     paint.strokeWidth = 1.0;
     paint.style = PaintingStyle.stroke;
     paint.color = Colors.black;
@@ -120,15 +136,21 @@ class TrianglePainter extends CustomPainter {
 }
 
 // from https://www.developerlibs.com/2019/08/flutter-draw-custom-shaps-clip-path.html
-class TriangleClipper extends CustomClipper<Path> {
-  final bool up;
-  TriangleClipper({@required this.up});
+class PipClipper extends CustomClipper<Path> {
+  final bool _up;
+  PipClipper(int pip) : _up = pip < 13;
 
   @override
   Path getClip(Size size) {
     final path = Path();
-    path.lineTo(size.width / 2, size.height);
-    path.lineTo(size.width, 0);
+    if (_up) {
+      path.moveTo(0, size.height);
+      path.lineTo(size.width / 2, 0);
+      path.lineTo(size.width, size.height);
+    } else {
+      path.lineTo(size.width / 2, size.height);
+      path.lineTo(size.width, 0);
+    }
     return path;
   }
 
