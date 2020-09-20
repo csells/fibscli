@@ -79,12 +79,68 @@ class _GameBoardState extends State<GameBoard> {
                   rect: Rect.fromLTWH(21 + 36.0 * i, 250, 34, 150),
                   child: Pip(i + 7),
                 ),
+
               // pips: bottom-right
-              // <polygon points="284,400 302,250 318,400" fill="grey" stroke="black" />
               for (var i = 0; i != 6; ++i)
                 Positioned.fromRect(
                   rect: Rect.fromLTWH(285 + 36.0 * i, 250, 34, 150),
                   child: Pip(i + 1),
+                ),
+
+              // text: top-left
+              for (var i = 0; i != 6; ++i)
+                Positioned.fromRect(
+                  rect: Rect.fromCenter(center: Offset(38 + 36.0 * i, 17), width: 100, height: 40),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Text(
+                      (i + 13).toString(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+
+              // text: top-right
+              for (var i = 0; i != 6; ++i)
+                Positioned.fromRect(
+                  rect: Rect.fromCenter(center: Offset(302 + 36.0 * i, 17), width: 100, height: 40),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Text(
+                      (i + 19).toString(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+
+              // text: bottom-left
+              for (var i = 0; i != 6; ++i)
+                Positioned.fromRect(
+                  rect: Rect.fromCenter(center: Offset(38 + 36.0 * i, 424), width: 100, height: 40),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Text(
+                      (i + 7).toString(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+
+              // text: bottom-right -->
+              for (var i = 0; i != 6; ++i)
+                Positioned.fromRect(
+                  rect: Rect.fromCenter(center: Offset(302 + 36.0 * i, 424), width: 100, height: 40),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Text(
+                      (i + 1).toString(),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -96,30 +152,25 @@ class _GameBoardState extends State<GameBoard> {
 
 class Pip extends StatelessWidget {
   final int pip;
-  final bool boardReversed;
-  Pip(this.pip, {bool boardReversed = false}) : boardReversed = boardReversed;
+  final PipPainter painter;
+  Pip(this.pip) : painter = PipPainter(pip, PipClipper(pip));
 
   @override
-  Widget build(BuildContext context) {
-    return ClipPath(
-      clipper: PipClipper(pip),
-      child: CustomPaint(painter: PipPainter(pip)),
-    );
-  }
+  Widget build(BuildContext context) => ClipPath(clipper: painter.clipper, child: CustomPaint(painter: painter));
 }
 
 class PipPainter extends CustomPainter {
   static final _lightColor = Colors.grey[300];
   static final _darkColor = Colors.grey;
 
-  final int pip;
+  final PipClipper clipper;
   final Color _color;
-  PipPainter(this.pip) : _color = pip.isOdd ? _lightColor : _darkColor;
+  PipPainter(int pip, this.clipper) : _color = pip.isOdd ? _lightColor : _darkColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     // draw the pip
-    final path = PipClipper(pip).getClip(size);
+    final path = clipper.getClip(size);
     final paint = Paint();
     paint.color = _color;
     canvas.drawPath(path, paint);
@@ -157,48 +208,3 @@ class PipClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
-
-// class Pip extends StatelessWidget {
-//   static final _lightPipColor = Color.fromRGBO(206, 181, 145, 1);
-//   static final _darkPipColor = Color.fromRGBO(164, 117, 80, 1);
-//   static final _activePipColor = Colors.greenAccent;
-//   static final _pipWidth = 10.0;
-//   static final _pipHeight = 50.0;
-//   static final _highlightDx = 10;
-
-//   final int pip;
-//   final Color _color;
-//   final Color _shadow;
-//   Pip(
-//     this.pip, {
-//     bool active,
-//     Key key,
-//   })  : _color = pip.isEven ? _darkPipColor : _lightPipColor,
-//         _shadow = active == true ? _activePipColor : Colors.transparent,
-//         super(key: key);
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final x = _pipWidth * (pip - 1);
-//     final y = 0.0; // depends on what pip number and board orientation
-
-//     return Stack(
-//       children: [
-//         Positioned.fromRect(
-//           rect: Rect.fromLTWH(x + _highlightDx, y, _pipWidth, _pipHeight),
-//           child: ClipPath(
-//             clipper: TriangleClipper(),
-//             child: Container(color: _shadow),
-//           ),
-//         ),
-//         Positioned.fromRect(
-//           rect: Rect.fromLTWH(x, y, _pipWidth, _pipHeight),
-//           child: ClipPath(
-//             clipper: TriangleClipper(),
-//             child: Container(color: _color),
-//           ),
-//         ),
-//       ],
-//     );
-//   }
-// }
