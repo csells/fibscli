@@ -23,29 +23,23 @@ class HomePage extends StatelessWidget {
       );
 }
 
-class GameBoard extends StatefulWidget {
-  const GameBoard({
-    Key key,
-  }) : super(key: key);
-
-  @override
-  _GameBoardState createState() => _GameBoardState();
-}
-
-class _GameBoardState extends State<GameBoard> {
+class GameBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: Colors.black,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: FittedBox(
           child: Stack(
             children: [
               // frame
-              Container(width: 574, height: 420, color: Colors.black),
+              Container(
+                width: 574,
+                height: 420,
+                decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 5)),
+              ),
 
               // outer board
               Positioned.fromRect(
@@ -90,13 +84,13 @@ class _GameBoardState extends State<GameBoard> {
               // text: top-left
               for (var i = 0; i != 6; ++i)
                 Positioned.fromRect(
-                  rect: Rect.fromCenter(center: Offset(38 + 36.0 * i, 17), width: 100, height: 40),
+                  rect: Rect.fromCenter(center: Offset(38 + 36.0 * i, 23), width: 100, height: 40),
                   child: Align(
                     alignment: Alignment.topCenter,
                     child: Text(
                       (i + 13).toString(),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.black),
                     ),
                   ),
                 ),
@@ -104,13 +98,13 @@ class _GameBoardState extends State<GameBoard> {
               // text: top-right
               for (var i = 0; i != 6; ++i)
                 Positioned.fromRect(
-                  rect: Rect.fromCenter(center: Offset(302 + 36.0 * i, 17), width: 100, height: 40),
+                  rect: Rect.fromCenter(center: Offset(302 + 36.0 * i, 23), width: 100, height: 40),
                   child: Align(
                     alignment: Alignment.topCenter,
                     child: Text(
                       (i + 19).toString(),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.black),
                     ),
                   ),
                 ),
@@ -118,13 +112,13 @@ class _GameBoardState extends State<GameBoard> {
               // text: bottom-left
               for (var i = 0; i != 6; ++i)
                 Positioned.fromRect(
-                  rect: Rect.fromCenter(center: Offset(38 + 36.0 * i, 424), width: 100, height: 40),
+                  rect: Rect.fromCenter(center: Offset(38 + 36.0 * i, 418), width: 100, height: 40),
                   child: Align(
                     alignment: Alignment.topCenter,
                     child: Text(
                       (i + 7).toString(),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.black),
                     ),
                   ),
                 ),
@@ -132,16 +126,22 @@ class _GameBoardState extends State<GameBoard> {
               // text: bottom-right -->
               for (var i = 0; i != 6; ++i)
                 Positioned.fromRect(
-                  rect: Rect.fromCenter(center: Offset(302 + 36.0 * i, 424), width: 100, height: 40),
+                  rect: Rect.fromCenter(center: Offset(302 + 36.0 * i, 418), width: 100, height: 40),
                   child: Align(
                     alignment: Alignment.topCenter,
                     child: Text(
                       (i + 1).toString(),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.black),
                     ),
                   ),
                 ),
+
+              // player1 home
+              Positioned.fromRect(
+                rect: Rect.fromLTWH(520, 220, 32, 180),
+                child: Container(color: Colors.green[900]),
+              )
             ],
           ),
         ),
