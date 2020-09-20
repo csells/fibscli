@@ -44,13 +44,17 @@ class GameBoard extends StatelessWidget {
               // outer board
               Positioned.fromRect(
                 rect: Rect.fromLTWH(20, 20, 216, 380),
-                child: Container(color: Colors.green[900]),
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                ),
               ),
 
               // inner board
               Positioned.fromRect(
                 rect: Rect.fromLTWH(284, 20, 216, 380),
-                child: Container(color: Colors.green[900]),
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                ),
               ),
 
               // pips and labels
@@ -62,8 +66,31 @@ class GameBoard extends StatelessWidget {
               // player1 home
               Positioned.fromRect(
                 rect: Rect.fromLTWH(520, 220, 32, 180),
-                child: Container(color: Colors.green[900]),
-              )
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                ),
+              ),
+
+              // player2 home
+              Positioned.fromRect(
+                rect: Rect.fromLTWH(520, 20, 32, 180),
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                ),
+              ),
+
+              // doubling cube: undoubled
+              Positioned.fromRect(
+                rect: Rect.fromLTWH(238, 186, 44, 44),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.black, width: 2),
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                  ),
+                  child: Center(child: Text('64', textAlign: TextAlign.center)),
+                ),
+              ),
             ],
           ),
         ),
@@ -73,12 +100,8 @@ class GameBoard extends StatelessWidget {
 }
 
 class PipLabel extends StatelessWidget {
-  const PipLabel({
-    Key key,
-    @required this.layout,
-  }) : super(key: key);
-
   final PipLayout layout;
+  const PipLabel({@required this.layout});
 
   @override
   Widget build(BuildContext context) {
@@ -127,16 +150,16 @@ class PipLayout {
       final layouts = <PipLayout>[];
       for (var j = 0; j != 4; j++)
         for (var i = 0; i != 6; ++i) {
-          final pip = j * 6 + i + 1;
+          final pip = j * 6 + (j < 2 ? 6-i : i + 1);
           final dx = (width + 2) * i;
 
           // bottom-right
           if (pip >= 1 && pip <= 6) {
-            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 250, labelDy: height));
+            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 250, labelDy: height - 1));
           }
           // bottom-left
           else if (pip >= 7 && pip <= 12) {
-            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 250, labelDy: height));
+            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 250, labelDy: height - 1));
           }
           // top-left
           else if (pip >= 13 && pip <= 18) {
