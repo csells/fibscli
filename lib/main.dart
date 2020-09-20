@@ -53,89 +53,11 @@ class GameBoard extends StatelessWidget {
                 child: Container(color: Colors.green[900]),
               ),
 
-              // pips: top-left
-              for (var i = 0; i != 6; ++i)
-                Positioned.fromRect(
-                  rect: Rect.fromLTWH(21 + 36.0 * i, 20, 34, 150),
-                  child: Pip(i + 13),
-                ),
-
-              // pips: top-right
-              for (var i = 0; i != 6; ++i)
-                Positioned.fromRect(
-                  rect: Rect.fromLTWH(285 + 36.0 * i, 20, 34, 150),
-                  child: Pip(i + 19),
-                ),
-
-              // bottom-left
-              for (var i = 0; i != 6; ++i)
-                Positioned.fromRect(
-                  rect: Rect.fromLTWH(21 + 36.0 * i, 250, 34, 150),
-                  child: Pip(i + 7),
-                ),
-
-              // pips: bottom-right
-              for (var i = 0; i != 6; ++i)
-                Positioned.fromRect(
-                  rect: Rect.fromLTWH(285 + 36.0 * i, 250, 34, 150),
-                  child: Pip(i + 1),
-                ),
-
-              // text: top-left
-              for (var i = 0; i != 6; ++i)
-                Positioned.fromRect(
-                  rect: Rect.fromCenter(center: Offset(38 + 36.0 * i, 23), width: 100, height: 40),
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Text(
-                      (i + 13).toString(),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black),
-                    ),
-                  ),
-                ),
-
-              // text: top-right
-              for (var i = 0; i != 6; ++i)
-                Positioned.fromRect(
-                  rect: Rect.fromCenter(center: Offset(302 + 36.0 * i, 23), width: 100, height: 40),
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Text(
-                      (i + 19).toString(),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black),
-                    ),
-                  ),
-                ),
-
-              // text: bottom-left
-              for (var i = 0; i != 6; ++i)
-                Positioned.fromRect(
-                  rect: Rect.fromCenter(center: Offset(38 + 36.0 * i, 418), width: 100, height: 40),
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Text(
-                      (i + 7).toString(),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black),
-                    ),
-                  ),
-                ),
-
-              // text: bottom-right -->
-              for (var i = 0; i != 6; ++i)
-                Positioned.fromRect(
-                  rect: Rect.fromCenter(center: Offset(302 + 36.0 * i, 418), width: 100, height: 40),
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Text(
-                      (i + 1).toString(),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black),
-                    ),
-                  ),
-                ),
+              // pips and labels
+              for (final layout in PipLayout.layouts) ...[
+                Positioned.fromRect(rect: layout.rect, child: PipTriangle(layout.pip)),
+                Positioned.fromRect(rect: layout.labelRect, child: PipLabel(layout: layout)),
+              ],
 
               // player1 home
               Positioned.fromRect(
@@ -150,13 +72,92 @@ class GameBoard extends StatelessWidget {
   }
 }
 
-class Pip extends StatelessWidget {
+class PipLabel extends StatelessWidget {
+  const PipLabel({
+    Key key,
+    @required this.layout,
+  }) : super(key: key);
+
+  final PipLayout layout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.center,
+      child: Text(
+        layout.pip.toString(),
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.black),
+      ),
+    );
+  }
+}
+
+class PipTriangle extends StatelessWidget {
   final int pip;
   final PipPainter painter;
-  Pip(this.pip) : painter = PipPainter(pip, PipClipper(pip));
+  PipTriangle(this.pip) : painter = PipPainter(pip, PipClipper(pip));
 
   @override
   Widget build(BuildContext context) => ClipPath(clipper: painter.clipper, child: CustomPaint(painter: painter));
+}
+
+class PipLayout {
+  static List<PipLayout> _layouts;
+  static final double width = 34;
+  static final double height = 150;
+  static final double labelHeight = 15;
+
+  final int pip;
+  final double left;
+  final double top;
+  final double labelDy;
+  PipLayout({
+    @required this.pip,
+    @required this.left,
+    @required this.top,
+    @required this.labelDy,
+  });
+
+  Rect get rect => Rect.fromLTWH(left, top, width, height);
+  Rect get labelRect => Rect.fromLTWH(left, top + labelDy, width, labelHeight);
+
+  static List<PipLayout> get layouts {
+    if (_layouts == null) {
+      final layouts = <PipLayout>[];
+      for (var j = 0; j != 4; j++)
+        for (var i = 0; i != 6; ++i) {
+          final pip = j * 6 + i + 1;
+          final dx = (width + 2) * i;
+
+          // bottom-right
+          if (pip >= 1 && pip <= 6) {
+            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 250, labelDy: height));
+          }
+          // bottom-left
+          else if (pip >= 7 && pip <= 12) {
+            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 250, labelDy: height));
+          }
+          // top-left
+          else if (pip >= 13 && pip <= 18) {
+            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 20, labelDy: -labelHeight - 1));
+          }
+          // top-right
+          else if (pip >= 19 && pip <= 24) {
+            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 20, labelDy: -labelHeight - 1));
+          }
+          // error
+          else {
+            assert(false, 'pip: $pip');
+            throw 'unreachable';
+          }
+        }
+
+      _layouts = List.unmodifiable(layouts);
+    }
+
+    return _layouts;
+  }
 }
 
 class PipPainter extends CustomPainter {
