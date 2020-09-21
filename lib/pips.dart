@@ -19,8 +19,9 @@ class PipLabel extends StatelessWidget {
 
 class PipTriangle extends StatelessWidget {
   final int pip;
+  final bool highlight;
   final PipPainter painter;
-  PipTriangle(this.pip) : painter = PipPainter(pip, PipClipper(pip));
+  PipTriangle({@required this.pip, @required this.highlight}) : painter = PipPainter(pip, PipClipper(pip), highlight);
 
   @override
   Widget build(BuildContext context) => ClipPath(clipper: painter.clipper, child: CustomPaint(painter: painter));
@@ -90,7 +91,8 @@ class PipPainter extends CustomPainter {
 
   final PipClipper clipper;
   final Color _color;
-  PipPainter(int pip, this.clipper) : _color = pip.isOdd ? _lightColor : _darkColor;
+  final bool highlight;
+  PipPainter(int pip, this.clipper, this.highlight) : _color = pip.isOdd ? _lightColor : _darkColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -100,11 +102,18 @@ class PipPainter extends CustomPainter {
     paint.color = _color;
     canvas.drawPath(path, paint);
 
-    // outline the pip
-    paint.strokeWidth = 1.0;
-    paint.style = PaintingStyle.stroke;
-    paint.color = Colors.black;
-    canvas.drawPath(path, paint);
+    // highlight or outline the pip
+    if (highlight) {
+      paint.strokeWidth = 3.0;
+      paint.style = PaintingStyle.stroke;
+      paint.color = Colors.yellow;
+      canvas.drawPath(path, paint);
+    } else {
+      paint.strokeWidth = 1.0;
+      paint.style = PaintingStyle.stroke;
+      paint.color = Colors.black;
+      canvas.drawPath(path, paint);
+    }
   }
 
   @override

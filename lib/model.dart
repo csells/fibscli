@@ -1,6 +1,7 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:trotter/trotter.dart';
+import 'package:dartx/dartx.dart';
 
 class GammonState extends ChangeNotifier {
   static final _rand = Random();
@@ -22,6 +23,48 @@ class GammonState extends ChangeNotifier {
     sideSign = -sideSign;
     turnCount++;
     _rollDice();
+  }
+
+  bool canMoveOrHit({int fromPip, int toPip}) {
+    if (fromPip < 1 || fromPip > 24) return false;
+    if (toPip < 1 || toPip > 24) return false;
+    return GammonRules.canMove(fromPip - 1, toPip - 1, points) || GammonRules.canHit(fromPip - 1, toPip - 1, points);
+  }
+
+  void doMoveOrHit({int fromPip, int toPip}) {
+    assert(fromPip >= 1 && fromPip <= 24);
+    assert(toPip >= 1 && toPip <= 24);
+
+    final fromIndex = fromPip - 1;
+    final toIndex = toPip - 1;
+    if (GammonRules.canMove(fromIndex, toIndex, points)) {
+      GammonRules.doMove(fromIndex, toIndex, points);
+    } else if (GammonRules.canHit(fromIndex, toIndex, points)) {
+      GammonRules.doHit(fromIndex, toIndex, points, hits);
+    }
+  }
+
+  List<int> getLegalMoves(int pip) {
+    final point = points[pip - 1];
+    if (point == 0) return [];
+
+    final turnSign = point < 1 ? -1 : 1;
+    final playerTurn = turnSign == sideSign; // does this piece belong to the player whose turn it is?
+    if (!playerTurn) return [];
+
+    // check all subsets of the dice for legal moves, taking into account doubles
+    // need to uniqify the numbers for this to work (trotter requires it)
+    final legalMoves = <int>{};
+    final rolls = [...dice, if (dice[0] == dice[1]) ...dice];
+    final stringRolls = [for (var i = 0; i != rolls.length; ++i) '${rolls[i]}${String.fromCharCode(97 + i)}'];
+    final subs = Subsets(stringRolls);
+    for (final sub in subs().where((sub) => sub.isNotEmpty)) {
+      final sum = [for (final s in sub) int.parse(s.substring(0, 1))].sum();
+      final toPip = pip + sum * turnSign;
+      if (canMoveOrHit(fromPip: pip, toPip: toPip)) legalMoves.add(toPip);
+    }
+
+    return legalMoves.toList();
   }
 }
 
