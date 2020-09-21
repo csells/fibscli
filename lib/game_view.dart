@@ -87,10 +87,10 @@ class _GameViewState extends State<GameView> {
                   ),
 
                   // doubling cube: undoubled
-                  Positioned.fromRect(
-                    rect: Rect.fromLTWH(238, 186, 44, 44),
-                    child: DoublingCubeView(),
-                  ),
+                  // Positioned.fromRect(
+                  //   rect: Rect.fromLTWH(238, 186, 44, 44),
+                  //   child: DoublingCubeView(),
+                  // ),
 
                   // pieces
                   for (final layout in PieceLayout.getLayouts(game, highlightedPiecePip: _fromPip))
@@ -146,24 +146,4 @@ class _GameViewState extends State<GameView> {
   void _diceTap() {
     _game.nextTurn();
   }
-
-  // void _movePiece(int pip, List<int> dice) async {
-  //   final point = _game.points[pip - 1];
-  //   if (point == 0) return;
-
-  //   final turnSign = point < 1 ? -1 : 1;
-  //   if (turnSign != _game.sideSign) return;
-
-  //   for (final roll in [...dice, dice[0] + dice[1]]) {
-  //     // find the first place we can move
-  //     final toPip = pip + roll * turnSign;
-  //     if (_game.canMoveOrHit(fromPip: pip, toPip: toPip)) {
-  //       _game.doMoveOrHit(fromPip: pip, toPip: toPip);
-  //       break;
-  //     }
-  //   }
-
-  //   setState(() {}); // check for highlighting now
-  // }
-
 }
