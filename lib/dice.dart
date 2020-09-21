@@ -3,33 +3,35 @@ import 'package:flutter/material.dart';
 
 class DieView extends StatelessWidget {
   final DieLayout layout;
-  const DieView({@required this.layout});
+  final void Function() _onTap;
+  const DieView({@required this.layout, void Function() onTap}) : _onTap = onTap == null ? _noop : onTap;
+
+  static void _noop() {}
 
   @override
-  Widget build(BuildContext context) => Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: layout.player1 ? Colors.black : Colors.white,
-              border: Border.all(color: layout.player1 ? Colors.white : Colors.black, width: 2),
-              borderRadius: BorderRadius.all(Radius.circular(10)),
-            ),
-          ),
-          // child: Center(
-          //   child: Text(
-          //     layout.roll.toString(),
-          //     textAlign: TextAlign.center,
-          //     style: TextStyle(color: layout.player1 ? Colors.white : Colors.black),
-          //   ),
-          // ),
-          for (final rect in layout.getSpotRects())
-            Positioned.fromRect(
-              rect: rect,
-              child: Container(
-                decoration: BoxDecoration(color: layout.player1 ? Colors.white : Colors.black, shape: BoxShape.circle),
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: _onTap,
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: layout.player1 ? Colors.black : Colors.white,
+                border: Border.all(color: Colors.black, width: 2),
+                borderRadius: BorderRadius.all(Radius.circular(10)),
               ),
             ),
-        ],
+            for (final rect in layout.getSpotRects())
+              Positioned.fromRect(
+                rect: rect,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: layout.player1 ? Colors.white : Colors.black,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
       );
 }
 
@@ -68,7 +70,7 @@ class DieLayout {
       final roll = game.dice[i];
       yield DieLayout(
         left: 354 + 42.0 * i,
-        top: 186,
+        top: 194,
         roll: roll,
         player1: game.sideSign == -1,
         spots: _spotses[roll - 1],

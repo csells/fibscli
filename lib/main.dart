@@ -26,7 +26,7 @@ class GameView extends StatelessWidget {
   final _game = GammonState();
 
   GameView() {
-    _game.rollDice();
+    _game.nextTurn();
   }
 
   @override
@@ -102,7 +102,7 @@ class GameView extends StatelessWidget {
                   for (final layout in DieLayout.getLayouts(game))
                     Positioned.fromRect(
                       rect: layout.rect,
-                      child: DieView(layout: layout),
+                      child: DieView(layout: layout, onTap: _dieTap),
                     ),
                 ],
               ),
@@ -110,4 +110,8 @@ class GameView extends StatelessWidget {
           ),
         ),
       );
+
+  void _dieTap() {
+    _game.nextTurn();
+  }
 }

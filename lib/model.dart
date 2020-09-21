@@ -12,10 +12,16 @@ class GammonState extends ChangeNotifier {
   var turnCount = 0;
   int selectedIndex = -1; // -1 if no selection.
 
-  void rollDice() {
+  void _rollDice() {
     dice[0] = _rand.nextInt(6) + 1;
     dice[1] = _rand.nextInt(6) + 1;
     notifyListeners();
+  }
+
+  void nextTurn() {
+    sideSign = -sideSign;
+    turnCount++;
+    _rollDice();
   }
 }
 
