@@ -1,3 +1,7 @@
+import 'dart:math';
+
+import 'package:fibscli/model.dart';
+import 'package:fibscli/pips.dart';
 import 'package:flutter/material.dart';
 
 void main() => runApp(App());
@@ -23,7 +27,14 @@ class HomePage extends StatelessWidget {
       );
 }
 
-class GameBoard extends StatelessWidget {
+class GameBoard extends StatefulWidget {
+  @override
+  _GameBoardState createState() => _GameBoardState();
+}
+
+class _GameBoardState extends State<GameBoard> {
+  final _gammonState = GammonState();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -91,6 +102,25 @@ class GameBoard extends StatelessWidget {
                   child: Center(child: Text('64', textAlign: TextAlign.center)),
                 ),
               ),
+
+              // pieces
+              for (final layout in PieceLayout.getLayouts(_gammonState))
+                Positioned.fromRect(
+                  rect: layout.rect,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: layout.player1 ? Colors.black : Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.black, width: 2),
+                    ),
+                    child: Center(
+                        child: Text(
+                      layout.label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: layout.player1 ? Colors.white : Colors.black),
+                    )),
+                  ),
+                ),
             ],
           ),
         ),
@@ -99,136 +129,50 @@ class GameBoard extends StatelessWidget {
   }
 }
 
-class PipLabel extends StatelessWidget {
-  final PipLayout layout;
-  const PipLabel({@required this.layout});
+class PieceLayout {
+  static final _pieceWidth = 28.0;
+  static final _pieceHeight = 28.0;
+  static final _dx = 36.0;
+  static final _dy = 28.0;
 
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.center,
-      child: Text(
-        layout.pip.toString(),
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Colors.black),
-      ),
-    );
-  }
-}
-
-class PipTriangle extends StatelessWidget {
-  final int pip;
-  final PipPainter painter;
-  PipTriangle(this.pip) : painter = PipPainter(pip, PipClipper(pip));
-
-  @override
-  Widget build(BuildContext context) => ClipPath(clipper: painter.clipper, child: CustomPaint(painter: painter));
-}
-
-class PipLayout {
-  static List<PipLayout> _layouts;
-  static final double width = 34;
-  static final double height = 150;
-  static final double labelHeight = 15;
-
-  final int pip;
+  final bool player1;
   final double left;
   final double top;
-  final double labelDy;
-  PipLayout({
-    @required this.pip,
-    @required this.left,
-    @required this.top,
-    @required this.labelDy,
-  });
+  final String label;
+  PieceLayout({@required this.player1, @required this.left, @required this.top, @required this.label});
 
-  Rect get rect => Rect.fromLTWH(left, top, width, height);
-  Rect get labelRect => Rect.fromLTWH(left, top + labelDy, width, labelHeight);
+  Rect get rect => Rect.fromLTWH(left, top, _pieceWidth, _pieceHeight);
 
-  static List<PipLayout> get layouts {
-    if (_layouts == null) {
-      final layouts = <PipLayout>[];
-      for (var j = 0; j != 4; j++)
-        for (var i = 0; i != 6; ++i) {
-          final pip = j * 6 + (j < 2 ? 6-i : i + 1);
-          final dx = (width + 2) * i;
+  static Iterable<PieceLayout> getLayouts(GammonState state) sync* {
+    assert(state.points.length == 24);
+    assert(_pieceWidth == _pieceHeight);
+    for (var j = 0; j != 4; j++)
+      for (var i = 0; i != 6; ++i) {
+        final pip = j * 6 + i + 1;
+        final dx = _dx * i;
+        final point = state.points[pip - 1];
+        final player1 = point < 0;
+        final pieceCount = point.abs();
 
-          // bottom-right
+        print('pip: $pip, player1= $player1, pieceCount= $pieceCount');
+
+        for (var h = 0; h != min(pieceCount, 5); ++h) {
+          // if there's more than 5, the last one gets a label w/ the total number of pieces in the stack
+          final label = (h + 1) == 5 && pieceCount > 5 ? pieceCount.toString() : '';
+          final dy = _dy * h;
+
           if (pip >= 1 && pip <= 6) {
-            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 250, labelDy: height - 1));
-          }
-          // bottom-left
-          else if (pip >= 7 && pip <= 12) {
-            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 250, labelDy: height - 1));
-          }
-          // top-left
-          else if (pip >= 13 && pip <= 18) {
-            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 20, labelDy: -labelHeight - 1));
-          }
-          // top-right
-          else if (pip >= 19 && pip <= 24) {
-            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 20, labelDy: -labelHeight - 1));
-          }
-          // error
-          else {
-            assert(false, 'pip: $pip');
-            throw 'unreachable';
+            yield PieceLayout(player1: player1, left: 468 - dx, top: 370 - dy, label: label);
+          } else if (pip >= 7 && pip <= 12) {
+            yield PieceLayout(player1: player1, left: 204 - dx, top: 372 - dy, label: label);
+          } else if (pip >= 13 && pip <= 18) {
+            yield PieceLayout(player1: player1, left: 24 + dx, top: 20 + dy, label: label);
+          } else if (pip >= 19 && pip <= 24) {
+            yield PieceLayout(player1: player1, left: 288 + dx, top: 20 + dy, label: label);
+          } else {
+            assert(false);
           }
         }
-
-      _layouts = List.unmodifiable(layouts);
-    }
-
-    return _layouts;
+      }
   }
-}
-
-class PipPainter extends CustomPainter {
-  static final _lightColor = Colors.grey[300];
-  static final _darkColor = Colors.grey;
-
-  final PipClipper clipper;
-  final Color _color;
-  PipPainter(int pip, this.clipper) : _color = pip.isOdd ? _lightColor : _darkColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // draw the pip
-    final path = clipper.getClip(size);
-    final paint = Paint();
-    paint.color = _color;
-    canvas.drawPath(path, paint);
-
-    // outline the pip
-    paint.strokeWidth = 1.0;
-    paint.style = PaintingStyle.stroke;
-    paint.color = Colors.black;
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => true;
-}
-
-// from https://www.developerlibs.com/2019/08/flutter-draw-custom-shaps-clip-path.html
-class PipClipper extends CustomClipper<Path> {
-  final bool _up;
-  PipClipper(int pip) : _up = pip < 13;
-
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    if (_up) {
-      path.moveTo(0, size.height);
-      path.lineTo(size.width / 2, 0);
-      path.lineTo(size.width, size.height);
-    } else {
-      path.lineTo(size.width / 2, size.height);
-      path.lineTo(size.width, 0);
-    }
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
