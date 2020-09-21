@@ -1,3 +1,24 @@
+import 'dart:math';
+
+import 'package:flutter/material.dart';
+
+class GammonState extends ChangeNotifier {
+  static final _rand = Random();
+
+  var points = GammonRules.initialPoints();
+  var hits = [0, 0]; // Checkers hit per player
+  var dice = [0, 0]; // Dice roll
+  var sideSign = 1; // Either -1, or 1, or 0 if no game is playing
+  var turnCount = 0;
+  int selectedIndex = -1; // -1 if no selection.
+
+  void rollDice() {
+    dice[0] = _rand.nextInt(6) + 1;
+    dice[1] = _rand.nextInt(6) + 1;
+    notifyListeners();
+  }
+}
+
 class GammonRules {
   // The total number of points on the table.
   static const numPoints = 24;
@@ -74,13 +95,4 @@ class GammonRules {
   static void removeHit(int sideSign, List<int> hits) {
     hits[sideIndex(sideSign)]--;
   }
-}
-
-class GammonState {
-  var points = GammonRules.initialPoints();
-  var hits = [0, 0]; // Checkers hit per player
-  var dice = [0, 0]; // Dice roll
-  var sideSign = 1; // Either -1, or 1, or 0 if no game is playing
-  var turnCount = 0;
-  int selectedIndex = -1; // -1 if no selection.
 }
