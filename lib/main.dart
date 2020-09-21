@@ -1,3 +1,4 @@
+import 'package:fibscli/dice.dart';
 import 'package:fibscli/tinystate.dart';
 import 'package:flutter/material.dart';
 import 'package:fibscli/model.dart';
@@ -101,20 +102,7 @@ class GameView extends StatelessWidget {
                   for (final layout in DieLayout.getLayouts(game))
                     Positioned.fromRect(
                       rect: layout.rect,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: layout.player1 ? Colors.black : Colors.white,
-                          border: Border.all(color: layout.player1 ? Colors.white : Colors.black, width: 2),
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
-                        ),
-                        child: Center(
-                          child: Text(
-                            layout.roll.toString(),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: layout.player1 ? Colors.white : Colors.black),
-                          ),
-                        ),
-                      ),
+                      child: DieView(layout: layout),
                     ),
                 ],
               ),
@@ -122,34 +110,4 @@ class GameView extends StatelessWidget {
           ),
         ),
       );
-}
-
-class DoublingCubeView extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.black, width: 2),
-          borderRadius: BorderRadius.all(Radius.circular(10)),
-        ),
-        child: Center(child: Text('64', textAlign: TextAlign.center)),
-      );
-}
-
-class DieLayout {
-  static final _dieWidth = 36.0;
-  static final _dieHeight = 36.0;
-
-  final int roll;
-  final bool player1;
-  final double left;
-  final double top;
-  DieLayout({@required this.roll, @required this.player1, @required this.left, @required this.top});
-
-  Rect get rect => Rect.fromLTWH(left, top, _dieWidth, _dieHeight);
-
-  static Iterable<DieLayout> getLayouts(GammonState game) sync* {
-    yield DieLayout(left: 354, top: 186, roll: game.dice[0], player1: game.sideSign == -1);
-    yield DieLayout(left: 394, top: 186, roll: game.dice[1], player1: game.sideSign == -1);
-  }
 }

@@ -52,8 +52,6 @@ class PieceLayout {
         final player1 = point < 0;
         final pieceCount = point.abs();
 
-        print('pip: $pip, player1= $player1, pieceCount= $pieceCount');
-
         for (var h = 0; h != min(pieceCount, 5); ++h) {
           // if there's more than 5, the last one gets a label w/ the total number of pieces in the stack
           final label = (h + 1) == 5 && pieceCount > 5 ? pieceCount.toString() : '';
