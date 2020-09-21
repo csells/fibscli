@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:trotter/trotter.dart';
-import 'package:dartx/dartx.dart';
 
+// inspired by https://gist.githubusercontent.com/malkia/bb37c27d0a5cfed2306b2c2fa20f246f/raw/d21b064c5838a031d96234ab4bf95c3153edbcf2/gammon2.dart
 class GammonState extends ChangeNotifier {
   static final _rand = Random();
 
@@ -44,24 +44,28 @@ class GammonState extends ChangeNotifier {
     }
   }
 
-  List<int> getLegalMoves(int pip) {
-    final point = points[pip - 1];
+  List<int> getLegalMoves(int fromPip) {
+    final point = points[fromPip - 1];
     if (point == 0) return [];
 
     final turnSign = point < 1 ? -1 : 1;
     final playerTurn = turnSign == sideSign; // does this piece belong to the player whose turn it is?
     if (!playerTurn) return [];
 
-    // check all subsets of the dice for legal moves, taking into account doubles
-    // need to uniqify the numbers for this to work (trotter requires it)
+    // check all components of the dice for legal moves, taking into account doubles;
+    // need to uniqify the numbers for trotter
     final legalMoves = <int>{};
     final rolls = [...dice, if (dice[0] == dice[1]) ...dice];
     final stringRolls = [for (var i = 0; i != rolls.length; ++i) '${rolls[i]}${String.fromCharCode(97 + i)}'];
-    final subs = Subsets(stringRolls);
-    for (final sub in subs().where((sub) => sub.isNotEmpty)) {
-      final sum = [for (final s in sub) int.parse(s.substring(0, 1))].sum();
-      final toPip = pip + sum * turnSign;
-      if (canMoveOrHit(fromPip: pip, toPip: toPip)) legalMoves.add(toPip);
+    final comps = Compounds(stringRolls);
+    for (final comp in comps().where((comp) => comp.isNotEmpty)) {
+      // check if all of the moves along the way are legal for this compound to be legal
+      final nums = [for (final c in comp) int.parse(c.substring(0, 1))];
+      var toPip = fromPip;
+      for (final n in nums) {
+        toPip = toPip + n * turnSign;
+        if (canMoveOrHit(fromPip: fromPip, toPip: toPip)) legalMoves.add(toPip);
+      }
     }
 
     return legalMoves.toList();

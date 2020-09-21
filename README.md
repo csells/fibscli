@@ -1,16 +1,25 @@
 # fibscli
+WIP: A FIBS client written in Flutter.
 
-A new Flutter project.
+# status
+I'm working on the adaptable UI now, both for form factor and for input, i.e. a mouse or a finger will do.
 
-## Getting Started
+Also I'm working on the UI gestures themselves, e.g. selection showing legal moves, moving your pieces, etc.
 
-This project is a starting point for a Flutter application.
+The goal is to host it on the desktop and mobile web and make it work against the FIBS server on fibs.com. I've got a lot of the networking/websocket proxy code already written in my FIBS.NET repo.
 
-A few resources to get you started if this is your first Flutter project:
+# screenshot
+![screenshot](readme/screenshot.png)
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+# TODO
+- when moving, do the hops to step on pieces along the way
+- mark dice as used as you use them
+- show the "hit" pieces on the bar
+- allow moves from the bar
+- calculate legal moves from the bar
+- trim legal moves when pieces are on the bar
+- allow moves to bear off
+- undo during a turn before it's committed
+- hook up with fibs.com telnet server
+- ...
+- profit!
