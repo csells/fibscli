@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:fibscli/dice.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:trotter/trotter.dart';
@@ -9,25 +10,27 @@ class GammonState extends ChangeNotifier {
 
   final points = GammonRules.initialPoints();
   final hits = [0, 0]; // Checkers hit per player
-  List<int> _dice; // Dice roll
+  List<DieState> _dice; // Dice rolls and whether they're still available
   var _sideSign = 1; // Either -1, or 1, or 0 if no game is playing
 
   int get sideSign => _sideSign;
-  List<int> get dice => List.unmodifiable(_dice);
+  List<DieState> get dice => List.unmodifiable(_dice);
 
   void _rollDice() {
-    final die1 = _rand.nextInt(6) + 1;
-    final die2 = _rand.nextInt(6) + 1;
-    _dice = [
-      die1,
-      die2,
-      if (die1 == die2) ...[die1, die1]
+    final roll1 = _rand.nextInt(6) + 1;
+    final roll2 = _rand.nextInt(6) + 1;
+    final rolls = [
+      roll1,
+      roll2,
+      if (roll1 == roll2) ...[roll1, roll1]
     ];
+
+    _dice = [for (var roll in rolls) DieState(roll)];
     notifyListeners();
   }
 
   void nextTurn() {
-    _sideSign = -_sideSign;
+    _sideSign *= -1;
     _rollDice();
   }
 
@@ -41,8 +44,15 @@ class GammonState extends ChangeNotifier {
       GammonRules.doMove(fromIndex, toIndex, points);
     } else if (GammonRules.canHit(fromIndex, toIndex, points)) {
       GammonRules.doHit(fromIndex, toIndex, points, hits);
+    } else {
+      return;
     }
+
+    _useDie((fromPip - toPip).abs());
+    notifyListeners();
   }
+
+  void _useDie(int roll) => _dice.firstWhere((d) => d.roll == roll && d.available).available = false;
 
   Iterable<GammonMove> getLegalMoves(int fromStartPip) sync* {
     // are there pieces on this pip?
@@ -54,7 +64,10 @@ class GammonState extends ChangeNotifier {
 
     // check all components of the _dice for legal moves, taking into account doubles
     // need to uniqify the numbers for trotter
-    final stringRolls = [for (var i = 0; i != _dice.length; ++i) '${_dice[i]}${String.fromCharCode(97 + i)}'];
+    final availableDice = _dice.where((d) => d.available).toList();
+    final stringRolls = [
+      for (var i = 0; i != availableDice.length; ++i) '${availableDice[i].roll}${String.fromCharCode(97 + i)}'
+    ];
     final comps = Compounds(stringRolls);
 
     for (final comp in comps().where((comp) => comp.isNotEmpty)) {

@@ -12,13 +12,13 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- mark dice as used as you use them
+- disable dice that aren't usable
+- undo during a turn before it's confirmed
 - show the "hit" pieces on the bar
 - allow moves from the bar
 - calculate legal moves from the bar
 - trim legal moves when pieces are on the bar
 - allow moves to bear off
-- undo during a turn before it's committed
 - show board in reverse
 - hook up with fibs.com telnet server
 - ...

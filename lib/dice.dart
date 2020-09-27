@@ -1,6 +1,12 @@
 import 'package:fibscli/model.dart';
 import 'package:flutter/material.dart';
 
+class DieState {
+  final roll;
+  bool available = true;
+  DieState(this.roll);
+}
+
 class DieView extends StatelessWidget {
   final DieLayout layout;
   final void Function() _onTap;
@@ -15,7 +21,7 @@ class DieView extends StatelessWidget {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: layout.player1 ? Colors.black : Colors.white,
+                color: (layout.player1 ? Colors.black : Colors.white).withOpacity(layout.die.available ? 1.0 : 0.5),
                 border: Border.all(color: Colors.black, width: 2),
                 borderRadius: BorderRadius.all(Radius.circular(10)),
               ),
@@ -47,7 +53,7 @@ class DieLayout {
     [Offset(10, 10), Offset(26, 26), Offset(10, 26), Offset(26, 10), Offset(10, 18), Offset(26, 18)], // 6
   ];
 
-  final int die;
+  final DieState die;
   final bool player1;
   final double left;
   final double top;
@@ -69,28 +75,17 @@ class DieLayout {
     final dice = game.dice;
     assert(dice.length == 2 || dice.length == 4);
 
-    for (var i = 0; i != 2; ++i) {
+    final dx = dice.length == 2 ? 42 : 0;
+    for (var i = 0; i != dice.length; ++i) {
       final die = dice[i];
       yield DieLayout(
-        left: 354 + 42.0 * i,
+        left: dx + 312 + 42.0 * i,
         top: 194,
         die: die,
         player1: game.sideSign == -1,
-        spots: _spotses[die - 1],
+        spots: _spotses[die.roll - 1],
       );
     }
-
-    if (dice.length == 4)
-      for (var i = 0; i != 2; ++i) {
-        final die = dice[0]; // they're all the same...
-        yield DieLayout(
-          left: 312 + 126.0 * i,
-          top: 194,
-          die: die,
-          player1: game.sideSign == -1,
-          spots: _spotses[die - 1],
-        );
-      }
   }
 }
 
