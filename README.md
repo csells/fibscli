@@ -13,6 +13,7 @@ The goal is to host it on the desktop and mobile web and make it work against th
 
 # TODO
 - remember state of the reverse setting between sessions
+- show pip count
 - allow use to choose their color (and save that between sessions)
 - undo during a turn before it's confirmed
 - allow moves from the bar
