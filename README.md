@@ -12,7 +12,8 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- show board in reverse (rotate the board and rotate the numbers?)
+- remember state of the reverse setting between sessions
+- allow use to choose their color (and save that between sessions)
 - undo during a turn before it's confirmed
 - allow moves from the bar
 - calculate legal moves from the bar

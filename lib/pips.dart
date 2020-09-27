@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
 class PipLabel extends StatelessWidget {
+  final bool reversed;
   final PipLayout layout;
-  const PipLabel({@required this.layout});
+  const PipLabel({@required this.layout, this.reversed = false});
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.center,
       child: RotatedBox(
-        quarterTurns: 2,
+        quarterTurns: reversed ? 2 : 0,
         child: Text(
           layout.pip.toString(),
           textAlign: TextAlign.center,
