@@ -65,16 +65,16 @@ class PieceLayout {
 
           if (pip >= 1 && pip <= 6) {
             yield PieceLayout(
-                pip: pip, player1: player1, left: 468 - dx, top: 370 - dy, label: label, highlight: highlight);
+                pip: pip, player1: player1, left: 468 - dx, top: 371 - dy, label: label, highlight: highlight);
           } else if (pip >= 7 && pip <= 12) {
             yield PieceLayout(
-                pip: pip, player1: player1, left: 204 - dx, top: 372 - dy, label: label, highlight: highlight);
+                pip: pip, player1: player1, left: 204 - dx, top: 371 - dy, label: label, highlight: highlight);
           } else if (pip >= 13 && pip <= 18) {
             yield PieceLayout(
-                pip: pip, player1: player1, left: 24 + dx, top: 20 + dy, label: label, highlight: highlight);
+                pip: pip, player1: player1, left: 24 + dx, top: 21 + dy, label: label, highlight: highlight);
           } else if (pip >= 19 && pip <= 24) {
             yield PieceLayout(
-                pip: pip, player1: player1, left: 288 + dx, top: 20 + dy, label: label, highlight: highlight);
+                pip: pip, player1: player1, left: 288 + dx, top: 21 + dy, label: label, highlight: highlight);
           } else {
             assert(false);
           }

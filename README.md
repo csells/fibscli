@@ -12,7 +12,6 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- disable dice that aren't usable
 - undo during a turn before it's confirmed
 - show the "hit" pieces on the bar
 - allow moves from the bar

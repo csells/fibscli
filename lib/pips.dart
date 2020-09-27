@@ -57,19 +57,19 @@ class PipLayout {
 
           // bottom-right
           if (pip >= 1 && pip <= 6) {
-            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 250, labelDy: height - 1));
+            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 249, labelDy: height - 1));
           }
           // bottom-left
           else if (pip >= 7 && pip <= 12) {
-            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 250, labelDy: height - 1));
+            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 249, labelDy: height - 1));
           }
           // top-left
           else if (pip >= 13 && pip <= 18) {
-            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 20, labelDy: -labelHeight - 1));
+            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 21, labelDy: -labelHeight - 1));
           }
           // top-right
           else if (pip >= 19 && pip <= 24) {
-            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 20, labelDy: -labelHeight - 1));
+            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 21, labelDy: -labelHeight - 1));
           }
           // error
           else {
