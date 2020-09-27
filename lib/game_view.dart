@@ -72,7 +72,7 @@ class _GameViewState extends State<GameView> {
 
                   // player1 home
                   Positioned.fromRect(
-                    rect: Rect.fromLTWH(520, 220, 32, 180),
+                    rect: Rect.fromLTWH(520, 216, 32, 183),
                     child: Container(
                       decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
                     ),
@@ -80,7 +80,7 @@ class _GameViewState extends State<GameView> {
 
                   // player2 home
                   Positioned.fromRect(
-                    rect: Rect.fromLTWH(520, 20, 32, 180),
+                    rect: Rect.fromLTWH(520, 20, 32, 183),
                     child: Container(
                       decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
                     ),

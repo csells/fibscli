@@ -9,13 +9,15 @@ class GammonState extends ChangeNotifier {
   static final _rand = Random();
 
   final points = GammonRules.initialPoints();
-  final _hits = [0, 0]; // Checkers hit per player
-  List<DieState> _dice; // Dice rolls and whether they're still available
-  var _sideSign = 1; // Either -1, or 1, or 0 if no game is playing
+  final _hits = [0, 0]; // pieces per player on the bar
+  final _homes = [0, 0]; // pieces per player in the home
+  List<DieState> _dice; // dice rolls and whether they're still available
+  var _sideSign = 1; // either -1, or 1, or 0 if no game is playing
 
   int get sideSign => _sideSign;
   List<DieState> get dice => List.unmodifiable(_dice);
   List<int> get hits => List.unmodifiable(_hits);
+  List<int> get homes => List.unmodifiable(_homes);
 
   void _rollDice() {
     final roll1 = _rand.nextInt(6) + 1;
@@ -165,29 +167,29 @@ class GammonRules {
   static const numPoints = 24;
 
   // The initial position tuples - [index, count]
-  static const initialPointTuples = const [
+  static const initialPointTuples = [
     [0, 2],
     [11, 5],
     [16, 3],
-    [18, 5]
+    [18, 5],
   ];
 
   static List<int> initialPoints() {
     var points = List<int>.filled(numPoints, 0);
     for (var indexCount in initialPointTuples) {
       var pointIndex = indexCount[0];
-      var checkerCount = indexCount[1];
+      var pieceCount = indexCount[1];
 
-      // White checkers are positive.
-      points[pointIndex] = checkerCount;
+      // White pieces are positive.
+      points[pointIndex] = pieceCount;
 
-      // Black checkers are negative, placed mirrorwise.
-      points[numPoints - pointIndex - 1] = -checkerCount;
+      // Black pieces are negative, placed mirrorwise.
+      points[numPoints - pointIndex - 1] = -pieceCount;
     }
     return points;
   }
 
-  // Returns true if a checker can be moved, without hitting.
+  // Returns true if a piece can be moved, without hitting.
   static bool canMove(int fromIndex, int toIndex, final List<int> points) {
     if (points[fromIndex] == 0) return false;
     if (points[toIndex] == 0) return true;
@@ -201,7 +203,7 @@ class GammonRules {
     return points[toIndex].abs() == 1;
   }
 
-  // Moves a checker without hitting.
+  // Moves a piece without hitting.
   static void doMove(int fromIndex, int toIndex, final List<int> points) {
     assert(canMove(fromIndex, toIndex, points));
     int _sideSign = points[fromIndex].sign;
@@ -209,32 +211,26 @@ class GammonRules {
     points[toIndex] = _sideSign * (points[toIndex].abs() + 1);
   }
 
-  // Hits a lone checker.
+  // Hits a lone piece.
   static void doHit(int fromIndex, int toIndex, final List<int> points, List<int> hits) {
     assert(canHit(fromIndex, toIndex, points));
     int _sideSign = points[fromIndex].sign;
     points[fromIndex] = _sideSign * (points[fromIndex].abs() - 1);
     points[toIndex] = _sideSign;
-    hits[_sideSign == -1 ? 1 : 0] += 1;
+    addHit(_sideSign, hits);
   }
 
-  static int sideIndex(int _sideSign /* -1 or 1 */) {
-    assert(_sideSign.abs() == 1);
-    return (_sideSign + 1) >> 1;
-  }
+  static int _sideIndex(int _sideSign) => (_sideSign + 1) >> 1;
 
-  // Returns true if the player has any hit checkers, false otherwise.
-  static bool hasHit(int _sideSign, final List<int> hits) {
-    return hits[sideIndex(_sideSign)] != 0;
-  }
+  // Adds a hit piece
+  static void addHit(int _sideSign, final List<int> hits) => hits[_sideIndex(_sideSign)]++;
 
-  // Adds a hit checker.
-  static void addHit(int _sideSign, final List<int> hits) {
-    hits[sideIndex(_sideSign)]++;
-  }
+  // Remove a hit piece
+  static void removeHit(int _sideSign, List<int> hits) => hits[_sideIndex(_sideSign)]--;
 
-  // Remove a hit checker.
-  static void removeHit(int _sideSign, List<int> hits) {
-    hits[sideIndex(_sideSign)]--;
-  }
+  // Adds a home piece
+  static void addHome(int _sideSign, final List<int> homes) => homes[_sideIndex(_sideSign)]++;
+
+  // Remove a home piece
+  static void removeHome(int _sideSign, List<int> homes) => homes[_sideIndex(_sideSign)]--;
 }

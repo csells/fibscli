@@ -7,27 +7,36 @@ class PieceView extends StatelessWidget {
   const PieceView({@required this.layout});
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: layout.player1 ? Colors.black : Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 2),
-        ),
-        child: Center(
-          child: Text(
-            layout.label,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: layout.player1 ? Colors.white : Colors.black),
+  Widget build(BuildContext context) => layout.edge
+      ? Container(
+          decoration: BoxDecoration(
+            color: layout.player1 ? Colors.black : Colors.white,
+            border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 2),
           ),
-        ),
-      );
+        )
+      : Container(
+          decoration: BoxDecoration(
+            color: layout.player1 ? Colors.black : Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 2),
+          ),
+          child: Center(
+            child: Text(
+              layout.label,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: layout.player1 ? Colors.white : Colors.black),
+            ),
+          ),
+        );
 }
 
 class PieceLayout {
   static final _pieceWidth = 28.0;
   static final _pieceHeight = 28.0;
   static final _dx = 36.0;
-  static final _dy = 28.0;
+  static final _dy = 29.0;
+  static final _edgeWidth = 32.0;
+  static final _edgeHeight = 11.0;
 
   final int pip;
   final bool player1;
@@ -35,16 +44,19 @@ class PieceLayout {
   final double top;
   final String label;
   final bool highlight;
+  final bool edge;
   PieceLayout({
     @required this.pip,
     @required this.player1,
     @required this.left,
     @required this.top,
     @required this.label,
-    @required this.highlight,
+    this.highlight = false,
+    this.edge = false,
   });
 
-  Rect get rect => Rect.fromLTWH(left, top, _pieceWidth, _pieceHeight);
+  Rect get rect =>
+      edge ? Rect.fromLTWH(left, top, _edgeWidth, _edgeHeight) : Rect.fromLTWH(left, top, _pieceWidth, _pieceHeight);
 
   static Iterable<PieceLayout> getLayouts(GammonState state, {int highlightedPiecePip}) sync* {
     assert(state.points.length == 24);
@@ -62,7 +74,7 @@ class PieceLayout {
         for (var h = 0; h != min(pieceCount, 5); ++h) {
           // if there's more than 5, the last one gets a label w/ the total number of pieces in the stack
           final label = (h + 1) == 5 && pieceCount > 5 ? pieceCount.toString() : '';
-          final dy = (_dy + 1) * h;
+          final dy = _dy * h;
           final highlight = pip == highlightedPiecePip && (h + 1) == min(pieceCount, 5);
 
           if (pip >= 1 && pip <= 6) {
@@ -88,11 +100,23 @@ class PieceLayout {
     assert(hits.length == 2);
     for (var i = 0; i != 2; ++i) {
       final player1 = i == 0;
-      final playerHits = hits[i]+3;
+      final playerHits = hits[i];
       for (var j = 0; j != min(playerHits, 5); ++j) {
         final label = (j + 1) == 1 && playerHits > 5 ? playerHits.toString() : '';
-        final top = player1 ? 138.0 - (_dy + 1) * j : 252.0 + (_dy + 1) * j;
+        final top = player1 ? 138.0 - _dy * j : 252.0 + _dy * j;
         yield PieceLayout(pip: 0, player1: player1, left: 246, top: top, label: label, highlight: false);
+      }
+    }
+
+    // draw the pieces in the homes
+    final homes = state.homes;
+    assert(homes.length == 2);
+    for (var i = 0; i != 2; ++i) {
+      final player1 = i == 0;
+      final playerHomes = homes[i];
+      for (var j = 0; j != playerHomes; ++j) {
+        final top = player1 ? 386.0 - (_edgeHeight + 1) * j : 22.0 + (_edgeHeight + 1) * j;
+        yield PieceLayout(pip: 0, player1: player1, left: 520, top: top, label: '', edge: true);
       }
     }
   }
