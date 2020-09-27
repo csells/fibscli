@@ -47,13 +47,13 @@ class DieLayout {
     [Offset(10, 10), Offset(26, 26), Offset(10, 26), Offset(26, 10), Offset(10, 18), Offset(26, 18)], // 6
   ];
 
-  final int roll;
+  final int die;
   final bool player1;
   final double left;
   final double top;
   final List<Offset> spots;
   DieLayout({
-    @required this.roll,
+    @required this.die,
     @required this.player1,
     @required this.left,
     @required this.top,
@@ -66,16 +66,31 @@ class DieLayout {
   }
 
   static Iterable<DieLayout> getLayouts(GammonState game) sync* {
+    final dice = game.dice;
+    assert(dice.length == 2 || dice.length == 4);
+
     for (var i = 0; i != 2; ++i) {
-      final roll = game.dice[i];
+      final die = dice[i];
       yield DieLayout(
         left: 354 + 42.0 * i,
         top: 194,
-        roll: roll,
+        die: die,
         player1: game.sideSign == -1,
-        spots: _spotses[roll - 1],
+        spots: _spotses[die - 1],
       );
     }
+
+    if (dice.length == 4)
+      for (var i = 0; i != 2; ++i) {
+        final die = dice[0]; // they're all the same...
+        yield DieLayout(
+          left: 312 + 126.0 * i,
+          top: 194,
+          die: die,
+          player1: game.sideSign == -1,
+          spots: _spotses[die - 1],
+        );
+      }
   }
 }
 

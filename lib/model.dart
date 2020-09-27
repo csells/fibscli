@@ -7,23 +7,27 @@ import 'package:dartx/dartx.dart';
 class GammonState extends ChangeNotifier {
   static final _rand = Random();
 
-  var points = GammonRules.initialPoints();
-  var hits = [0, 0]; // Checkers hit per player
-  var dice = [0, 0]; // Dice roll
-  var sideSign = 1; // Either -1, or 1, or 0 if no game is playing
-  var turnCount = 0;
-  int selectedIndex = -1; // -1 if no selection.
+  final points = GammonRules.initialPoints();
+  final hits = [0, 0]; // Checkers hit per player
+  List<int> _dice; // Dice roll
+  var _sideSign = 1; // Either -1, or 1, or 0 if no game is playing
+
+  int get sideSign => _sideSign;
+  List<int> get dice => List.unmodifiable(_dice);
 
   void _rollDice() {
-    print('_rollDice()');
-    dice[0] = _rand.nextInt(6) + 1;
-    dice[1] = _rand.nextInt(6) + 1;
+    final die1 = _rand.nextInt(6) + 1;
+    final die2 = _rand.nextInt(6) + 1;
+    _dice = [
+      die1,
+      die2,
+      if (die1 == die2) ...[die1, die1]
+    ];
     notifyListeners();
   }
 
   void nextTurn() {
-    sideSign = -sideSign;
-    turnCount++;
+    _sideSign = -_sideSign;
     _rollDice();
   }
 
@@ -46,18 +50,16 @@ class GammonState extends ChangeNotifier {
     if (point == 0) return;
 
     // do the pieces belong to the current player?
-    if ((point < 1 ? -1 : 1) != sideSign) return;
+    if ((point < 1 ? -1 : 1) != _sideSign) return;
 
-    // check all components of the dice for legal moves, taking into account doubles
-    final rolls = [...dice, if (dice[0] == dice[1]) ...dice];
-
+    // check all components of the _dice for legal moves, taking into account doubles
     // need to uniqify the numbers for trotter
-    final stringRolls = [for (var i = 0; i != rolls.length; ++i) '${rolls[i]}${String.fromCharCode(97 + i)}'];
+    final stringRolls = [for (var i = 0; i != _dice.length; ++i) '${_dice[i]}${String.fromCharCode(97 + i)}'];
     final comps = Compounds(stringRolls);
 
     for (final comp in comps().where((comp) => comp.isNotEmpty)) {
       // check if all of the moves along the way are legal for this compound to be legal
-      final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sideSign];
+      final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * _sideSign];
       final toEndPip = fromStartPip + hops.sum();
       if (toEndPip >= 1 && toEndPip <= 24) {
         final move = GammonMove(fromPip: fromStartPip, toPip: toEndPip, hops: hops);
@@ -169,36 +171,36 @@ class GammonRules {
   // Moves a checker without hitting.
   static void doMove(int fromIndex, int toIndex, final List<int> points) {
     assert(canMove(fromIndex, toIndex, points));
-    int sideSign = points[fromIndex].sign;
-    points[fromIndex] = sideSign * (points[fromIndex].abs() - 1);
-    points[toIndex] = sideSign * (points[toIndex].abs() + 1);
+    int _sideSign = points[fromIndex].sign;
+    points[fromIndex] = _sideSign * (points[fromIndex].abs() - 1);
+    points[toIndex] = _sideSign * (points[toIndex].abs() + 1);
   }
 
   // Hits a lone checker.
   static void doHit(int fromIndex, int toIndex, final List<int> points, List<int> hits) {
     assert(canHit(fromIndex, toIndex, points));
-    int sideSign = points[fromIndex].sign;
-    points[fromIndex] = sideSign * (points[fromIndex].abs() - 1);
-    points[toIndex] = sideSign;
+    int _sideSign = points[fromIndex].sign;
+    points[fromIndex] = _sideSign * (points[fromIndex].abs() - 1);
+    points[toIndex] = _sideSign;
   }
 
-  static int sideIndex(int sideSign /* -1 or 1 */) {
-    assert(sideSign.abs() == 1);
-    return (sideSign + 1) >> 1;
+  static int sideIndex(int _sideSign /* -1 or 1 */) {
+    assert(_sideSign.abs() == 1);
+    return (_sideSign + 1) >> 1;
   }
 
   // Returns true if the player has any hit checkers, false otherwise.
-  static bool hasHit(int sideSign, final List<int> hits) {
-    return hits[sideIndex(sideSign)] != 0;
+  static bool hasHit(int _sideSign, final List<int> hits) {
+    return hits[sideIndex(_sideSign)] != 0;
   }
 
   // Adds a hit checker.
-  static void addHit(int sideSign, final List<int> hits) {
-    hits[sideIndex(sideSign)]++;
+  static void addHit(int _sideSign, final List<int> hits) {
+    hits[sideIndex(_sideSign)]++;
   }
 
   // Remove a hit checker.
-  static void removeHit(int sideSign, List<int> hits) {
-    hits[sideIndex(sideSign)]--;
+  static void removeHit(int _sideSign, List<int> hits) {
+    hits[sideIndex(_sideSign)]--;
   }
 }
