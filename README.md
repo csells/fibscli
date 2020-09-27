@@ -12,7 +12,6 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- undo during a turn before it's confirmed
 - show pip count
 - animation of moves
 - first move (different colored dice)
