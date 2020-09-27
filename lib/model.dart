@@ -72,7 +72,7 @@ class GammonState extends ChangeNotifier {
     points.setAll(0, _undoState.points);
     _hits.setAll(0, _undoState._hits);
     _homes.setAll(0, _undoState._homes);
-    _dice = _undoState._dice;
+    _dice = _undoState._dice.map((d) => DieState(d.roll)).toList();
     _sideSign = _undoState._sideSign;
     notifyListeners();
   }
