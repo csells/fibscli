@@ -8,11 +8,25 @@ import 'package:dartx/dartx.dart';
 class GammonState extends ChangeNotifier {
   static final _rand = Random();
 
-  final points = GammonRules.initialPoints();
-  final _hits = [0, 0]; // pieces per player on the bar
-  final _homes = [0, 0]; // pieces per player in the home
+  final List<int> points;
+  final List<int> _hits; // pieces per player on the bar
+  final List<int> _homes; // pieces per player in the home
   List<DieState> _dice; // dice rolls and whether they're still available
-  var _sideSign = 1; // either -1, or 1, or 0 if no game is playing
+  int _sideSign; // either -1, or 1, or 0 if no game is playing
+  GammonState _undoState;
+
+  GammonState()
+      : points = GammonRules.initialPoints(),
+        _hits = [0, 0],
+        _homes = [0, 0],
+        _sideSign = 1;
+
+  GammonState.clone(GammonState state)
+      : points = List.from(state.points),
+        _hits = List.from(state._hits),
+        _homes = List.from(state._homes),
+        _dice = state._dice.map((d) => DieState(d.roll)).toList(),
+        _sideSign = state._sideSign;
 
   int get sideSign => _sideSign;
   List<DieState> get dice => List.unmodifiable(_dice);
@@ -51,6 +65,16 @@ class GammonState extends ChangeNotifier {
   void nextTurn() {
     _sideSign *= -1;
     _rollDice();
+    _undoState = GammonState.clone(this);
+  }
+
+  void undo() {
+    points.setAll(0, _undoState.points);
+    _hits.setAll(0, _undoState._hits);
+    _homes.setAll(0, _undoState._homes);
+    _dice = _undoState._dice;
+    _sideSign = _undoState._sideSign;
+    notifyListeners();
   }
 
   void doMoveOrHit({int fromPip, int toPip}) {

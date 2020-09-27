@@ -43,6 +43,10 @@ class _GamePlayPageState extends State<GamePlayPage> {
           title: Text(App.title),
           actions: [IconButton(icon: Icon(Icons.sync), onPressed: _tapSync)],
         ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _tapUndo,
+          child: Icon(Icons.undo),
+        ),
         body: FutureBuilder2<SharedPreferences>(
           future: _prefsFuture,
           data: (context, prefs) {
@@ -53,15 +57,21 @@ class _GamePlayPageState extends State<GamePlayPage> {
       );
 
   void _tapSync() => _controller.reversed = !_controller.reversed;
+  void _tapUndo() => _controller.undo();
 }
 
 class GameViewController extends ChangeNotifier {
+  void Function() _onUndo;
   bool _reversed;
+
   bool get reversed => _reversed;
   set reversed(bool reversed) {
     _reversed = reversed;
     notifyListeners();
   }
+
+  set onUndo(void Function() onUndo) => _onUndo = onUndo;
+  void undo() => _onUndo();
 }
 
 class GameView extends StatefulWidget {
@@ -80,6 +90,7 @@ class _GameViewState extends State<GameView> {
   @override
   void initState() {
     super.initState();
+    widget.controller.onUndo = () => _game.undo();
     _game.nextTurn();
   }
 
