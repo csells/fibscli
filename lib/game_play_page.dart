@@ -6,9 +6,36 @@ import 'package:fibscli/pips.dart';
 import 'package:fibscli/tinystate.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class GamePlayPage extends StatelessWidget {
+class GamePlayPage extends StatefulWidget {
+  @override
+  _GamePlayPageState createState() => _GamePlayPageState();
+}
+
+class _GamePlayPageState extends State<GamePlayPage> {
   final _controller = GameViewController();
+  final _prefsFuture = SharedPreferences.getInstance();
+  SharedPreferences _prefs;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefsFuture.then((prefs) {
+      _prefs = prefs;
+      _controller.addListener(_savePrefs);
+    });
+  }
+
+  void _savePrefs() {
+    _prefs.setBool('reversed', _controller.reversed);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_savePrefs);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -16,16 +43,25 @@ class GamePlayPage extends StatelessWidget {
           title: Text(App.title),
           actions: [IconButton(icon: Icon(Icons.sync), onPressed: _tapSync)],
         ),
-        body: GameView(controller: _controller),
+        body: FutureBuilder2<SharedPreferences>(
+          future: _prefsFuture,
+          data: (context, prefs) {
+            _controller.reversed = prefs.getBool('reversed') ?? false;
+            return GameView(controller: _controller);
+          },
+        ),
       );
 
   void _tapSync() => _controller.reversed = !_controller.reversed;
 }
 
-class GameViewController {
-  final _reversed = ValueNotifier(false);
-  bool get reversed => _reversed.value;
-  set reversed(bool reversed) => _reversed.value = reversed;
+class GameViewController extends ChangeNotifier {
+  bool _reversed;
+  bool get reversed => _reversed;
+  set reversed(bool reversed) {
+    _reversed = reversed;
+    notifyListeners();
+  }
 }
 
 class GameView extends StatefulWidget {
@@ -55,10 +91,10 @@ class _GameViewState extends State<GameView> {
           height: double.infinity,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: ValueListenableBuilder<bool>(
-              valueListenable: widget.controller._reversed,
-              builder: (context, reversed, child) => RotatedBox(
-                quarterTurns: reversed ? 2 : 0,
+            child: ChangeNotifierBuilder<GameViewController>(
+              notifier: widget.controller,
+              builder: (context, controller, child) => RotatedBox(
+                quarterTurns: controller.reversed ? 2 : 0,
                 child: FittedBox(
                   child: Stack(
                     children: [
@@ -98,7 +134,9 @@ class _GameViewState extends State<GameView> {
                           ),
                         ),
                         Positioned.fromRect(
-                            rect: layout.labelRect, child: PipLabel(layout: layout, reversed: reversed)),
+                          rect: layout.labelRect,
+                          child: PipLabel(layout: layout, reversed: controller.reversed),
+                        ),
                       ],
 
                       // player1 home
@@ -193,5 +231,8 @@ class _GameViewState extends State<GameView> {
     });
   }
 
-  void _diceTap() => _game.nextTurn();
+  void _diceTap() {
+    // can't go to the next turn until there are no more available dice
+    if (_game.dice.every((d) => !d.available)) _game.nextTurn();
+  }
 }

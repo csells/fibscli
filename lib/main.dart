@@ -13,3 +13,31 @@ class App extends StatelessWidget {
         debugShowCheckedModeBanner: false,
       );
 }
+
+class FutureBuilder2<T> extends StatelessWidget {
+  final Future<T> future;
+  final T initialData;
+  final Widget Function(BuildContext context) pending;
+  final Widget Function(BuildContext context, Object error) error;
+  final Widget Function(BuildContext context, T data) data;
+
+  FutureBuilder2({
+    Key key,
+    @required this.future,
+    this.initialData,
+    this.pending,
+    this.error,
+    @required this.data,
+  })  : assert(data != null),
+        super(key: key);
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<T>(
+      future: future,
+      initialData: initialData,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return error != null ? error(context, snapshot.error) : Text(snapshot.error.toString());
+        if (snapshot.hasData) return data(context, snapshot.data);
+        return pending != null ? pending(context) : Center(child: CircularProgressIndicator());
+      });
+}

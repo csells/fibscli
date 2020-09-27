@@ -17,26 +17,29 @@ class DieView extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: _onTap,
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: (layout.player1 ? Colors.black : Colors.white).withOpacity(layout.die.available ? 1.0 : 0.5),
-                border: Border.all(color: Colors.black, width: 2),
-                borderRadius: BorderRadius.all(Radius.circular(10)),
-              ),
-            ),
-            for (final rect in layout.getSpotRects())
-              Positioned.fromRect(
-                rect: rect,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: layout.player1 ? Colors.white : Colors.black,
-                    shape: BoxShape.circle,
-                  ),
+        child: Opacity(
+          opacity: layout.die.available ? 1.0 : 0.5,
+          child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: layout.player1 ? Colors.black : Colors.white,
+                  border: Border.all(color: Colors.black, width: 2),
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
                 ),
               ),
-          ],
+              for (final rect in layout.getSpotRects())
+                Positioned.fromRect(
+                  rect: rect,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: layout.player1 ? Colors.white : Colors.black,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       );
 }

@@ -12,15 +12,14 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- remember state of the reverse setting between sessions
+- test on the web
 - show pip count
-- allow use to choose their color (and save that between sessions)
 - undo during a turn before it's confirmed
-- allow moves from the bar
-- calculate legal moves from the bar
-- trim legal moves when pieces are on the bar
-- allow moves to bear off
+- animation of moves
+- first move (different colored dice)
 - implement the forced moves rule (instead of just removing moves that aren't available as you go)
+- allow moves from the bar
+- allow moves to bear off
 - hook up with fibs.com telnet server
 - ...
 - profit!
