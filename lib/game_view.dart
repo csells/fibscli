@@ -60,9 +60,7 @@ class _GameViewState extends State<GameView> {
                     Positioned.fromRect(
                       rect: layout.rect,
                       child: GestureDetector(
-                        onTap: _legalMoves.hasHops(fromPip: _fromPip, toPip: layout.pip)
-                            ? () => _pipTap(layout.pip)
-                            : null,
+                        onTap: () => _pipTap(layout.pip),
                         child: PipTriangle(
                           pip: layout.pip,
                           highlight: _legalMoves.hasHops(fromPip: _fromPip, toPip: layout.pip),
@@ -99,7 +97,7 @@ class _GameViewState extends State<GameView> {
                     Positioned.fromRect(
                       rect: layout.rect,
                       child: GestureDetector(
-                        onTap: () => _togglePieceHilight(layout.pip),
+                        onTap: () => _pieceTap(layout.pip),
                         child: PieceView(layout: layout),
                       ),
                     ),
@@ -120,14 +118,15 @@ class _GameViewState extends State<GameView> {
         ),
       );
 
-  void _togglePieceHilight(int pip) {
-    // reset and bail early if we're turning off the highlighting
-    setState(() => _legalMoves.clear());
-    if (_fromPip != 0) {
-      setState(() => _fromPip = 0);
+  void _pieceTap(int pip) {
+    // if there are legal moves, try to move
+    if (_legalMoves.isNotEmpty) {
+      _move(pip);
       return;
     }
 
+    // calculate legal moves
+    assert(_legalMoves.isEmpty);
     final legalMoves = _game.getLegalMoves(pip).toList();
     if (legalMoves.isEmpty) return;
 
@@ -137,17 +136,21 @@ class _GameViewState extends State<GameView> {
     });
   }
 
-  void _pipTap(int toEndPip) {
+  void _pipTap(int toPip) => _move(toPip);
+
+  void _move(int toEndPip) {
     // find the first set of hops that move from the current pip to the desired pip
     final hops = _legalMoves.hops(fromPip: _fromPip, toPip: toEndPip);
-    assert(hops != null);
 
-    // move the piece for each hop
-    var fromPip = _fromPip;
-    for (final hop in hops) {
-      final toPip = fromPip + hop;
-      _game.doMoveOrHit(fromPip: fromPip, toPip: toPip);
-      fromPip = toPip;
+    // if this is a legal move, do the move
+    if (hops != null) {
+      // move the piece for each hop
+      var fromPip = _fromPip;
+      for (final hop in hops) {
+        final toPip = fromPip + hop;
+        _game.doMoveOrHit(fromPip: fromPip, toPip: toPip);
+        fromPip = toPip;
+      }
     }
 
     // reset
@@ -157,7 +160,5 @@ class _GameViewState extends State<GameView> {
     });
   }
 
-  void _diceTap() {
-    _game.nextTurn();
-  }
+  void _diceTap() => _game.nextTurn();
 }

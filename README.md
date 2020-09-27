@@ -12,8 +12,8 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- undo during a turn before it's confirmed
 - show the "hit" pieces on the bar
+- undo during a turn before it's confirmed
 - allow moves from the bar
 - calculate legal moves from the bar
 - trim legal moves when pieces are on the bar
