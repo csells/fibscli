@@ -9,12 +9,13 @@ class GammonState extends ChangeNotifier {
   static final _rand = Random();
 
   final points = GammonRules.initialPoints();
-  final hits = [0, 0]; // Checkers hit per player
+  final _hits = [0, 0]; // Checkers hit per player
   List<DieState> _dice; // Dice rolls and whether they're still available
   var _sideSign = 1; // Either -1, or 1, or 0 if no game is playing
 
   int get sideSign => _sideSign;
   List<DieState> get dice => List.unmodifiable(_dice);
+  List<int> get hits => List.unmodifiable(_hits);
 
   void _rollDice() {
     final roll1 = _rand.nextInt(6) + 1;
@@ -59,7 +60,7 @@ class GammonState extends ChangeNotifier {
     if (GammonRules.canMove(fromIndex, toIndex, points)) {
       GammonRules.doMove(fromIndex, toIndex, points);
     } else if (GammonRules.canHit(fromIndex, toIndex, points)) {
-      GammonRules.doHit(fromIndex, toIndex, points, hits);
+      GammonRules.doHit(fromIndex, toIndex, points, _hits);
     } else {
       return;
     }
@@ -103,7 +104,7 @@ class GammonState extends ChangeNotifier {
   bool legalMove(GammonMove move) {
     // temp board state while checking each hop of the move
     final movePoints = List<int>.from(points);
-    final moveHits = List<int>.from(hits);
+    final moveHits = List<int>.from(_hits);
 
     // only a legal move if each hop is legal
     var fromPip = move.fromPip;
@@ -214,6 +215,7 @@ class GammonRules {
     int _sideSign = points[fromIndex].sign;
     points[fromIndex] = _sideSign * (points[fromIndex].abs() - 1);
     points[toIndex] = _sideSign;
+    hits[_sideSign == -1 ? 1 : 0] += 1;
   }
 
   static int sideIndex(int _sideSign /* -1 or 1 */) {
