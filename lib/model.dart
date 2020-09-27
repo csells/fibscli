@@ -26,7 +26,23 @@ class GammonState extends ChangeNotifier {
     ];
 
     _dice = [for (var roll in rolls) DieState(roll)];
+    _disableUnusableDice();
+
     notifyListeners();
+  }
+
+  void _disableUnusableDice() {
+    // check all the pips for legal moves
+    final allLegalMoves = <GammonMove>{};
+    for (var fromPip = 1; fromPip <= 24; ++fromPip) allLegalMoves.addAll(getLegalMoves(fromPip));
+
+    // find all of the possible hops
+    final allHops = Set<int>.from(allLegalMoves.flatMap((m) => m.hops.map((h) => h.abs())));
+
+    // remove dice that aren't usable
+    for (final die in _dice.where((d) => d.available)) {
+      if (!allHops.contains(die.roll)) die.available = false;
+    }
   }
 
   void nextTurn() {
@@ -52,7 +68,10 @@ class GammonState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _useDie(int roll) => _dice.firstWhere((d) => d.roll == roll && d.available).available = false;
+  void _useDie(int roll) {
+    _dice.firstWhere((d) => d.roll == roll && d.available).available = false;
+    _disableUnusableDice();
+  }
 
   Iterable<GammonMove> getLegalMoves(int fromStartPip) sync* {
     // are there pieces on this pip?

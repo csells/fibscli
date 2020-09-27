@@ -19,6 +19,7 @@ The goal is to host it on the desktop and mobile web and make it work against th
 - calculate legal moves from the bar
 - trim legal moves when pieces are on the bar
 - allow moves to bear off
+- implement the forced moves rule (instead of just removing moved that aren't available as you go)
 - show board in reverse
 - hook up with fibs.com telnet server
 - ...
