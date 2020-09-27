@@ -1,8 +1,9 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:trotter/trotter.dart';
+import 'package:dartx/dartx.dart';
 
-// inspired by https://gist.githubusercontent.com/malkia/bb37c27d0a5cfed2306b2c2fa20f246f/raw/d21b064c5838a031d96234ab4bf95c3153edbcf2/gammon2.dart
 class GammonState extends ChangeNotifier {
   static final _rand = Random();
 
@@ -14,6 +15,7 @@ class GammonState extends ChangeNotifier {
   int selectedIndex = -1; // -1 if no selection.
 
   void _rollDice() {
+    print('_rollDice()');
     dice[0] = _rand.nextInt(6) + 1;
     dice[1] = _rand.nextInt(6) + 1;
     notifyListeners();
@@ -23,12 +25,6 @@ class GammonState extends ChangeNotifier {
     sideSign = -sideSign;
     turnCount++;
     _rollDice();
-  }
-
-  bool canMoveOrHit({int fromPip, int toPip}) {
-    if (fromPip < 1 || fromPip > 24) return false;
-    if (toPip < 1 || toPip > 24) return false;
-    return GammonRules.canMove(fromPip - 1, toPip - 1, points) || GammonRules.canHit(fromPip - 1, toPip - 1, points);
   }
 
   void doMoveOrHit({int fromPip, int toPip}) {
@@ -44,31 +40,88 @@ class GammonState extends ChangeNotifier {
     }
   }
 
-  List<int> getLegalMoves(int fromPip) {
-    final point = points[fromPip - 1];
-    if (point == 0) return [];
+  Iterable<GammonMove> getLegalMoves(int fromStartPip) sync* {
+    // are there pieces on this pip?
+    final point = points[fromStartPip - 1];
+    if (point == 0) return;
 
-    final turnSign = point < 1 ? -1 : 1;
-    final playerTurn = turnSign == sideSign; // does this piece belong to the player whose turn it is?
-    if (!playerTurn) return [];
+    // do the pieces belong to the current player?
+    if ((point < 1 ? -1 : 1) != sideSign) return;
 
-    // check all components of the dice for legal moves, taking into account doubles;
-    // need to uniqify the numbers for trotter
-    final legalMoves = <int>{};
+    // check all components of the dice for legal moves, taking into account doubles
     final rolls = [...dice, if (dice[0] == dice[1]) ...dice];
+
+    // need to uniqify the numbers for trotter
     final stringRolls = [for (var i = 0; i != rolls.length; ++i) '${rolls[i]}${String.fromCharCode(97 + i)}'];
     final comps = Compounds(stringRolls);
+
     for (final comp in comps().where((comp) => comp.isNotEmpty)) {
       // check if all of the moves along the way are legal for this compound to be legal
-      final nums = [for (final c in comp) int.parse(c.substring(0, 1))];
-      var toPip = fromPip;
-      for (final n in nums) {
-        toPip = toPip + n * turnSign;
-        if (canMoveOrHit(fromPip: fromPip, toPip: toPip)) legalMoves.add(toPip);
+      final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sideSign];
+      final toEndPip = fromStartPip + hops.sum();
+      if (toEndPip >= 1 && toEndPip <= 24) {
+        final move = GammonMove(fromPip: fromStartPip, toPip: toEndPip, hops: hops);
+        if (legalMove(move)) yield move;
       }
     }
+  }
 
-    return legalMoves.toList();
+  bool legalMove(GammonMove move) {
+    // temp board state while checking each hop of the move
+    final movePoints = List<int>.from(points);
+    final moveHits = List<int>.from(hits);
+
+    // only a legal move if each hop is legal
+    var fromPip = move.fromPip;
+    for (final hop in move.hops) {
+      final toPip = fromPip + hop;
+      final fromIndex = fromPip - 1;
+      final toIndex = toPip - 1;
+
+      // check this hop and update temp game state for next hop
+      if (GammonRules.canMove(fromIndex, toIndex, movePoints)) {
+        GammonRules.doMove(fromIndex, toIndex, movePoints);
+      } else if (GammonRules.canHit(fromIndex, toIndex, movePoints)) {
+        GammonRules.doHit(fromIndex, toIndex, movePoints, moveHits);
+      } else {
+        return false;
+      }
+
+      fromPip = toPip;
+    }
+
+    return true;
+  }
+}
+
+extension GammonMoves on Iterable<GammonMove> {
+  List<int> hops({int fromPip, int toPip}) =>
+      this.firstOrNullWhere((m) => m.fromPip == fromPip && m.toPip == toPip)?.hops;
+
+  bool hasHops({int fromPip, int toPip}) => hops(fromPip: fromPip, toPip: toPip) != null;
+}
+
+class GammonMove {
+  final int fromPip;
+  final int toPip;
+  final List<int> hops;
+  GammonMove({@required this.fromPip, @required this.toPip, @required this.hops})
+      : assert(fromPip != null && fromPip >= 1 && fromPip <= 25),
+        assert(toPip != null && toPip >= 1 && toPip <= 24),
+        assert(hops != null && hops.isNotEmpty);
+
+  @override
+  String toString() => 'GammonMove(fromPip: $fromPip, toPip: $toPip, hops: $hops)';
+
+  @override
+  bool operator ==(Object o) =>
+      (identical(this, o)) || o is GammonMove && o.fromPip == fromPip && o.toPip == toPip && listEquals(o.hops, hops);
+
+  @override
+  int get hashCode {
+    var hash = fromPip.hashCode ^ toPip.hashCode;
+    for (final hop in hops) hash ^= hop.hashCode;
+    return hash;
   }
 }
 

@@ -12,7 +12,6 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- when moving, do the hops to step on pieces along the way
 - mark dice as used as you use them
 - show the "hit" pieces on the bar
 - allow moves from the bar
@@ -20,6 +19,7 @@ The goal is to host it on the desktop and mobile web and make it work against th
 - trim legal moves when pieces are on the bar
 - allow moves to bear off
 - undo during a turn before it's committed
+- show board in reverse
 - hook up with fibs.com telnet server
 - ...
 - profit!

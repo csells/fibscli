@@ -12,7 +12,7 @@ class GameView extends StatefulWidget {
 
 class _GameViewState extends State<GameView> {
   final _game = GammonState();
-  var _legalMoves = <int>[];
+  var _legalMoves = <GammonMove>[];
   var _fromPip = 0;
 
   @override
@@ -60,10 +60,12 @@ class _GameViewState extends State<GameView> {
                     Positioned.fromRect(
                       rect: layout.rect,
                       child: GestureDetector(
-                        onTap: () => _legalMoves.contains(layout.pip) ? _pipTap(layout.pip) : null,
+                        onTap: _legalMoves.hasHops(fromPip: _fromPip, toPip: layout.pip)
+                            ? () => _pipTap(layout.pip)
+                            : null,
                         child: PipTriangle(
                           pip: layout.pip,
-                          highlight: _legalMoves.contains(layout.pip),
+                          highlight: _legalMoves.hasHops(fromPip: _fromPip, toPip: layout.pip),
                         ),
                       ),
                     ),
@@ -126,21 +128,33 @@ class _GameViewState extends State<GameView> {
       return;
     }
 
-    final legalMoves = _game.getLegalMoves(pip);
+    final legalMoves = _game.getLegalMoves(pip).toList();
     if (legalMoves.isEmpty) return;
 
     setState(() {
       _fromPip = pip;
-      _legalMoves = legalMoves.toList();
+      _legalMoves = legalMoves;
     });
   }
 
-  void _pipTap(int pip) {
-    assert(_legalMoves.contains(pip));
-    _game.doMoveOrHit(fromPip: _fromPip, toPip: pip);
-    _legalMoves.clear();
-    _fromPip = 0;
-    setState(() {});
+  void _pipTap(int toEndPip) {
+    // find the first set of hops that move from the current pip to the desired pip
+    final hops = _legalMoves.hops(fromPip: _fromPip, toPip: toEndPip);
+    assert(hops != null);
+
+    // move the piece for each hop
+    var fromPip = _fromPip;
+    for (final hop in hops) {
+      final toPip = fromPip + hop;
+      _game.doMoveOrHit(fromPip: fromPip, toPip: toPip);
+      fromPip = toPip;
+    }
+
+    // reset
+    setState(() {
+      _legalMoves.clear();
+      _fromPip = 0;
+    });
   }
 
   void _diceTap() {
