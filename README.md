@@ -12,13 +12,13 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
+- show board in reverse (rotate the board and rotate the numbers?)
 - undo during a turn before it's confirmed
 - allow moves from the bar
 - calculate legal moves from the bar
 - trim legal moves when pieces are on the bar
 - allow moves to bear off
-- implement the forced moves rule (instead of just removing moved that aren't available as you go)
-- show board in reverse
+- implement the forced moves rule (instead of just removing moves that aren't available as you go)
 - hook up with fibs.com telnet server
 - ...
 - profit!

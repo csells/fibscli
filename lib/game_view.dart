@@ -29,89 +29,92 @@ class _GameViewState extends State<GameView> {
           height: double.infinity,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: FittedBox(
-              child: Stack(
-                children: [
-                  // frame
-                  Container(
-                    width: 574,
-                    height: 420,
-                    decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 5)),
-                  ),
-
-                  // outer board
-                  Positioned.fromRect(
-                    rect: Rect.fromLTWH(20, 20, 216, 380),
-                    child: Container(
-                      decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+            child: RotatedBox(
+              quarterTurns: 2,
+              child: FittedBox(
+                child: Stack(
+                  children: [
+                    // frame
+                    Container(
+                      width: 574,
+                      height: 420,
+                      decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 5)),
                     ),
-                  ),
 
-                  // inner board
-                  Positioned.fromRect(
-                    rect: Rect.fromLTWH(284, 20, 216, 380),
-                    child: Container(
-                      decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
-                    ),
-                  ),
-
-                  // pips and labels
-                  for (final layout in PipLayout.layouts) ...[
+                    // outer board
                     Positioned.fromRect(
-                      rect: layout.rect,
-                      child: GestureDetector(
-                        onTap: () => _pipTap(layout.pip),
-                        child: PipTriangle(
-                          pip: layout.pip,
-                          highlight: _legalMoves.hasHops(fromPip: _fromPip, toPip: layout.pip),
+                      rect: Rect.fromLTWH(20, 20, 216, 380),
+                      child: Container(
+                        decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                      ),
+                    ),
+
+                    // inner board
+                    Positioned.fromRect(
+                      rect: Rect.fromLTWH(284, 20, 216, 380),
+                      child: Container(
+                        decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                      ),
+                    ),
+
+                    // pips and labels
+                    for (final layout in PipLayout.layouts) ...[
+                      Positioned.fromRect(
+                        rect: layout.rect,
+                        child: GestureDetector(
+                          onTap: () => _pipTap(layout.pip),
+                          child: PipTriangle(
+                            pip: layout.pip,
+                            highlight: _legalMoves.hasHops(fromPip: _fromPip, toPip: layout.pip),
+                          ),
                         ),
                       ),
+                      Positioned.fromRect(rect: layout.labelRect, child: PipLabel(layout: layout)),
+                    ],
+
+                    // player1 home
+                    Positioned.fromRect(
+                      rect: Rect.fromLTWH(520, 216, 32, 183),
+                      child: Container(
+                        decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                      ),
                     ),
-                    Positioned.fromRect(rect: layout.labelRect, child: PipLabel(layout: layout)),
+
+                    // player2 home
+                    Positioned.fromRect(
+                      rect: Rect.fromLTWH(520, 20, 32, 183),
+                      child: Container(
+                        decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                      ),
+                    ),
+
+                    // doubling cube: undoubled
+                    // Positioned.fromRect(
+                    //   rect: Rect.fromLTWH(238, 186, 44, 44),
+                    //   child: DoublingCubeView(),
+                    // ),
+
+                    // pieces
+                    for (final layout in PieceLayout.getLayouts(game, highlightedPiecePip: _fromPip))
+                      Positioned.fromRect(
+                        rect: layout.rect,
+                        child: GestureDetector(
+                          onTap: () => _pieceTap(layout.pip),
+                          child: PieceView(layout: layout),
+                        ),
+                      ),
+
+                    // dice
+                    for (final layout in DieLayout.getLayouts(game))
+                      Positioned.fromRect(
+                        rect: layout.rect,
+                        child: DieView(
+                          layout: layout,
+                          onTap: _diceTap,
+                        ),
+                      ),
                   ],
-
-                  // player1 home
-                  Positioned.fromRect(
-                    rect: Rect.fromLTWH(520, 216, 32, 183),
-                    child: Container(
-                      decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
-                    ),
-                  ),
-
-                  // player2 home
-                  Positioned.fromRect(
-                    rect: Rect.fromLTWH(520, 20, 32, 183),
-                    child: Container(
-                      decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
-                    ),
-                  ),
-
-                  // doubling cube: undoubled
-                  // Positioned.fromRect(
-                  //   rect: Rect.fromLTWH(238, 186, 44, 44),
-                  //   child: DoublingCubeView(),
-                  // ),
-
-                  // pieces
-                  for (final layout in PieceLayout.getLayouts(game, highlightedPiecePip: _fromPip))
-                    Positioned.fromRect(
-                      rect: layout.rect,
-                      child: GestureDetector(
-                        onTap: () => _pieceTap(layout.pip),
-                        child: PieceView(layout: layout),
-                      ),
-                    ),
-
-                  // dice
-                  for (final layout in DieLayout.getLayouts(game))
-                    Positioned.fromRect(
-                      rect: layout.rect,
-                      child: DieView(
-                        layout: layout,
-                        onTap: _diceTap,
-                      ),
-                    ),
-                ],
+                ),
               ),
             ),
           ),

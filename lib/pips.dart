@@ -8,10 +8,13 @@ class PipLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.center,
-      child: Text(
-        layout.pip.toString(),
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Colors.black),
+      child: RotatedBox(
+        quarterTurns: 2,
+        child: Text(
+          layout.pip.toString(),
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.black, fontSize: 10),
+        ),
       ),
     );
   }
