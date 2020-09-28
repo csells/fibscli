@@ -2,6 +2,7 @@ import 'package:fibscli/dice.dart';
 import 'package:fibscli/main.dart';
 import 'package:fibscli/model.dart';
 import 'package:fibscli/pieces.dart';
+import 'package:fibscli/pip_count.dart';
 import 'package:fibscli/pips.dart';
 import 'package:fibscli/tinystate.dart';
 import 'package:flutter/foundation.dart';
@@ -41,7 +42,13 @@ class _GamePlayPageState extends State<GamePlayPage> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(App.title),
-          actions: [IconButton(icon: Icon(Icons.sync), onPressed: _tapSync)],
+          actions: [
+            IconButton(
+              icon: Icon(Icons.sync),
+              onPressed: _tapSync,
+              tooltip: 'reverse board',
+            )
+          ],
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: _tapUndo,
@@ -174,6 +181,8 @@ class _GameViewState extends State<GameView> {
 
                       // pieces
                       for (final layout in PieceLayout.getLayouts(game, highlightedPiecePip: _fromPip))
+                        // AnimatedPositioned.fromRect(
+                        //   duration: Duration(milliseconds: 250),
                         Positioned.fromRect(
                           rect: layout.rect,
                           child: GestureDetector(
@@ -190,6 +199,13 @@ class _GameViewState extends State<GameView> {
                             layout: layout,
                             onTap: _diceTap,
                           ),
+                        ),
+
+                      // pip counts
+                      for (final layout in PipCountLayout.getLayouts(game))
+                        Positioned.fromRect(
+                          rect: layout.rect,
+                          child: PipCountView(layout: layout, reversed: controller.reversed),
                         ),
                     ],
                   ),

@@ -104,7 +104,7 @@ class PieceLayout {
       for (var j = 0; j != min(playerHits, 5); ++j) {
         final label = (j + 1) == 1 && playerHits > 5 ? playerHits.toString() : '';
         final top = player1 ? 138.0 - _dy * j : 252.0 + _dy * j;
-        yield PieceLayout(pip: 0, player1: player1, left: 246, top: top, label: label, highlight: false);
+        yield PieceLayout(pip: 0, player1: !player1, left: 246, top: top, label: label, highlight: false);
       }
     }
 

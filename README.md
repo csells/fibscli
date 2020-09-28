@@ -12,7 +12,6 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- show pip count
 - animation of moves
 - first move (different colored dice)
 - implement the forced moves rule (instead of just removing moves that aren't available as you go)
