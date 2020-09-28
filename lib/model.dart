@@ -108,11 +108,11 @@ class GammonState extends ChangeNotifier {
       if (pip.isEmpty) continue;
       if (pip[0].sign != sign) continue;
       final pieceCount = pip.length;
-      pipCount += sign == -1 ? -pieceCount * i : pieceCount * (23 - i);
+      pipCount += sign == -1 ? pieceCount * i : pieceCount * (25 - i);
     }
 
     // pips left on the bar
-    pipCount += _pips[25].where((p) => p.sign == sign).sum() * 24;
+    pipCount += _pips[0].where((p) => p.sign == sign).length * 24;
 
     return pipCount;
   }
