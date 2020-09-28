@@ -64,7 +64,7 @@ class PieceLayout {
     assert(_pieceWidth == _pieceHeight);
 
     // draw the pieces on the board
-    for (var j = 0; j != 4; j++)
+    for (var j = 0; j != 4; j++) {
       for (var i = 0; i != 6; ++i) {
         final pipNo = j * 6 + i + 1;
         final pip = pips[pipNo];
@@ -97,24 +97,31 @@ class PieceLayout {
           }
         }
       }
+    }
 
     // draw the pieces on the bar
     final bar = pips[0];
-    final barPieceCount = bar.length;
-    for (var i = 0; i != barPieceCount; ++i) {
-      final pieceId = bar[i];
-      final label = (i + 1) == 1 && barPieceCount > 5 ? barPieceCount.toString() : '';
-      final top = pieceId.sign == -1 ? 138.0 - _dy * min(i, 4) : 252.0 + _dy * min(i, 4);
-      yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 246, top: top, label: label, highlight: false);
+    for (var sign = -1; sign <= 1; sign += 2) {
+      final pieces = bar.where((p) => p.sign == sign).toList();
+      final pieceCount = pieces.length;
+      for (var i = 0; i != pieceCount; ++i) {
+        final pieceId = pieces[i];
+        final label = (i + 1) == pieceCount && pieceCount > 3 ? pieceCount.toString() : '';
+        final top = pieceId.sign == -1 ? 254.0 + _dy * min(i, 2) : 138.0 - _dy * min(i, 2);
+        yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 246, top: top, label: label, highlight: false);
+      }
     }
 
     // draw the pieces in their homes
     final home = pips[25];
-    final homePieceCount = home.length;
-    for (var i = 0; i != homePieceCount; ++i) {
-      final pieceId = home[i];
-      final top = pieceId.sign == -1 ? 386.0 - (_edgeHeight + 1) * min(i, 4) : 22.0 + (_edgeHeight + 1) * min(i, 4);
-      yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 520, top: top, label: '', edge: true);
+    for (var sign = -1; sign <= 1; sign += 2) {
+      final pieces = home.where((p) => p.sign == sign).toList();
+      final pieceCount = pieces.length;
+      for (var i = 0; i != pieceCount; ++i) {
+        final pieceId = pieces[i];
+        final top = pieceId.sign == -1 ? 386.0 - (_edgeHeight + 1) * i : 22.0 + (_edgeHeight + 1) * i;
+        yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 520, top: top, label: '', edge: true);
+      }
     }
   }
 }
