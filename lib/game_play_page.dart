@@ -181,9 +181,9 @@ class _GameViewState extends State<GameView> {
 
                       // pieces
                       for (final layout in PieceLayout.getLayouts(game, highlightedPiecePip: _fromPip))
-                        // AnimatedPositioned.fromRect(
-                        //   duration: Duration(milliseconds: 250),
-                        Positioned.fromRect(
+                        AnimatedPositioned.fromRect(
+                          duration: Duration(milliseconds: 250),
+                          key: ValueKey(layout.pieceId),
                           rect: layout.rect,
                           child: GestureDetector(
                             onTap: () => _pieceTap(layout.pipNo),
