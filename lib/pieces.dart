@@ -10,13 +10,13 @@ class PieceView extends StatelessWidget {
   Widget build(BuildContext context) => layout.edge
       ? Container(
           decoration: BoxDecoration(
-            color: layout.player1 ? Colors.black : Colors.white,
+            color: layout.pieceId.sign == -1 ? Colors.black : Colors.white,
             border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 2),
           ),
         )
       : Container(
           decoration: BoxDecoration(
-            color: layout.player1 ? Colors.black : Colors.white,
+            color: layout.pieceId.sign == -1 ? Colors.black : Colors.white,
             shape: BoxShape.circle,
             border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 2),
           ),
@@ -24,7 +24,7 @@ class PieceView extends StatelessWidget {
             child: Text(
               layout.label,
               textAlign: TextAlign.center,
-              style: TextStyle(color: layout.player1 ? Colors.white : Colors.black),
+              style: TextStyle(color: layout.pieceId.sign == -1 ? Colors.white : Colors.black),
             ),
           ),
         );
@@ -38,16 +38,16 @@ class PieceLayout {
   static final _edgeWidth = 32.0;
   static final _edgeHeight = 11.0;
 
-  final int pip;
-  final bool player1;
+  final int pipNo;
+  final int pieceId;
   final double left;
   final double top;
   final String label;
   final bool highlight;
   final bool edge;
   PieceLayout({
-    @required this.pip,
-    @required this.player1,
+    @required this.pipNo,
+    @required this.pieceId,
     @required this.left,
     @required this.top,
     @required this.label,
@@ -59,36 +59,39 @@ class PieceLayout {
       edge ? Rect.fromLTWH(left, top, _edgeWidth, _edgeHeight) : Rect.fromLTWH(left, top, _pieceWidth, _pieceHeight);
 
   static Iterable<PieceLayout> getLayouts(GammonState state, {int highlightedPiecePip}) sync* {
-    assert(state.points.length == 24);
+    final pips = state.pips;
+    assert(pips.length == 26);
     assert(_pieceWidth == _pieceHeight);
 
     // draw the pieces on the board
     for (var j = 0; j != 4; j++)
       for (var i = 0; i != 6; ++i) {
-        final pip = j * 6 + i + 1;
+        final pipNo = j * 6 + i + 1;
+        final pip = pips[pipNo];
+        if (pip.isEmpty) continue;
+        assert(pip.every((p) => p.sign == pip[0].sign));
+        final pieceCount = pip.length;
         final dx = _dx * i;
-        final point = state.points[pip - 1];
-        final player1 = point < 0;
-        final pieceCount = point.abs();
 
-        for (var h = 0; h != min(pieceCount, 5); ++h) {
+        for (var h = 0; h != pieceCount; ++h) {
           // if there's more than 5, the last one gets a label w/ the total number of pieces in the stack
-          final label = (h + 1) == 5 && pieceCount > 5 ? pieceCount.toString() : '';
-          final dy = _dy * h;
-          final highlight = pip == highlightedPiecePip && (h + 1) == min(pieceCount, 5);
+          final label = pieceCount > 5 && (h + 1) == pieceCount ? pieceCount.toString() : '';
+          final dy = _dy * min(4, h);
+          final highlight = pipNo == highlightedPiecePip && (h + 1) == min(pieceCount, 5);
+          final pieceId = pip[h];
 
-          if (pip >= 1 && pip <= 6) {
+          if (pipNo >= 1 && pipNo <= 6) {
             yield PieceLayout(
-                pip: pip, player1: player1, left: 468 - dx, top: 370 - dy, label: label, highlight: highlight);
-          } else if (pip >= 7 && pip <= 12) {
+                pipNo: pipNo, pieceId: pieceId, left: 468 - dx, top: 370 - dy, label: label, highlight: highlight);
+          } else if (pipNo >= 7 && pipNo <= 12) {
             yield PieceLayout(
-                pip: pip, player1: player1, left: 204 - dx, top: 370 - dy, label: label, highlight: highlight);
-          } else if (pip >= 13 && pip <= 18) {
+                pipNo: pipNo, pieceId: pieceId, left: 204 - dx, top: 370 - dy, label: label, highlight: highlight);
+          } else if (pipNo >= 13 && pipNo <= 18) {
             yield PieceLayout(
-                pip: pip, player1: player1, left: 24 + dx, top: 22 + dy, label: label, highlight: highlight);
-          } else if (pip >= 19 && pip <= 24) {
+                pipNo: pipNo, pieceId: pieceId, left: 24 + dx, top: 22 + dy, label: label, highlight: highlight);
+          } else if (pipNo >= 19 && pipNo <= 24) {
             yield PieceLayout(
-                pip: pip, player1: player1, left: 288 + dx, top: 22 + dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceId: pieceId, left: 288 + dx, top: 22 + dy, label: label, highlight: highlight);
           } else {
             assert(false);
           }
@@ -96,28 +99,22 @@ class PieceLayout {
       }
 
     // draw the pieces on the bar
-    final hits = state.hits;
-    assert(hits.length == 2);
-    for (var i = 0; i != 2; ++i) {
-      final player1 = i == 0;
-      final playerHits = hits[i];
-      for (var j = 0; j != min(playerHits, 5); ++j) {
-        final label = (j + 1) == 1 && playerHits > 5 ? playerHits.toString() : '';
-        final top = player1 ? 138.0 - _dy * j : 252.0 + _dy * j;
-        yield PieceLayout(pip: 0, player1: !player1, left: 246, top: top, label: label, highlight: false);
-      }
+    final bar = pips[0];
+    final barPieceCount = bar.length;
+    for (var i = 0; i != barPieceCount; ++i) {
+      final pieceId = bar[i];
+      final label = (i + 1) == 1 && barPieceCount > 5 ? barPieceCount.toString() : '';
+      final top = pieceId.sign == -1 ? 138.0 - _dy * min(i, 4) : 252.0 + _dy * min(i, 4);
+      yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 246, top: top, label: label, highlight: false);
     }
 
-    // draw the pieces in the homes
-    final homes = state.homes;
-    assert(homes.length == 2);
-    for (var i = 0; i != 2; ++i) {
-      final player1 = i == 0;
-      final playerHomes = homes[i];
-      for (var j = 0; j != playerHomes; ++j) {
-        final top = player1 ? 386.0 - (_edgeHeight + 1) * j : 22.0 + (_edgeHeight + 1) * j;
-        yield PieceLayout(pip: 0, player1: player1, left: 520, top: top, label: '', edge: true);
-      }
+    // draw the pieces in their homes
+    final home = pips[25];
+    final homePieceCount = home.length;
+    for (var i = 0; i != homePieceCount; ++i) {
+      final pieceId = home[i];
+      final top = pieceId.sign == -1 ? 386.0 - (_edgeHeight + 1) * min(i, 4) : 22.0 + (_edgeHeight + 1) * min(i, 4);
+      yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 520, top: top, label: '', edge: true);
     }
   }
 }

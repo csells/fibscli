@@ -37,8 +37,8 @@ class PipCountLayout {
 
   static List<PipCountLayout> getLayouts(GammonState game) {
     return [
-      PipCountLayout(pipCount: game.pipCount(player1: true), left: 518, top: 399),
-      PipCountLayout(pipCount: game.pipCount(player1: false), left: 518, top: 5),
+      PipCountLayout(pipCount: game.pipCount(sign: -1), left: 518, top: 399),
+      PipCountLayout(pipCount: game.pipCount(sign: 1), left: 518, top: 5),
     ];
   }
 }

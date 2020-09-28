@@ -147,7 +147,7 @@ class _GameViewState extends State<GameView> {
                             onTap: () => _pipTap(layout.pip),
                             child: PipTriangle(
                               pip: layout.pip,
-                              highlight: _legalMoves.hasHops(fromPip: _fromPip, toPip: layout.pip),
+                              highlight: _legalMoves.hasHops(fromPipNo: _fromPip, toPipNo: layout.pip),
                             ),
                           ),
                         ),
@@ -186,7 +186,7 @@ class _GameViewState extends State<GameView> {
                         Positioned.fromRect(
                           rect: layout.rect,
                           child: GestureDetector(
-                            onTap: () => _pieceTap(layout.pip),
+                            onTap: () => _pieceTap(layout.pipNo),
                             child: PieceView(layout: layout),
                           ),
                         ),
@@ -216,20 +216,20 @@ class _GameViewState extends State<GameView> {
         ),
       );
 
-  void _pieceTap(int pip) {
+  void _pieceTap(int pipNo) {
     // if there are legal moves, try to move
     if (_legalMoves.isNotEmpty) {
-      _move(pip);
+      _move(pipNo);
       return;
     }
 
     // calculate legal moves
     assert(_legalMoves.isEmpty);
-    final legalMoves = _game.getLegalMoves(pip).toList();
+    final legalMoves = _game.getLegalMoves(pipNo).toList();
     if (legalMoves.isEmpty) return;
 
     setState(() {
-      _fromPip = pip;
+      _fromPip = pipNo;
       _legalMoves = legalMoves;
     });
   }
@@ -238,7 +238,7 @@ class _GameViewState extends State<GameView> {
 
   void _move(int toEndPip) {
     // find the first set of hops that move from the current pip to the desired pip
-    final hops = _legalMoves.hops(fromPip: _fromPip, toPip: toEndPip);
+    final hops = _legalMoves.hops(fromPipNo: _fromPip, toPipNo: toEndPip);
 
     // if this is a legal move, do the move
     if (hops != null) {
@@ -246,7 +246,7 @@ class _GameViewState extends State<GameView> {
       var fromPip = _fromPip;
       for (final hop in hops) {
         final toPip = fromPip + hop;
-        _game.doMoveOrHit(fromPip: fromPip, toPip: toPip);
+        _game.doMoveOrHit(fromPipNo: fromPip, toPipNo: toPip);
         fromPip = toPip;
       }
     }

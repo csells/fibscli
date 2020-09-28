@@ -85,7 +85,7 @@ class DieLayout {
         left: dx + 312 + 42.0 * i,
         top: 194,
         die: die,
-        player1: game.sideSign == -1,
+        player1: game.turnSign == -1,
         spots: _spotses[die.roll - 1],
       );
     }
