@@ -12,12 +12,8 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- refactor w/ enum Player {one, two}
-- refactor w/ bar/home different based on player and their counting direction
-- refactor sign == dir
-- animation of moves (including hops)
-- allow moves from the bar
 - allow moves to bear off
+- animation of moves (including hops)
 - first move (different colored dice)
 - implement the forced moves rule (instead of just removing moves that aren't available as you go)
 - hook up with fibs.com telnet server

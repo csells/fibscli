@@ -33,7 +33,7 @@ class GammonState extends ChangeNotifier {
     _turnPlayer = turnPlayer;
   }
 
-  GammonState.clone(GammonState state) {
+  GammonState.from(GammonState state) {
     _setState(pips: state._pips, dice: state._dice, turnPlayer: state._turnPlayer);
   }
 
@@ -42,9 +42,9 @@ class GammonState extends ChangeNotifier {
   Player get turnPlayer => _turnPlayer;
 
   void nextTurn() {
-    _turnPlayer = _turnPlayer == Player.one ? Player.two : Player.one;
+    _turnPlayer = GammonRules.otherPlayer(_turnPlayer);
     _rollDice();
-    _undoState = GammonState.clone(this);
+    _undoState = GammonState.from(this);
   }
 
   void undo() {
@@ -248,6 +248,7 @@ class GammonRules {
   static int signFor(Player player) => player == Player.one ? -1 : 1;
   static int homeFor(Player player) => player == Player.one ? 0 : 25;
   static int barFor(Player player) => player == Player.one ? 25 : 0;
+  static Player otherPlayer(Player player) => player == Player.one ? Player.two : Player.one;
 
   // can the piece can be moved without hitting?
   static bool canMove(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
@@ -257,10 +258,10 @@ class GammonRules {
     if (toPipNo == homeFor(player)) return false; // home
     if (toPipNo == barFor(player)) return false; // bar
 
-    final dir = signFor(player);
-    if (!pips[fromPipNo].any((p) => p.sign == dir)) return false;
+    final sign = signFor(player);
+    if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
     if (pips[toPipNo].isEmpty) return true;
-    if (pips[toPipNo][0].sign == dir) return true;
+    if (pips[toPipNo][0].sign == sign) return true;
     return false;
   }
 
@@ -304,17 +305,17 @@ class GammonRules {
     final toIndex = toPieces.lastIndexWhere((p) => p.sign != sign);
     final toId = toPieces.removeAt(toIndex);
     toPieces.add(fromId);
-    final bar = barFor(player);
+    final bar = barFor(otherPlayer(player));
     pips[bar].add(toId); // bar
   }
 
   static bool canBareOff(Player player, int fromPipNo, List<List<int>> pips) {
-    // TODO
+    // TODO: canBareOff
     return false;
   }
 
   static void doBareOff(Player player, int fromPipNo, List<List<int>> pips) {
-    // TODO
+    // TODO: doBareOff
     assert(canBareOff(player, fromPipNo, pips));
   }
 }

@@ -92,7 +92,7 @@ class GameView extends StatefulWidget {
 class _GameViewState extends State<GameView> {
   final _game = GammonState();
   var _legalMoves = <GammonMove>[];
-  var _fromPip = 0;
+  int _fromPip = null;
 
   @override
   void initState() {
@@ -186,7 +186,10 @@ class _GameViewState extends State<GameView> {
                           key: ValueKey(layout.pieceId),
                           rect: layout.rect,
                           child: GestureDetector(
-                            onTap: () => _pieceTap(layout.pipNo),
+                            onTap: GammonRules.signFor(_game.turnPlayer) != layout.pieceId.sign
+                                ? null
+                                : () =>
+                                    _pieceTap(layout.pipNo == 0 ? GammonRules.barFor(_game.turnPlayer) : layout.pipNo),
                             child: PieceView(layout: layout),
                           ),
                         ),
@@ -254,7 +257,7 @@ class _GameViewState extends State<GameView> {
     // reset
     setState(() {
       _legalMoves.clear();
-      _fromPip = 0;
+      _fromPip = null;
     });
   }
 

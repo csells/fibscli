@@ -100,22 +100,24 @@ class PieceLayout {
     }
 
     // draw the pieces on the bar
-    final bar = pips[0];
-    for (var sign = -1; sign <= 1; sign += 2) {
-      final pieces = bar.where((p) => p.sign == sign).toList();
+    for (final player in Player.values) {
+      final sign = GammonRules.signFor(player);
+      final bar = GammonRules.barFor(player);
+      final pieces = pips[bar].where((p) => p.sign == sign).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceId = pieces[i];
         final label = (i + 1) == pieceCount && pieceCount > 3 ? pieceCount.toString() : '';
         final top = pieceId.sign == -1 ? 254.0 + _dy * min(i, 2) : 138.0 - _dy * min(i, 2);
-        yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 246, top: top, label: label, highlight: false);
+        final highlight = bar == highlightedPiecePip && i == 0;
+        yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 246, top: top, label: label, highlight: highlight);
       }
     }
 
     // draw the pieces in their homes
-    final home = pips[25];
-    for (var sign = -1; sign <= 1; sign += 2) {
-      final pieces = home.where((p) => p.sign == sign).toList();
+    for (final player in Player.values) {
+      final sign = GammonRules.signFor(player);
+      final pieces = pips[GammonRules.homeFor(player)].where((p) => p.sign == sign).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceId = pieces[i];
