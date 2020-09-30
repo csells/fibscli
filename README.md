@@ -12,11 +12,22 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- animation of moves
+- refactor w/ enum Player {one, two}
+- refactor w/ bar/home different based on player and their counting direction
+- refactor sign == dir
+- animation of moves (including hops)
 - allow moves from the bar
 - allow moves to bear off
-- implement the forced moves rule (instead of just removing moves that aren't available as you go)
 - first move (different colored dice)
+- implement the forced moves rule (instead of just removing moves that aren't available as you go)
 - hook up with fibs.com telnet server
 - ...
 - profit!
+
+# Legal turns algorithm
+find composits of all pieces on all pips + bar (up to number of dice) for the player, e.g. white: [1, 1, 12, 12, 12, 12, 12, ...]
+  e.g. piece composit == [1, 1] (no doubles),  [1, 1, 12, 12] (doubles)
+find composits of all dice
+  e.g. dice composit == [4, 5] (no doubles), [4, 4, 4, 4] (doubles)
+zip each piece composit with composit of all dice
+  e.g. [1-4, 1-5] (no doubles), [1-4, 1-4, 12-4, 12-4] (doubles)

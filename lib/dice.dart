@@ -23,7 +23,7 @@ class DieView extends StatelessWidget {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: layout.player1 ? Colors.black : Colors.white,
+                  color: layout.player == Player.one ? Colors.black : Colors.white,
                   border: Border.all(color: Colors.black, width: 2),
                   borderRadius: BorderRadius.all(Radius.circular(10)),
                 ),
@@ -33,7 +33,7 @@ class DieView extends StatelessWidget {
                   rect: rect,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: layout.player1 ? Colors.white : Colors.black,
+                      color: layout.player == Player.one ? Colors.white : Colors.black,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -57,13 +57,13 @@ class DieLayout {
   ];
 
   final DieState die;
-  final bool player1;
+  final Player player;
   final double left;
   final double top;
   final List<Offset> spots;
   DieLayout({
     @required this.die,
-    @required this.player1,
+    @required this.player,
     @required this.left,
     @required this.top,
     @required this.spots,
@@ -85,7 +85,7 @@ class DieLayout {
         left: dx + 312 + 42.0 * i,
         top: 194,
         die: die,
-        player1: game.turnSign == -1,
+        player: game.turnPlayer,
         spots: _spotses[die.roll - 1],
       );
     }

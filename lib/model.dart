@@ -8,51 +8,47 @@ import 'package:dartx/dartx.dart';
 class GammonState extends ChangeNotifier {
   static final _rand = Random();
 
-  // index: 1-24 == board, 0 == bar, 25 == home
+  // index: 1-24 == board, 0 == player1 home, player2 bar, 25 == player1 bar, player2 home
   // value: list of piece ids, <0 == player1, >0 == player2
   final _pips = List<List<int>>(26);
 
   final _dice = <DieState>[]; // dice rolls and whether they're still available
-  int _turnSign; // -1: player1, 1: player2
+  Player _turnPlayer;
   GammonState _undoState; // state for implementing undo
 
   GammonState() {
-    _reset();
+    _setState(pips: GammonRules.initialPips(), dice: <DieState>[], turnPlayer: Player.two);
   }
 
   void _setState({
     @required List<List<int>> pips,
     @required List<DieState> dice,
-    @required int turnSign,
+    @required Player turnPlayer,
   }) {
     for (var i = 0; i < pips.length; ++i) _pips[i] = List.from(pips[i]);
 
     _dice.clear();
     _dice.addAll(dice.map((d) => DieState(d.roll)).toList());
 
-    _turnSign = turnSign;
-  }
-
-  void _reset() {
-    _setState(pips: GammonRules.initialPips(), dice: <DieState>[], turnSign: 1);
+    _turnPlayer = turnPlayer;
   }
 
   GammonState.clone(GammonState state) {
-    _setState(pips: state._pips, dice: state._dice, turnSign: state._turnSign);
+    _setState(pips: state._pips, dice: state._dice, turnPlayer: state._turnPlayer);
   }
 
   List<List<int>> get pips => List.unmodifiable(_pips);
   List<DieState> get dice => List.unmodifiable(_dice);
-  int get turnSign => _turnSign;
+  Player get turnPlayer => _turnPlayer;
 
   void nextTurn() {
-    _turnSign *= -1;
+    _turnPlayer = _turnPlayer == Player.one ? Player.two : Player.one;
     _rollDice();
     _undoState = GammonState.clone(this);
   }
 
   void undo() {
-    _setState(pips: _undoState._pips, dice: _undoState._dice, turnSign: _undoState._turnSign);
+    _setState(pips: _undoState._pips, dice: _undoState._dice, turnPlayer: _undoState._turnPlayer);
     notifyListeners();
   }
 
@@ -62,7 +58,8 @@ class GammonState extends ChangeNotifier {
     if (fromPip.isEmpty) return;
 
     // do the pieces belong to the current player?
-    if (!fromPip.any((p) => p.sign == _turnSign)) return;
+    final sign = GammonRules.signFor(_turnPlayer);
+    if (!fromPip.any((p) => p.sign == sign)) return;
 
     // check all components of the _dice for legal moves, taking into account doubles
     // need to uniqify the numbers for trotter
@@ -74,10 +71,10 @@ class GammonState extends ChangeNotifier {
     final comps = Compounds(stringRolls);
     for (final comp in comps().where((comp) => comp.isNotEmpty)) {
       // check if all of the moves along the way are legal for this compound to be legal
-      final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * _turnSign];
+      final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
       final toEndPipNo = fromStartPipNo + hops.sum();
       if (toEndPipNo >= 0 && toEndPipNo <= 25) {
-        final move = GammonMove(sign: _turnSign, fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
+        final move = GammonMove(player: _turnPlayer, fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
         if (_legalMove(move)) yield move;
       }
     }
@@ -87,10 +84,10 @@ class GammonState extends ChangeNotifier {
     assert(fromPipNo >= 0 && fromPipNo <= 25);
     assert(toPipNo >= 0 && toPipNo <= 25);
 
-    if (GammonRules.canMove(_turnSign, fromPipNo, toPipNo, pips)) {
-      GammonRules.doMove(_turnSign, fromPipNo, toPipNo, pips);
-    } else if (GammonRules.canHit(_turnSign, fromPipNo, toPipNo, pips)) {
-      GammonRules.doHit(_turnSign, fromPipNo, toPipNo, pips);
+    if (GammonRules.canMove(_turnPlayer, fromPipNo, toPipNo, pips)) {
+      GammonRules.doMove(_turnPlayer, fromPipNo, toPipNo, pips);
+    } else if (GammonRules.canHit(_turnPlayer, fromPipNo, toPipNo, pips)) {
+      GammonRules.doHit(_turnPlayer, fromPipNo, toPipNo, pips);
     } else {
       return;
     }
@@ -133,10 +130,10 @@ class GammonState extends ChangeNotifier {
       final toPipNo = fromPipNo + hop;
 
       // check this hop and update temp game state for next hop
-      if (GammonRules.canMove(move.sign, fromPipNo, toPipNo, movePips)) {
-        GammonRules.doMove(move.sign, fromPipNo, toPipNo, movePips);
-      } else if (GammonRules.canHit(move.sign, fromPipNo, toPipNo, movePips)) {
-        GammonRules.doHit(move.sign, fromPipNo, toPipNo, movePips);
+      if (GammonRules.canMove(move.player, fromPipNo, toPipNo, movePips)) {
+        GammonRules.doMove(move.player, fromPipNo, toPipNo, movePips);
+      } else if (GammonRules.canHit(move.player, fromPipNo, toPipNo, movePips)) {
+        GammonRules.doHit(move.player, fromPipNo, toPipNo, movePips);
       } else {
         return false;
       }
@@ -185,28 +182,34 @@ extension GammonMoves on Iterable<GammonMove> {
   bool hasHops({int fromPipNo, int toPipNo}) => hops(fromPipNo: fromPipNo, toPipNo: toPipNo) != null;
 }
 
+enum Player { one, two }
+
 class GammonMove {
-  final int sign;
+  final Player player;
   final int fromPipNo;
   final int toPipNo;
   final List<int> hops;
-  GammonMove({@required this.sign, @required this.fromPipNo, @required this.toPipNo, @required this.hops})
-      : assert(sign == -1 || sign == 1),
+  GammonMove({@required this.player, @required this.fromPipNo, @required this.toPipNo, @required this.hops})
+      : assert(player != null),
         assert(fromPipNo != null && fromPipNo >= 0 && fromPipNo <= 25),
         assert(toPipNo != null && toPipNo >= 0 && toPipNo <= 25),
         assert(hops != null && hops.isNotEmpty);
 
   @override
-  String toString() => 'GammonMove(fromPipNo: $fromPipNo, toPipNo: $toPipNo, hops: $hops)';
+  String toString() => 'GammonMove(player: $player, fromPipNo: $fromPipNo, toPipNo: $toPipNo, hops: $hops)';
 
   @override
   bool operator ==(Object o) =>
       (identical(this, o)) ||
-      o is GammonMove && o.sign == sign && o.fromPipNo == fromPipNo && o.toPipNo == toPipNo && listEquals(o.hops, hops);
+      o is GammonMove &&
+          o.player == player &&
+          o.fromPipNo == fromPipNo &&
+          o.toPipNo == toPipNo &&
+          listEquals(o.hops, hops);
 
   @override
   int get hashCode {
-    var hash = fromPipNo.hashCode ^ toPipNo.hashCode;
+    var hash = player.hashCode ^ fromPipNo.hashCode ^ toPipNo.hashCode;
     for (final hop in hops) hash ^= hop.hashCode;
     return hash;
   }
@@ -214,7 +217,7 @@ class GammonMove {
 
 class GammonRules {
   static List<List<int>> initialPips() => <List<int>>[
-        [], // 0: bar
+        [], // 0: player1 home, player2 bar
         [1, 2], // 1: 2x whites
         [], // 2
         [], // 3
@@ -239,26 +242,33 @@ class GammonRules {
         [], // 22
         [], // 23
         [-1, -2], // 24: 2x blacks
-        [], // 25: home
+        [], // 25: player1 bar, player2 home
       ];
 
+  static int signFor(Player player) => player == Player.one ? -1 : 1;
+  static int homeFor(Player player) => player == Player.one ? 0 : 25;
+  static int barFor(Player player) => player == Player.one ? 25 : 0;
+
   // can the piece can be moved without hitting?
-  static bool canMove(int sign, int fromPipNo, int toPipNo, List<List<int>> pips) {
+  static bool canMove(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     assert(fromPipNo >= 0 && fromPipNo <= 25);
     assert(toPipNo >= 0 && toPipNo <= 25);
-    if (fromPipNo == 25) return false; // home
-    if (toPipNo == 25) return true; // home
-    if (toPipNo == 0) return false; // bar
-    if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
+    if (fromPipNo == homeFor(player)) return false; // home
+    if (toPipNo == homeFor(player)) return false; // home
+    if (toPipNo == barFor(player)) return false; // bar
+
+    final dir = signFor(player);
+    if (!pips[fromPipNo].any((p) => p.sign == dir)) return false;
     if (pips[toPipNo].isEmpty) return true;
-    if (pips[toPipNo][0].sign == sign) return true;
+    if (pips[toPipNo][0].sign == dir) return true;
     return false;
   }
 
   // move the piece without hitting
-  static void doMove(int sign, int fromPipNo, int toPipNo, List<List<int>> pips) {
-    assert(canMove(sign, fromPipNo, toPipNo, pips));
+  static void doMove(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
+    assert(canMove(player, fromPipNo, toPipNo, pips));
     final fromPieces = pips[fromPipNo];
+    final sign = signFor(player);
     final index = fromPieces.lastIndexWhere((p) => p.sign == sign);
     final id = fromPieces.removeAt(index);
     final toPieces = pips[toPipNo];
@@ -266,12 +276,17 @@ class GammonRules {
   }
 
   // can the piece can be hit?
-  static bool canHit(int sign, int fromPipNo, int toPipNo, List<List<int>> pips) {
+  static bool canHit(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     assert(fromPipNo >= 0 && fromPipNo <= 25);
     assert(toPipNo >= 0 && toPipNo <= 25);
-    if (fromPipNo == 25) return false; // home
-    if (toPipNo == 25) return false; // home
-    if (toPipNo == 0) return false; // bar
+
+    final home = homeFor(player);
+    final bar = barFor(player);
+    if (fromPipNo == home) return false; // home
+    if (toPipNo == home) return false; // home
+    if (toPipNo == bar) return false; // bar
+
+    final sign = signFor(player);
     if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
     if (pips[toPipNo].length != 1) return false;
     if (pips[toPipNo][0].sign != sign) return true;
@@ -279,15 +294,27 @@ class GammonRules {
   }
 
   // Hits a lone piece
-  static void doHit(int sign, int fromPipNo, int toPipNo, List<List<int>> pips) {
-    assert(canHit(sign, fromPipNo, toPipNo, pips));
+  static void doHit(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
+    assert(canHit(player, fromPipNo, toPipNo, pips));
     final fromPieces = pips[fromPipNo];
+    final sign = signFor(player);
     final fromIndex = fromPieces.lastIndexWhere((p) => p.sign == sign);
     final fromId = fromPieces.removeAt(fromIndex);
     final toPieces = pips[toPipNo];
     final toIndex = toPieces.lastIndexWhere((p) => p.sign != sign);
     final toId = toPieces.removeAt(toIndex);
     toPieces.add(fromId);
-    pips[0].add(toId); // bar
+    final bar = barFor(player);
+    pips[bar].add(toId); // bar
+  }
+
+  static bool canBareOff(Player player, int fromPipNo, List<List<int>> pips) {
+    // TODO
+    return false;
+  }
+
+  static void doBareOff(Player player, int fromPipNo, List<List<int>> pips) {
+    // TODO
+    assert(canBareOff(player, fromPipNo, pips));
   }
 }
