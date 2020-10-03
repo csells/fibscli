@@ -3,8 +3,14 @@ import 'package:fibscli/model.dart';
 import 'package:flutter/material.dart';
 
 class PieceView extends StatelessWidget {
+  static final _pieceColors = [
+    [Colors.grey[800], Colors.black],
+    [Colors.grey[300], Colors.white]
+  ];
+
+  final List<Color> _colors;
   final PieceLayout layout;
-  const PieceView({@required this.layout});
+  PieceView({@required this.layout}) : _colors = _pieceColors[layout.pieceId.sign == -1 ? 0 : 1];
 
   @override
   Widget build(BuildContext context) => layout.edge
@@ -16,18 +22,42 @@ class PieceView extends StatelessWidget {
         )
       : Container(
           decoration: BoxDecoration(
-            color: layout.pieceId.sign == -1 ? Colors.black : Colors.white,
             shape: BoxShape.circle,
-            border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 2),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              colors: [_colors[0], _colors[1]],
+            ),
+            border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 1),
           ),
           child: Center(
-            child: Text(
-              layout.label,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: layout.pieceId.sign == -1 ? Colors.white : Colors.black),
+            child: FractionallySizedBox(
+              widthFactor: .90,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    colors: [_colors[1], _colors[0]],
+                  ),
+                ),
+              ),
             ),
           ),
         );
+  // : Container(
+  //     decoration: BoxDecoration(
+  //       color: layout.pieceId.sign == -1 ? Colors.black : Colors.white,
+  //       shape: BoxShape.circle,
+  //       border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 2),
+  //     ),
+  //     child: Center(
+  //       child: Text(
+  //         layout.label,
+  //         textAlign: TextAlign.center,
+  //         style: TextStyle(color: layout.pieceId.sign == -1 ? Colors.white : Colors.black),
+  //       ),
+  //     ),
+  //   );
 }
 
 class PieceLayout {
@@ -102,7 +132,7 @@ class PieceLayout {
     // draw the pieces on the bar
     for (final player in Player.values) {
       final sign = GammonRules.signFor(player);
-      final bar = GammonRules.barFor(player);
+      final bar = GammonRules.barPipNoFor(player);
       final pieces = pips[bar].where((p) => p.sign == sign).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
@@ -117,7 +147,7 @@ class PieceLayout {
     // draw the pieces in their homes
     for (final player in Player.values) {
       final sign = GammonRules.signFor(player);
-      final pieces = pips[GammonRules.homeFor(player)].where((p) => p.sign == sign).toList();
+      final pieces = pips[GammonRules.homePipNoFor(player)].where((p) => p.sign == sign).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceId = pieces[i];

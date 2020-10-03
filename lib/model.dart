@@ -73,21 +73,18 @@ class GammonState extends ChangeNotifier {
       // check if all of the moves along the way are legal for this compound to be legal
       final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
       final toEndPipNo = fromStartPipNo + hops.sum();
-      if (toEndPipNo >= 0 && toEndPipNo <= 25) {
-        final move = GammonMove(player: _turnPlayer, fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
-        if (_legalMove(move)) yield move;
-      }
+      final move = GammonMove(player: _turnPlayer, fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
+      if (_legalMove(move)) yield move;
     }
   }
 
-  void doMoveOrHit({@required int fromPipNo, @required int toPipNo}) {
-    assert(fromPipNo >= 0 && fromPipNo <= 25);
-    assert(toPipNo >= 0 && toPipNo <= 25);
-
+  void doMoveHitOrBearOff({@required int fromPipNo, @required int toPipNo}) {
     if (GammonRules.canMove(_turnPlayer, fromPipNo, toPipNo, pips)) {
       GammonRules.doMove(_turnPlayer, fromPipNo, toPipNo, pips);
     } else if (GammonRules.canHit(_turnPlayer, fromPipNo, toPipNo, pips)) {
       GammonRules.doHit(_turnPlayer, fromPipNo, toPipNo, pips);
+    } else if (GammonRules.canBearOff(_turnPlayer, fromPipNo, toPipNo, pips)) {
+      GammonRules.doBearOff(_turnPlayer, fromPipNo, toPipNo, pips);
     } else {
       return;
     }
@@ -134,6 +131,8 @@ class GammonState extends ChangeNotifier {
         GammonRules.doMove(move.player, fromPipNo, toPipNo, movePips);
       } else if (GammonRules.canHit(move.player, fromPipNo, toPipNo, movePips)) {
         GammonRules.doHit(move.player, fromPipNo, toPipNo, movePips);
+      } else if (GammonRules.canBearOff(move.player, fromPipNo, toPipNo, movePips)) {
+        GammonRules.doBearOff(move.player, fromPipNo, toPipNo, movePips);
       } else {
         return false;
       }
@@ -191,8 +190,6 @@ class GammonMove {
   final List<int> hops;
   GammonMove({@required this.player, @required this.fromPipNo, @required this.toPipNo, @required this.hops})
       : assert(player != null),
-        assert(fromPipNo != null && fromPipNo >= 0 && fromPipNo <= 25),
-        assert(toPipNo != null && toPipNo >= 0 && toPipNo <= 25),
         assert(hops != null && hops.isNotEmpty);
 
   @override
@@ -246,17 +243,20 @@ class GammonRules {
       ];
 
   static int signFor(Player player) => player == Player.one ? -1 : 1;
-  static int homeFor(Player player) => player == Player.one ? 0 : 25;
-  static int barFor(Player player) => player == Player.one ? 25 : 0;
+  static int homePipNoFor(Player player) => player == Player.one ? 0 : 25;
+  static int barPipNoFor(Player player) => player == Player.one ? 25 : 0;
   static Player otherPlayer(Player player) => player == Player.one ? Player.two : Player.one;
 
   // can the piece can be moved without hitting?
   static bool canMove(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
-    assert(fromPipNo >= 0 && fromPipNo <= 25);
-    assert(toPipNo >= 0 && toPipNo <= 25);
-    if (fromPipNo == homeFor(player)) return false; // home
-    if (toPipNo == homeFor(player)) return false; // home
-    if (toPipNo == barFor(player)) return false; // bar
+    if (fromPipNo < 0 || fromPipNo > 25) return false;
+    if (toPipNo < 0 || toPipNo > 25) return false;
+
+    final homePipNo = homePipNoFor(player);
+    final barPipNo = barPipNoFor(player);
+    if (fromPipNo == homePipNo) return false;
+    if (toPipNo == homePipNo) return false;
+    if (toPipNo == barPipNo) return false;
 
     final sign = signFor(player);
     if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
@@ -278,14 +278,14 @@ class GammonRules {
 
   // can the piece can be hit?
   static bool canHit(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
-    assert(fromPipNo >= 0 && fromPipNo <= 25);
-    assert(toPipNo >= 0 && toPipNo <= 25);
+    if (fromPipNo < 0 || fromPipNo > 25) return false;
+    if (toPipNo < 0 || toPipNo > 25) return false;
 
-    final home = homeFor(player);
-    final bar = barFor(player);
-    if (fromPipNo == home) return false; // home
-    if (toPipNo == home) return false; // home
-    if (toPipNo == bar) return false; // bar
+    final homePipNo = homePipNoFor(player);
+    final barPipNo = barPipNoFor(player);
+    if (fromPipNo == homePipNo) return false;
+    if (toPipNo == homePipNo) return false;
+    if (toPipNo == barPipNo) return false;
 
     final sign = signFor(player);
     if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
@@ -294,7 +294,7 @@ class GammonRules {
     return false;
   }
 
-  // Hits a lone piece
+  // hit a lone piece
   static void doHit(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     assert(canHit(player, fromPipNo, toPipNo, pips));
     final fromPieces = pips[fromPipNo];
@@ -305,17 +305,36 @@ class GammonRules {
     final toIndex = toPieces.lastIndexWhere((p) => p.sign != sign);
     final toId = toPieces.removeAt(toIndex);
     toPieces.add(fromId);
-    final bar = barFor(otherPlayer(player));
-    pips[bar].add(toId); // bar
+    final barPipNo = barPipNoFor(otherPlayer(player));
+    pips[barPipNo].add(toId);
   }
 
-  static bool canBareOff(Player player, int fromPipNo, List<List<int>> pips) {
-    // TODO: canBareOff
+  // can bear the piece off?
+  static bool canBearOff(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
+    if (fromPipNo < 0 || fromPipNo > 25) return false;
+
+    final homePipNo = homePipNoFor(player);
+    if (fromPipNo == homePipNo) return false;
+
+    final sign = signFor(player);
+    if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
+    // TODO: check if that all pieces are on the home board
+    // TODO: check if fromPipNo is exactly the homePipNo
+    // TODO: check if it's a forced bear off, i.e. no pieces on pips > fromPipNo
     return false;
   }
 
-  static void doBareOff(Player player, int fromPipNo, List<List<int>> pips) {
-    // TODO: doBareOff
-    assert(canBareOff(player, fromPipNo, pips));
+  // bear off the piece
+  static void doBearOff(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
+    assert(canBearOff(player, fromPipNo, toPipNo, pips));
+    assert(toPipNo == homePipNoFor(player));
+
+    final fromPieces = pips[fromPipNo];
+    final sign = signFor(player);
+    final index = fromPieces.lastIndexWhere((p) => p.sign == sign);
+    final id = fromPieces.removeAt(index);
+    final homePipNo = homePipNoFor(player);
+    final homePieces = pips[homePipNo];
+    homePieces.add(id);
   }
 }

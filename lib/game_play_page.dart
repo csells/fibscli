@@ -92,7 +92,7 @@ class GameView extends StatefulWidget {
 class _GameViewState extends State<GameView> {
   final _game = GammonState();
   var _legalMoves = <GammonMove>[];
-  int _fromPip = null;
+  int _fromPip;
 
   @override
   void initState() {
@@ -160,16 +160,30 @@ class _GameViewState extends State<GameView> {
                       // player1 home
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(520, 216, 32, 183),
-                        child: Container(
-                          decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                        child: GestureDetector(
+                          onTap: () => _homeTap(Player.one),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.green[900],
+                              border: Border.all(
+                                  color: _highlightHome(Player.one) ? Colors.yellow : Colors.black, width: 2),
+                            ),
+                          ),
                         ),
                       ),
 
                       // player2 home
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(520, 20, 32, 183),
-                        child: Container(
-                          decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                        child: GestureDetector(
+                          onTap: () => _homeTap(Player.two),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.green[900],
+                              border: Border.all(
+                                  color: _highlightHome(Player.two) ? Colors.yellow : Colors.black, width: 2),
+                            ),
+                          ),
                         ),
                       ),
 
@@ -188,8 +202,8 @@ class _GameViewState extends State<GameView> {
                           child: GestureDetector(
                             onTap: GammonRules.signFor(_game.turnPlayer) != layout.pieceId.sign
                                 ? null
-                                : () =>
-                                    _pieceTap(layout.pipNo == 0 ? GammonRules.barFor(_game.turnPlayer) : layout.pipNo),
+                                : () => _pieceTap(
+                                    layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
                             child: PieceView(layout: layout),
                           ),
                         ),
@@ -237,6 +251,8 @@ class _GameViewState extends State<GameView> {
     });
   }
 
+  void _homeTap(Player player) => _move(GammonRules.homePipNoFor(player));
+
   void _pipTap(int toPip) => _move(toPip);
 
   void _move(int toEndPip) {
@@ -249,7 +265,7 @@ class _GameViewState extends State<GameView> {
       var fromPip = _fromPip;
       for (final hop in hops) {
         final toPip = fromPip + hop;
-        _game.doMoveOrHit(fromPipNo: fromPip, toPipNo: toPip);
+        _game.doMoveHitOrBearOff(fromPipNo: fromPip, toPipNo: toPip);
         fromPip = toPip;
       }
     }
@@ -264,5 +280,10 @@ class _GameViewState extends State<GameView> {
   void _diceTap() {
     // can't go to the next turn until there are no more available dice
     if (_game.dice.every((d) => !d.available)) _game.nextTurn();
+  }
+
+  bool _highlightHome(Player player) {
+    final homePipNo = GammonRules.homePipNoFor(player);
+    return _legalMoves.any((m) => m.toPipNo == homePipNo);
   }
 }
