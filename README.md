@@ -12,9 +12,8 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # TODO
-- allow moves to bear off
+- shouldn't allow any moves other while dice are on the bar
 - detect end game
-- fix multi-piece off of home bug
 - first move (different colored dice)
 - test the GammonState + GammonRules
 - animation of moves (including hops)
