@@ -112,11 +112,6 @@ class PipPainter extends CustomPainter {
       paint.style = PaintingStyle.stroke;
       paint.color = Colors.yellow;
       canvas.drawPath(path, paint);
-    } else {
-      paint.strokeWidth = 1.0;
-      paint.style = PaintingStyle.stroke;
-      paint.color = Colors.black;
-      canvas.drawPath(path, paint);
     }
   }
 

@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 class PieceView extends StatelessWidget {
   static final _pieceColors = [
     [Colors.grey[800], Colors.black],
-    [Colors.grey[300], Colors.white]
+    [Colors.grey[350], Colors.white]
   ];
 
-  final List<Color> _colors;
+  final List<Color> _gradeColors;
   final PieceLayout layout;
-  PieceView({@required this.layout}) : _colors = _pieceColors[layout.pieceId.sign == -1 ? 0 : 1];
+  PieceView({@required this.layout}) : _gradeColors = _pieceColors[layout.pieceId.sign == -1 ? 0 : 1];
 
   @override
   Widget build(BuildContext context) => layout.edge
@@ -25,7 +25,7 @@ class PieceView extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: LinearGradient(
               begin: Alignment.topLeft,
-              colors: [_colors[0], _colors[1]],
+              colors: _gradeColors,
             ),
             border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 1),
           ),
@@ -37,7 +37,7 @@ class PieceView extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
-                    colors: [_colors[1], _colors[0]],
+                    colors: [_gradeColors[1], _gradeColors[0]],
                   ),
                 ),
               ),
@@ -64,7 +64,7 @@ class PieceLayout {
   static final _pieceWidth = 28.0;
   static final _pieceHeight = 28.0;
   static final _dx = 36.0;
-  static final _dy = 29.0;
+  static final _dy = 28.0;
   static final _edgeWidth = 32.0;
   static final _edgeHeight = 11.0;
 
@@ -110,18 +110,18 @@ class PieceLayout {
           final highlight = pipNo == highlightedPiecePip && (h + 1) == min(pieceCount, 5);
           final pieceId = pip[h];
 
-          if (pipNo >= 1 && pipNo <= 6) {
+          if (pipNo >= 1 && pipNo <= 6) { // bottom right
             yield PieceLayout(
-                pipNo: pipNo, pieceId: pieceId, left: 468 - dx, top: 370 - dy, label: label, highlight: highlight);
-          } else if (pipNo >= 7 && pipNo <= 12) {
+                pipNo: pipNo, pieceId: pieceId, left: 468 - dx, top: 371 - dy, label: label, highlight: highlight);
+          } else if (pipNo >= 7 && pipNo <= 12) { // bottom left
             yield PieceLayout(
-                pipNo: pipNo, pieceId: pieceId, left: 204 - dx, top: 370 - dy, label: label, highlight: highlight);
-          } else if (pipNo >= 13 && pipNo <= 18) {
+                pipNo: pipNo, pieceId: pieceId, left: 204 - dx, top: 371 - dy, label: label, highlight: highlight);
+          } else if (pipNo >= 13 && pipNo <= 18) { // top left
             yield PieceLayout(
-                pipNo: pipNo, pieceId: pieceId, left: 24 + dx, top: 22 + dy, label: label, highlight: highlight);
-          } else if (pipNo >= 19 && pipNo <= 24) {
+                pipNo: pipNo, pieceId: pieceId, left: 24 + dx, top: 21 + dy, label: label, highlight: highlight);
+          } else if (pipNo >= 19 && pipNo <= 24) { // top right
             yield PieceLayout(
-                pipNo: pipNo, pieceId: pieceId, left: 288 + dx, top: 22 + dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceId: pieceId, left: 288 + dx, top: 21 + dy, label: label, highlight: highlight);
           } else {
             assert(false);
           }

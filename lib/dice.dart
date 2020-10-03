@@ -8,9 +8,21 @@ class DieState {
 }
 
 class DieView extends StatelessWidget {
+  static final _dieColors = [
+    [Colors.grey[850], Color(0xFF141414)],
+    [Colors.grey[50], Colors.grey[300]]
+  ];
+
+  final List<Color> _gradeColors;
+  final Color _playerColor;
+  final Color _otherColor;
   final DieLayout layout;
   final void Function() _onTap;
-  const DieView({@required this.layout, void Function() onTap}) : _onTap = onTap == null ? _noop : onTap;
+  DieView({@required this.layout, void Function() onTap})
+      : _onTap = onTap == null ? _noop : onTap,
+        _playerColor = layout.player == Player.one ? Colors.black : Colors.white,
+        _otherColor = layout.player == Player.one ? Colors.white : Colors.black,
+        _gradeColors = _dieColors[layout.player.index];
 
   static void _noop() {}
 
@@ -19,26 +31,27 @@ class DieView extends StatelessWidget {
         onTap: _onTap,
         child: Opacity(
           opacity: layout.die.available ? 1.0 : 0.5,
-          child: Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: layout.player == Player.one ? Colors.black : Colors.white,
-                  border: Border.all(color: Colors.black, width: 2),
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _playerColor,
+              border: Border.all(color: Colors.black, width: 1),
+              borderRadius: BorderRadius.all(Radius.circular(4)),
+              gradient: LinearGradient(begin: Alignment.topLeft, colors: _gradeColors),
+            ),
+            child: FractionallySizedBox(
+              child: Container(
+                decoration: BoxDecoration(shape: BoxShape.circle, color: _playerColor),
+                child: Stack(
+                  children: [
+                    for (final rect in layout.getSpotRects())
+                      Positioned.fromRect(
+                        rect: rect.shift(Offset(-1, -1)),
+                        child: Container(decoration: BoxDecoration(color: _otherColor, shape: BoxShape.circle)),
+                      ),
+                  ],
                 ),
               ),
-              for (final rect in layout.getSpotRects())
-                Positioned.fromRect(
-                  rect: rect,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: layout.player == Player.one ? Colors.white : Colors.black,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
       );
