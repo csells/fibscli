@@ -8,15 +8,17 @@ class PieceView extends StatelessWidget {
     [Colors.white, Colors.grey[400]]
   ];
 
+  final Color _textColor;
   final List<Color> _gradeColors;
   final PieceLayout layout;
-  PieceView({@required this.layout}) : _gradeColors = _pieceColors[layout.pieceId.sign == -1 ? 0 : 1];
+  PieceView({@required this.layout})
+      : _gradeColors = _pieceColors[layout.pieceId.sign == -1 ? 0 : 1],
+        _textColor = layout.pieceId.sign == -1 ? Colors.white : Colors.black;
 
   @override
   Widget build(BuildContext context) => layout.edge
       ? Container(
           decoration: BoxDecoration(
-            // color: layout.pieceId.sign == -1 ? Colors.black : Colors.white,
             gradient: LinearGradient(colors: _gradeColors),
             border: Border.all(color: Colors.black, width: 1),
           ),
@@ -24,21 +26,24 @@ class PieceView extends StatelessWidget {
       : Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              colors: _gradeColors,
-            ),
+            gradient: LinearGradient(begin: Alignment.topLeft, colors: _gradeColors),
             border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 1),
           ),
           child: Center(
             child: FractionallySizedBox(
-              widthFactor: .90,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    colors: [_gradeColors[1], _gradeColors[0]],
+              widthFactor: .9,
+              child: SizedBox.expand(
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(begin: Alignment.topLeft, colors: [_gradeColors[1], _gradeColors[0]]),
+                  ),
+                  child: Center(
+                    child: Text(
+                      layout.label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: _textColor),
+                    ),
                   ),
                 ),
               ),

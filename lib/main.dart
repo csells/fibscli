@@ -1,7 +1,12 @@
+import 'package:device_preview/device_preview.dart';
 import 'package:fibscli/game_play_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-void main() => runApp(App());
+void main() {
+  final enabled = false; //!kReleaseMode;
+  runApp(DevicePreview(enabled: enabled, builder: (context) => App()));
+}
 
 class App extends StatelessWidget {
   static const title = 'Backgammon';
@@ -11,6 +16,8 @@ class App extends StatelessWidget {
         theme: ThemeData(primarySwatch: Colors.green, visualDensity: VisualDensity.adaptivePlatformDensity),
         home: GamePlayPage(),
         debugShowCheckedModeBanner: false,
+        locale: DevicePreview.of(context).locale,
+        builder: DevicePreview.appBuilder,
       );
 }
 
