@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 class PieceView extends StatelessWidget {
   static final _pieceColors = [
     [Colors.grey[800], Colors.black],
-    [Colors.grey[400], Colors.white]
+    [Colors.white, Colors.grey[400]]
   ];
 
   final List<Color> _gradeColors;
@@ -16,8 +16,9 @@ class PieceView extends StatelessWidget {
   Widget build(BuildContext context) => layout.edge
       ? Container(
           decoration: BoxDecoration(
-            color: layout.pieceId.sign == -1 ? Colors.black : Colors.white,
-            border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 2),
+            // color: layout.pieceId.sign == -1 ? Colors.black : Colors.white,
+            gradient: LinearGradient(colors: _gradeColors),
+            border: Border.all(color: Colors.black, width: 1),
           ),
         )
       : Container(
@@ -44,20 +45,6 @@ class PieceView extends StatelessWidget {
             ),
           ),
         );
-  // : Container(
-  //     decoration: BoxDecoration(
-  //       color: layout.pieceId.sign == -1 ? Colors.black : Colors.white,
-  //       shape: BoxShape.circle,
-  //       border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 2),
-  //     ),
-  //     child: Center(
-  //       child: Text(
-  //         layout.label,
-  //         textAlign: TextAlign.center,
-  //         style: TextStyle(color: layout.pieceId.sign == -1 ? Colors.white : Colors.black),
-  //       ),
-  //     ),
-  //   );
 }
 
 class PieceLayout {
@@ -110,16 +97,20 @@ class PieceLayout {
           final highlight = pipNo == highlightedPiecePip && (h + 1) == min(pieceCount, 5);
           final pieceId = pip[h];
 
-          if (pipNo >= 1 && pipNo <= 6) { // bottom right
+          if (pipNo >= 1 && pipNo <= 6) {
+            // bottom right
             yield PieceLayout(
                 pipNo: pipNo, pieceId: pieceId, left: 468 - dx, top: 371 - dy, label: label, highlight: highlight);
-          } else if (pipNo >= 7 && pipNo <= 12) { // bottom left
+          } else if (pipNo >= 7 && pipNo <= 12) {
+            // bottom left
             yield PieceLayout(
                 pipNo: pipNo, pieceId: pieceId, left: 204 - dx, top: 371 - dy, label: label, highlight: highlight);
-          } else if (pipNo >= 13 && pipNo <= 18) { // top left
+          } else if (pipNo >= 13 && pipNo <= 18) {
+            // top left
             yield PieceLayout(
                 pipNo: pipNo, pieceId: pieceId, left: 24 + dx, top: 21 + dy, label: label, highlight: highlight);
-          } else if (pipNo >= 19 && pipNo <= 24) { // top right
+          } else if (pipNo >= 19 && pipNo <= 24) {
+            // top right
             yield PieceLayout(
                 pipNo: pipNo, pieceId: pieceId, left: 288 + dx, top: 21 + dy, label: label, highlight: highlight);
           } else {
