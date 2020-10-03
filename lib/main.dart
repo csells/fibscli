@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 void main() {
-  final enabled = false; //!kReleaseMode;
+  // final enabled = !kReleaseMode;
+  final enabled = false;
   runApp(DevicePreview(enabled: enabled, builder: (context) => App()));
 }
 

@@ -74,7 +74,14 @@ class GammonState extends ChangeNotifier {
       final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
       final toEndPipNo = fromStartPipNo + hops.sum();
       final move = GammonMove(player: _turnPlayer, fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
-      if (_legalMove(move)) yield move;
+      if (_legalMove(move)) {
+        final clampedToEndPipNo = toEndPipNo < 0
+            ? 0
+            : toEndPipNo > 25
+                ? 25
+                : toEndPipNo;
+        yield GammonMove(player: move.player, fromPipNo: move.fromPipNo, toPipNo: clampedToEndPipNo, hops: move.hops);
+      }
     }
   }
 
@@ -309,25 +316,39 @@ class GammonRules {
     pips[barPipNo].add(toId);
   }
 
+  static final _playerHomeBoardPipNos = [1.rangeTo(6), 19.rangeTo(24)];
+  static final _playerNonHomeBoardPipNos = [7.rangeTo(24), 1.rangeTo(18)];
+
   // can bear the piece off?
   static bool canBearOff(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     if (fromPipNo < 0 || fromPipNo > 25) return false;
+    if (toPipNo > 0 && toPipNo < 25) return false;
 
+    // can't move from home
     final homePipNo = homePipNoFor(player);
     if (fromPipNo == homePipNo) return false;
 
+    // can't move a piece that isn't there
     final sign = signFor(player);
     if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
-    // TODO: check if that all pieces are on the home board
-    // TODO: check if fromPipNo is exactly the homePipNo
-    // TODO: check if it's a forced bear off, i.e. no pieces on pips > fromPipNo
-    return false;
+
+    // can't bear off if not all of the pieces are in the home board
+    final otherPipNos = _playerNonHomeBoardPipNos[player.index];
+    for (final pipNo in otherPipNos) if (pips[pipNo].any((p) => p.sign == sign)) return false;
+
+    // can bear off if moving exactly to the homePipNo
+    if (toPipNo == homePipNo) return true;
+
+    // check if it's a forced bear off, i.e. no pieces on pips > fromPipNo
+    final greaterHomeBoardPipNos = _playerHomeBoardPipNos[player.index]
+        .where((pipNo) => player == Player.one ? pipNo > fromPipNo : pipNo < fromPipNo);
+    for (final pipNo in greaterHomeBoardPipNos) if (pips[pipNo].any((p) => p.sign == sign)) return false;
+    return true;
   }
 
   // bear off the piece
   static void doBearOff(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     assert(canBearOff(player, fromPipNo, toPipNo, pips));
-    assert(toPipNo == homePipNoFor(player));
 
     final fromPieces = pips[fromPipNo];
     final sign = signFor(player);

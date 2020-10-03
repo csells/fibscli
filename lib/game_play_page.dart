@@ -132,7 +132,7 @@ class _GameViewState extends State<GameView> {
                         ),
                       ),
 
-                      // inner board
+                      // home board
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(284, 20, 216, 380),
                         child: Container(
@@ -162,7 +162,7 @@ class _GameViewState extends State<GameView> {
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(520, 216, 32, 183),
                         child: GestureDetector(
-                          onTap: () => _homeTap(Player.one),
+                          onTap: () => _tapHome(Player.one),
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
@@ -177,7 +177,7 @@ class _GameViewState extends State<GameView> {
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(520, 20, 32, 183),
                         child: GestureDetector(
-                          onTap: () => _homeTap(Player.two),
+                          onTap: () => _tapHome(Player.two),
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
@@ -189,7 +189,7 @@ class _GameViewState extends State<GameView> {
                       ),
 
                       InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)), // outer board shading
-                      InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)), // inner board shading
+                      InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)), // home board shading
                       InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)), // player1 home shading
                       InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)), // player2 home shading
 
@@ -220,7 +220,7 @@ class _GameViewState extends State<GameView> {
                           rect: layout.rect,
                           child: DieView(
                             layout: layout,
-                            onTap: _diceTap,
+                            onTap: _tapDice,
                           ),
                         ),
 
@@ -257,7 +257,7 @@ class _GameViewState extends State<GameView> {
     });
   }
 
-  void _homeTap(Player player) => _move(GammonRules.homePipNoFor(player));
+  void _tapHome(Player player) => _move(GammonRules.homePipNoFor(player));
 
   void _pipTap(int toPip) => _move(toPip);
 
@@ -283,7 +283,7 @@ class _GameViewState extends State<GameView> {
     });
   }
 
-  void _diceTap() {
+  void _tapDice() {
     // can't go to the next turn until there are no more available dice
     if (_game.dice.every((d) => !d.available)) _game.nextTurn();
   }

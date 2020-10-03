@@ -13,6 +13,7 @@ The goal is to host it on the desktop and mobile web and make it work against th
 
 # TODO
 - allow moves to bear off
+- detect end game
 - fix multi-piece off of home bug
 - first move (different colored dice)
 - test the GammonState + GammonRules

@@ -108,7 +108,7 @@ class PipPainter extends CustomPainter {
 
     // highlight or outline the pip
     if (highlight) {
-      paint.strokeWidth = 3.0;
+      paint.strokeWidth = 4.0;
       paint.style = PaintingStyle.stroke;
       paint.color = Colors.yellow;
       canvas.drawPath(path, paint);
