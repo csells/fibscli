@@ -188,17 +188,10 @@ class _GameViewState extends State<GameView> {
                         ),
                       ),
 
-                      // outer board shading
-                      InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)),
-
-                      // inner board shading
-                      InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)),
-
-                      // player1 home shading
-                      InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)),
-
-                      // player2 home shading
-                      InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)),
+                      InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)), // outer board shading
+                      InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)), // inner board shading
+                      InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)), // player1 home shading
+                      InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)), // player2 home shading
 
                       // doubling cube: undoubled
                       // Positioned.fromRect(
