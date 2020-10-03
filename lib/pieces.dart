@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 class PieceView extends StatelessWidget {
   static final _pieceColors = [
     [Colors.grey[800], Colors.black],
-    [Colors.grey[350], Colors.white]
+    [Colors.grey[400], Colors.white]
   ];
 
   final List<Color> _gradeColors;

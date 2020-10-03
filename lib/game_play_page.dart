@@ -44,13 +44,14 @@ class _GamePlayPageState extends State<GamePlayPage> {
           title: Text(App.title),
           actions: [
             IconButton(
+              tooltip: 'reverse board',
               icon: Icon(Icons.sync),
               onPressed: _tapSync,
-              tooltip: 'reverse board',
             )
           ],
         ),
         floatingActionButton: FloatingActionButton(
+          tooltip: 'undo turn',
           onPressed: _tapUndo,
           child: Icon(Icons.undo),
         ),
@@ -187,6 +188,18 @@ class _GameViewState extends State<GameView> {
                         ),
                       ),
 
+                      // outer board shading
+                      InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)),
+
+                      // inner board shading
+                      InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)),
+
+                      // player1 home shading
+                      InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)),
+
+                      // player2 home shading
+                      InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)),
+
                       // doubling cube: undoubled
                       // Positioned.fromRect(
                       //   rect: Rect.fromLTWH(238, 186, 44, 44),
@@ -286,4 +299,41 @@ class _GameViewState extends State<GameView> {
     final homePipNo = GammonRules.homePipNoFor(player);
     return _legalMoves.any((m) => m.toPipNo == homePipNo);
   }
+}
+
+class InnerShadingRect extends StatelessWidget {
+  final Rect rect;
+  const InnerShadingRect({
+    Key key,
+    @required this.rect,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) => Positioned.fromRect(
+        rect: rect,
+        child: Stack(
+          children: [
+            Container(
+              height: 10,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withOpacity(.20), Colors.transparent],
+                ),
+              ),
+            ),
+            Container(
+              width: 10,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Colors.black.withOpacity(.20), Colors.transparent],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 }
