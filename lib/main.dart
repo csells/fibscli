@@ -1,5 +1,7 @@
 import 'package:device_preview/device_preview.dart';
 import 'package:fibscli/game_play_page.dart';
+import 'package:fibscli/login.dart';
+import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -10,15 +12,34 @@ void main() {
 }
 
 class App extends StatelessWidget {
+  static const fibsProxy = 'localhost';
+  static const fibsPort = 8080;
   static const title = 'Backgammon';
+  static final fibs = ValueNotifier<FibsConnection>(null);
+
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: title,
+        title: App.title,
         theme: ThemeData(primarySwatch: Colors.green, visualDensity: VisualDensity.adaptivePlatformDensity),
-        home: GamePlayPage(),
         debugShowCheckedModeBanner: false,
         locale: DevicePreview.of(context).locale,
         builder: DevicePreview.appBuilder,
+        home: ValueListenableBuilder<FibsConnection>(
+          valueListenable: fibs,
+          builder: (context, fibs, child) => Navigator(
+            pages: [
+              if (fibs == null)
+                MaterialPage(builder: (context) => LoginPage())
+              else
+                MaterialPage(builder: (context) => GamePlayPage()),
+            ],
+            onPopPage: (route, result) {
+              if (!route.didPop(result)) return false;
+              // setState(() => _selectedColor = null);
+              return true;
+            },
+          ),
+        ),
       );
 }
 

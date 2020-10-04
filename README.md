@@ -15,9 +15,9 @@ The goal is to host it on the desktop and mobile web and make it work against th
 - shouldn't allow any moves other while dice are on the bar
 - detect end game
 - first move (different colored dice)
-- test the GammonState + GammonRules
-- animation of moves (including hops)
+- animation of move hops
 - animated board rotation
+- test the GammonState + GammonRules
 - implement the forced moves rule (instead of just removing moves that aren't available as you go)
 - hook up with fibs.com telnet server
 - ...

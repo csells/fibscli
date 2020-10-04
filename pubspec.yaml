@@ -13,6 +13,8 @@ dependencies:
   trotter: ^1.2.0
   shared_preferences: ^0.5.12
   device_preview: ^0.4.8
+  fibscli_lib:
+    path: ../fibscli_lib
 
 dev_dependencies:
   flutter_test:
