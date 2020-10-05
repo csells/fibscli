@@ -1,10 +1,10 @@
 import 'package:device_preview/device_preview.dart';
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/login.dart';
+import 'package:fibscli/tinystate.dart';
 import 'package:fibscli/who_page.dart';
-import 'package:fibscli_lib/fibscli_lib.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:logging/logging.dart';
 
 void main() {
@@ -17,11 +17,21 @@ void main() {
   runApp(DevicePreview(enabled: enabled, builder: (context) => App()));
 }
 
-class App extends StatelessWidget {
-  static const fibsProxy = 'localhost';
-  static const fibsPort = 8080;
+class App extends StatefulWidget {
   static const title = 'Backgammon';
-  static final fibsState = FibsState();
+  static final fibs = FibsState();
+  static final prefs = ValueNotifier<SharedPreferences>(null);
+
+  @override
+  _AppState createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) => App.prefs.value = prefs);
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -30,51 +40,19 @@ class App extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         locale: DevicePreview.of(context).locale,
         builder: DevicePreview.appBuilder,
-        home: ValueListenableBuilder<FibsConnection>(
-          valueListenable: fibsState.fibs,
-          builder: (context, fibs, child) => Navigator(
+        home: ChangeNotifierBuilder<FibsState>(
+          notifier: App.fibs,
+          builder: (context, state, child) => Navigator(
             pages: [
-              if (fibs == null)
+              if (!state.loggedIn)
                 MaterialPage(builder: (context) => LoginPage())
               else ...[
                 MaterialPage(builder: (context) => WhoPage()),
                 // MaterialPage(builder: (context) => GamePlayPage()),
               ]
             ],
-            onPopPage: (route, result) {
-              if (!route.didPop(result)) return false;
-              // setState(() => _selectedColor = null);
-              return true;
-            },
+            onPopPage: (route, result) => route.didPop(result),
           ),
         ),
       );
-}
-
-class FutureBuilder2<T> extends StatelessWidget {
-  final Future<T> future;
-  final T initialData;
-  final Widget Function(BuildContext context) pending;
-  final Widget Function(BuildContext context, Object error) error;
-  final Widget Function(BuildContext context, T data) data;
-
-  FutureBuilder2({
-    Key key,
-    @required this.future,
-    this.initialData,
-    this.pending,
-    this.error,
-    @required this.data,
-  })  : assert(data != null),
-        super(key: key);
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<T>(
-      future: future,
-      initialData: initialData,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) return error != null ? error(context, snapshot.error) : Text(snapshot.error.toString());
-        if (snapshot.hasData) return data(context, snapshot.data);
-        return pending != null ? pending(context) : Center(child: CircularProgressIndicator());
-      });
 }

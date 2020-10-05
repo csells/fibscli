@@ -15,6 +15,7 @@ dependencies:
   device_preview: ^0.4.8
   fibscli_lib:
     path: ../fibscli_lib
+  syncfusion_flutter_datagrid: ^18.3.35-beta
 
 dev_dependencies:
   flutter_test:

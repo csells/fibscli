@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:dartx/dartx.dart';
 
@@ -5,13 +6,13 @@ class ChangeNotifierBuilder<T extends ChangeNotifier> extends AnimatedBuilder {
   ChangeNotifierBuilder({
     Key key,
     @required T notifier,
-    @required Widget Function(BuildContext context, T listenable, Widget child) build,
+    @required Widget Function(BuildContext context, T listenable, Widget child) builder,
     Widget child,
   }) : super(
             key: key,
             animation: notifier,
             child: child,
-            builder: (context, child) => build(context, notifier, child));
+            builder: (context, child) => builder(context, notifier, child));
 }
 
 class NotifierList<T> extends Iterable<T> with ChangeNotifier {
@@ -64,4 +65,32 @@ class NotifierList<T> extends Iterable<T> with ChangeNotifier {
   }
 
   Iterable<T> sortedBy(Comparable Function(T element) selector) => _items.sortedBy(selector);
+}
+
+class FutureBuilder2<T> extends StatelessWidget {
+  final Future<T> future;
+  final T initialData;
+  final Widget Function(BuildContext context) pending;
+  final Widget Function(BuildContext context, Object error) error;
+  final Widget Function(BuildContext context, T data) data;
+
+  FutureBuilder2({
+    Key key,
+    @required this.future,
+    this.initialData,
+    this.pending,
+    this.error,
+    @required this.data,
+  })  : assert(data != null),
+        super(key: key);
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<T>(
+      future: future,
+      initialData: initialData,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return error != null ? error(context, snapshot.error) : Text(snapshot.error.toString());
+        if (snapshot.hasData) return data(context, snapshot.data);
+        return pending != null ? pending(context) : Center(child: CircularProgressIndicator());
+      });
 }

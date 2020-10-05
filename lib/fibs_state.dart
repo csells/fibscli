@@ -3,10 +3,11 @@ import 'package:fibscli/tinystate.dart';
 import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/material.dart';
 
-class FibsState {
-  final fibs = ValueNotifier<FibsConnection>(null);
+class FibsState extends ChangeNotifier {
+  static const _proxy = 'localhost';
+  static const _port = 8080;
+  FibsConnection _conn;
   final whoInfos = NotifierList<WhoInfo>();
-  static var _fibshash = 0;
 
   void _streamItem(CookieMessage cm) {
     print(cm);
@@ -14,25 +15,34 @@ class FibsState {
     // ignore: missing_enum_constant_in_switch
     switch (cm.cookie) {
       case FibsCookie.CLIP_WHO_INFO:
-        App.fibsState.addWho(WhoInfo.from(cm));
+        addWho(WhoInfo.from(cm));
         break;
       case FibsCookie.CLIP_LOGOUT:
-        App.fibsState.removeWho(cm.crumbs['name']);
+        removeWho(cm.crumbs['name']);
         break;
     }
   }
 
-  FibsState() {
-    fibs.addListener(() {
-      if (fibs.value != null) {
-        if (fibs.value.hashCode != _fibshash) {
-          fibs.value.stream.listen(_streamItem);
-          _fibshash = fibs.value.hashCode;
-        }
-      } else {
-        _fibshash = 0;
-      }
-    });
+  bool get loggedIn => _conn != null;
+
+  void login({@required String user, @required String pass}) {
+    assert(!loggedIn);
+
+    _conn = FibsConnection(_proxy, _port);
+    _conn.login(user, pass);
+    _conn.stream.listen(_streamItem);
+    notifyListeners();
+  }
+
+  void logout() async {
+    assert(loggedIn);
+    _conn.send('bye');
+    await Future.delayed(Duration(seconds: 1));
+    _conn.close();
+    _conn = null;
+    whoInfos.clear();
+    App.prefs.value.setBool('autologin', false);
+    notifyListeners();
   }
 
   void addWho(WhoInfo whoInfo) {

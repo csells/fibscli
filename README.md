@@ -25,7 +25,7 @@ The goal is to host it on the desktop and mobile web and make it work against th
 - remember the login
 - filter who
 - short who
-
+- ** access denied! aka incorrect user name/password
 
 # Legal turns algorithm
 find composits of all pieces on all pips + bar (up to number of dice) for the player, e.g. white: [1, 1, 12, 12, 12, 12, 12, ...]
