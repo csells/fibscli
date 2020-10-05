@@ -1,11 +1,17 @@
 import 'package:device_preview/device_preview.dart';
-import 'package:fibscli/game_play_page.dart';
+import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/login.dart';
+import 'package:fibscli/who_page.dart';
 import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+// import 'package:logging/logging.dart';
 
 void main() {
+  // Logger.root.level = Level.ALL; // defaults to Level.INFO
+  // Logger.root.onRecord.listen((record) {
+  //   print('${record.level.name}: ${record.time}: ${record.message}');
+  // });
   // final enabled = !kReleaseMode;
   final enabled = false;
   runApp(DevicePreview(enabled: enabled, builder: (context) => App()));
@@ -15,7 +21,7 @@ class App extends StatelessWidget {
   static const fibsProxy = 'localhost';
   static const fibsPort = 8080;
   static const title = 'Backgammon';
-  static final fibs = ValueNotifier<FibsConnection>(null);
+  static final fibsState = FibsState();
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -25,13 +31,15 @@ class App extends StatelessWidget {
         locale: DevicePreview.of(context).locale,
         builder: DevicePreview.appBuilder,
         home: ValueListenableBuilder<FibsConnection>(
-          valueListenable: fibs,
+          valueListenable: fibsState.fibs,
           builder: (context, fibs, child) => Navigator(
             pages: [
               if (fibs == null)
                 MaterialPage(builder: (context) => LoginPage())
-              else
-                MaterialPage(builder: (context) => GamePlayPage()),
+              else ...[
+                MaterialPage(builder: (context) => WhoPage()),
+                // MaterialPage(builder: (context) => GamePlayPage()),
+              ]
             ],
             onPopPage: (route, result) {
               if (!route.didPop(result)) return false;

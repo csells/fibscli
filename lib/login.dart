@@ -52,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: () {
                             final fibs = FibsConnection(App.fibsProxy, App.fibsPort);
                             fibs.login(_userController.text, _passController.text);
-                            App.fibs.value = fibs;
+                            App.fibsState.fibs.value = fibs;
                           },
                         ),
                       ),

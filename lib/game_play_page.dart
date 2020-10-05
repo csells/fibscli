@@ -105,14 +105,14 @@ class _GameViewState extends State<GameView> {
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<GammonState>(
         notifier: _game,
-        builder: (context, game, child) => Container(
+        build: (context, game, child) => Container(
           width: double.infinity,
           height: double.infinity,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: ChangeNotifierBuilder<GameViewController>(
               notifier: widget.controller,
-              builder: (context, controller, child) => RotatedBox(
+              build: (context, controller, child) => RotatedBox(
                 quarterTurns: controller.reversed ? 2 : 0,
                 child: FittedBox(
                   child: Stack(
