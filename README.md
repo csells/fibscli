@@ -11,7 +11,7 @@ The goal is to host it on the desktop and mobile web and make it work against th
 # screenshot
 ![screenshot](readme/screenshot.png)
 
-# TODO
+# UI TODO
 - shouldn't allow any moves other while dice are on the bar
 - detect end game
 - first move (different colored dice)
@@ -19,9 +19,13 @@ The goal is to host it on the desktop and mobile web and make it work against th
 - animated board rotation
 - test the GammonState + GammonRules
 - implement the forced moves rule (instead of just removing moves that aren't available as you go)
-- hook up with fibs.com telnet server
-- ...
-- profit!
+
+
+# FIBS TODO
+- remember the login
+- filter who
+- short who
+
 
 # Legal turns algorithm
 find composits of all pieces on all pips + bar (up to number of dice) for the player, e.g. white: [1, 1, 12, 12, 12, 12, 12, ...]

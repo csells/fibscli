@@ -9,30 +9,46 @@ class WhoPage extends StatelessWidget {
         appBar: AppBar(title: Text(App.title)),
         body: ChangeNotifierBuilder<NotifierList<WhoInfo>>(
           notifier: App.fibsState.whoInfos,
-          build: (context, whoInfos, child) => DataTable(
-            columns: [
-              DataColumn(label: Text('user')),
-              DataColumn(label: Text('away')),
-              DataColumn(label: Text('experience')),
-              DataColumn(label: Text('opponent')),
-              DataColumn(label: Text('rating')),
-              DataColumn(label: Text('ready')),
-              DataColumn(label: Text('watching')),
-            ],
-            rows: [
-              for (final whoInfo in whoInfos)
-                DataRow(
-                  key: ValueKey(whoInfo.user),
-                  cells: [
-                    DataCell(Text(whoInfo.user)),
-                    DataCell(Text(whoInfo.away.toString())),
-                    DataCell(Text(whoInfo.experience.toString())),
-                    DataCell(Text(whoInfo.opponent)),
-                    DataCell(Text(whoInfo.rating.toStringAsFixed(2))),
-                    DataCell(Text(whoInfo.ready.toString())),
-                    DataCell(Text(whoInfo.watching)),
-                  ],
+          build: (context, whoInfos, child) => Column(
+            children: [
+              Container(
+                alignment: Alignment.center,
+                padding: EdgeInsets.all(10),
+                child: Text(
+                  'FIBS Who',
+                  style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.w500, fontSize: 36),
                 ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: DataTable(
+                    columns: [
+                      DataColumn(label: Text('user')),
+                      DataColumn(label: Text('away')),
+                      DataColumn(label: Text('experience')),
+                      DataColumn(label: Text('opponent')),
+                      DataColumn(label: Text('rating')),
+                      DataColumn(label: Text('ready')),
+                      DataColumn(label: Text('watching')),
+                    ],
+                    rows: [
+                      for (final whoInfo in whoInfos)
+                        DataRow(
+                          key: ValueKey(whoInfo.user),
+                          cells: [
+                            DataCell(Text(whoInfo.user)),
+                            DataCell(Text(whoInfo.away.toString())),
+                            DataCell(Text(whoInfo.experience.toString())),
+                            DataCell(Text(whoInfo.opponent)),
+                            DataCell(Text(whoInfo.rating.toStringAsFixed(2))),
+                            DataCell(Text(whoInfo.ready.toString())),
+                            DataCell(Text(whoInfo.watching)),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
