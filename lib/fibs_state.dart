@@ -16,6 +16,9 @@ class FibsState {
       case FibsCookie.CLIP_WHO_INFO:
         App.fibsState.addWho(WhoInfo.from(cm));
         break;
+      case FibsCookie.CLIP_LOGOUT:
+        App.fibsState.removeWho(cm.crumbs['name']);
+        break;
     }
   }
 
@@ -33,13 +36,17 @@ class FibsState {
   }
 
   void addWho(WhoInfo whoInfo) {
+    removeWho(whoInfo.user);
+    whoInfos.add(whoInfo);
+  }
+
+  void removeWho(String user) {
     for (var i = 0; i != whoInfos.length; ++i) {
-      if (whoInfos[i].user == whoInfo.user) {
+      if (whoInfos[i].user == user) {
         whoInfos.removeAt(i);
         break;
       }
     }
-    whoInfos.add(whoInfo);
   }
 }
 
@@ -99,17 +106,17 @@ class WhoInfo {
     assert(cm.cookie == FibsCookie.CLIP_WHO_INFO);
     return WhoInfo(
       user: cm.crumbs['name'],
-      opponent: CookieMonster.parseOptional(cm.crumbs['opponent'])??'',
-      watching: CookieMonster.parseOptional(cm.crumbs['watching'])??'',
+      opponent: CookieMonster.parseOptional(cm.crumbs['opponent']) ?? '',
+      watching: CookieMonster.parseOptional(cm.crumbs['watching']) ?? '',
       ready: CookieMonster.parseBool(cm.crumbs['ready']),
       away: CookieMonster.parseBool(cm.crumbs['away']),
       rating: double.parse(cm.crumbs['rating']),
       experience: int.parse(cm.crumbs['experience']),
       lastActive: DateTime.now().add(Duration(seconds: int.parse(cm.crumbs['idle']))),
       lastLogin: CookieMonster.parseTimestamp(cm.crumbs['login']),
-      hostname: cm.crumbs['hostname']??'',
-      client: CookieMonster.parseOptional(cm.crumbs['client'])??'',
-      email: CookieMonster.parseOptional(cm.crumbs['email'])??'',
+      hostname: cm.crumbs['hostname'] ?? '',
+      client: CookieMonster.parseOptional(cm.crumbs['client']) ?? '',
+      email: CookieMonster.parseOptional(cm.crumbs['email']) ?? '',
     );
   }
 }

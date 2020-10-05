@@ -22,6 +22,7 @@ class WhoPage extends StatelessWidget {
             rows: [
               for (final whoInfo in whoInfos)
                 DataRow(
+                  key: ValueKey(whoInfo.user),
                   cells: [
                     DataCell(Text(whoInfo.user)),
                     DataCell(Text(whoInfo.away.toString())),
