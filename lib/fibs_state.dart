@@ -6,8 +6,11 @@ import 'package:flutter/material.dart';
 class FibsState extends ChangeNotifier {
   static const _proxy = 'localhost';
   static const _port = 8080;
-  FibsConnection _conn;
   final whoInfos = NotifierList<WhoInfo>();
+  FibsConnection _conn;
+  String _user;
+
+  String get user => _user;
 
   void _streamItem(CookieMessage cm) {
     print(cm);
@@ -31,6 +34,7 @@ class FibsState extends ChangeNotifier {
     _conn = FibsConnection(_proxy, _port);
     _conn.login(user, pass);
     _conn.stream.listen(_streamItem);
+    _user = user;
     notifyListeners();
   }
 
@@ -42,6 +46,7 @@ class FibsState extends ChangeNotifier {
     _conn = null;
     whoInfos.clear();
     App.prefs.value.setBool('autologin', false);
+    _user = null;
     notifyListeners();
   }
 
