@@ -11,7 +11,7 @@ class WhoPage extends StatefulWidget {
 
 class _WhoPageState extends State<WhoPage> {
   var _source = WhoDataSource(App.fibs.whoInfos, filter: 'both');
-  WhoInfo _selected;
+  // WhoInfo _selected;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -58,8 +58,10 @@ class _WhoPageState extends State<WhoPage> {
                       allowMultiColumnSorting: true,
                       allowSorting: true,
                       allowTriStateSorting: true,
-                      selectionMode: SelectionMode.singleDeselect,
-                      onSelectionChanged: _selChanged,
+                      onCellTap: (details) {
+                        final who = _source.getCellValue(details.rowColumnIndex.rowIndex, '') as WhoInfo;
+                        _tapWho(context, who);
+                      },
                       columns: <GridColumn>[
                         GridTextColumn(mappingName: 'user', headerText: 'user'),
                         GridNumericColumn(mappingName: 'experience', headerText: 'experiece'),
@@ -72,61 +74,73 @@ class _WhoPageState extends State<WhoPage> {
                 ],
               ),
             ),
-            if (_selected != null)
-              Align(
-                alignment: Alignment.topRight,
-                child: Drawer(
-                  child: Column(
-                    children: [
-                      Table(
-                        border: TableBorder.all(),
-                        children: [
-                          TableRow(children: [Text('user'), Text(_selected.user)]),
-                          TableRow(children: [Text('away'), Text(_selected.away.toString())]),
-                          TableRow(children: [Text('client'), Text(_selected.client)]),
-                          TableRow(children: [Text('email'), Text(_selected.email)]),
-                          TableRow(children: [Text('experience'), Text(_selected.experience.toString())]),
-                          TableRow(children: [Text('hostname'), Text(_selected.hostname)]),
-                          TableRow(children: [Text('last active'), Text(_selected.lastActive.toString())]),
-                          TableRow(children: [Text('last login'), Text(_selected.lastLogin.toString())]),
-                          TableRow(children: [Text('opponent'), Text(_selected.opponent)]),
-                          TableRow(children: [Text('rating'), Text(_selected.rating.toStringAsFixed(2))]),
-                          TableRow(children: [Text('ready'), Text(_selected.ready.toString())]),
-                          TableRow(children: [Text('watching'), Text(_selected.watching)]),
-                        ],
-                      ),
-                      if (_selected.user != App.fibs.user && _selected.opponent.isNotEmpty)
-                        OutlineButton(
-                          onPressed: () => _watch(_selected),
-                          child: Text('Watch'),
-                        ),
-                      if (_selected.user != App.fibs.user && _selected.opponent.isEmpty && _selected.ready)
-                        OutlineButton(
-                          onPressed: () => _play(_selected),
-                          child: Text('Play'),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
           ],
         ),
       );
 
-  void _selChanged(List<Object> addedRows, List<Object> removedRows) {
-    if (removedRows.isNotEmpty && identical(removedRows.single, _selected)) _selected = null;
-    if (addedRows.isNotEmpty) _selected = addedRows.single;
-    setState(() {});
-  }
-
   void _watch(WhoInfo who) {
     assert(who != null);
-    print(who.user);
+    print('TODO: watch ${who.user}');
   }
 
   void _play(WhoInfo who) {
     assert(who != null);
-    print(who.user);
+    print('TODO: play ${who.user}');
+  }
+
+  void _tapWho(BuildContext context, WhoInfo who) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Who Info'),
+        content: Column(
+          children: [
+            Table(
+              children: [
+                TableRow(children: [Text('user'), Text(who.user)]),
+                TableRow(children: [Text('away'), Text(who.away.toString())]),
+                TableRow(children: [Text('client'), Text(who.client)]),
+                TableRow(children: [Text('email'), Text(who.email)]),
+                TableRow(children: [Text('experience'), Text(who.experience.toString())]),
+                TableRow(children: [Text('hostname'), Text(who.hostname)]),
+                TableRow(children: [Text('last active'), Text(who.lastActive.toString())]),
+                TableRow(children: [Text('last login'), Text(who.lastLogin.toString())]),
+                TableRow(children: [Text('opponent'), Text(who.opponent)]),
+                TableRow(children: [Text('rating'), Text(who.rating.toStringAsFixed(2))]),
+                TableRow(children: [Text('ready'), Text(who.ready.toString())]),
+                TableRow(children: [Text('watching'), Text(who.watching)]),
+              ],
+            ),
+            ButtonBar(
+              children: [
+                if (who.user != App.fibs.user && who.opponent.isNotEmpty)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _watch(who);
+                    },
+                    child: Text('Watch'),
+                  ),
+                if (who.user != App.fibs.user && who.opponent.isEmpty && who.ready)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _play(who);
+                    },
+                    child: Text('Play'),
+                  ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text('Close'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -184,6 +198,8 @@ class WhoDataSource extends DataGridSource<WhoInfo> {
         return whoInfo.rating;
       case 'ready':
         return whoInfo.ready.toString();
+      case '':
+        return whoInfo;
       default:
         throw 'unreachable: columnName= $columnName';
     }
