@@ -11,13 +11,31 @@ class WhoPage extends StatefulWidget {
 
 class _WhoPageState extends State<WhoPage> {
   var _source = WhoDataSource(App.fibs.whoInfos, filter: 'both');
-  // WhoInfo _selected;
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: Text(App.title),
+          leading: Builder(
+            builder: (context) =>
+                IconButton(icon: Icon(Icons.message), onPressed: () => Scaffold.of(context).openDrawer()),
+          ),
           actions: [OutlineButton(onPressed: () => App.fibs.logout(), child: Text('Logout'))],
+        ),
+        drawer: Drawer(
+          child: ChangeNotifierBuilder<NotifierList<FibsMessage>>(
+            notifier: App.fibs.messages,
+            builder: (context, messages, child) => ListView.builder(
+              itemCount: messages.length,
+              itemBuilder: (context, index) => index >= messages.length
+                  ? null
+                  : ListTile(
+                      key: ValueKey(index),
+                      title: Text(messages[index].toString()),
+                    ),
+            ),
+          ),
         ),
         body: Stack(
           children: [

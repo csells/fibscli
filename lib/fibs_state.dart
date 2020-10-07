@@ -3,10 +3,37 @@ import 'package:fibscli/tinystate.dart';
 import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/material.dart';
 
+class FibsMessage {
+  final FibsCookie cookie;
+  final String from;
+  final String message;
+  FibsMessage(this.cookie, this.from, this.message);
+
+  @override
+  String toString() => '$from $_cookieName "$message"';
+
+  String get _cookieName {
+    // ignore: missing_enum_constant_in_switch
+    switch (cookie) {
+      case FibsCookie.CLIP_KIBITZES:
+        return 'kibitzes';
+      case FibsCookie.CLIP_SAYS:
+        return 'says';
+      case FibsCookie.CLIP_SHOUTS:
+        return 'shouts';
+      case FibsCookie.CLIP_WHISPERS:
+        return 'whispers';
+      default:
+        throw 'unreachable';
+    }
+  }
+}
+
 class FibsState extends ChangeNotifier {
   static const _proxy = 'localhost';
   static const _port = 8080;
   final whoInfos = NotifierList<WhoInfo>();
+  final messages = NotifierList<FibsMessage>();
   FibsConnection _conn;
   String _user;
 
@@ -23,10 +50,18 @@ class FibsState extends ChangeNotifier {
       case FibsCookie.CLIP_LOGOUT:
         removeWho(cm.crumbs['name']);
         break;
+
+      case FibsCookie.CLIP_KIBITZES:
+      case FibsCookie.CLIP_MESSAGE:
+      case FibsCookie.CLIP_SAYS:
+      case FibsCookie.CLIP_SHOUTS:
+      case FibsCookie.CLIP_WHISPERS:
+        messages.add(FibsMessage(cm.cookie, cm.crumbs['name'], cm.crumbs['message']));
+        break;
     }
   }
 
-  bool get loggedIn => _conn != null;
+  bool get loggedIn => _conn != null && _conn.connected;
 
   Future<void> login({@required String user, @required String pass}) async {
     assert(!loggedIn);
@@ -48,12 +83,15 @@ class FibsState extends ChangeNotifier {
   }
 
   void logout() async {
-    assert(loggedIn);
-    _conn.send('bye');
-    await Future.delayed(Duration(milliseconds: 100));
-    _conn.close();
+    if (loggedIn) {
+      _conn.send('bye');
+      await Future.delayed(Duration(milliseconds: 100));
+      _conn.close();
+    }
+
     _conn = null;
     whoInfos.clear();
+    messages.clear();
     App.prefs.value.setBool('autologin', false);
     _user = null;
     notifyListeners();
