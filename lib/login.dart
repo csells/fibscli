@@ -21,7 +21,7 @@ class _LoginPageState extends State<LoginPage> {
       _autologin();
   }
 
-  void _autologin() {
+  void _autologin() async {
     App.prefs.removeListener(_autologin);
 
     final prefs = App.prefs.value;
@@ -32,7 +32,31 @@ class _LoginPageState extends State<LoginPage> {
     final pass = prefs.getString('pass'); // TODO: obscure this
     if (user == null || pass == null) return;
 
-    App.fibs.login(user: user, pass: pass);
+    await _login(user, pass);
+  }
+
+  Future<bool> _login(String user, String pass) async {
+    try {
+      await App.fibs.login(user: user, pass: pass);
+    } catch (ex) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Unable to login to FIBS'),
+          content: Text(ex.toString()),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('OK'),
+            )
+          ],
+        ),
+      );
+
+      return false;
+    }
+
+    return true;
   }
 
   @override
@@ -79,20 +103,17 @@ class _LoginPageState extends State<LoginPage> {
                                 ],
                               ),
                               SizedBox(height: 20),
-                              RaisedButton(
+                              ElevatedButton(
                                 child: Text('Login'),
-                                onPressed: () {
+                                onPressed: () async {
                                   final user = _userController.text;
                                   final pass = _passController.text;
                                   if (user.isEmpty || pass.isEmpty) return;
-
-                                  if (_shouldAutologin) {
-                                    prefs.setBool('autologin', true);
+                                  if (await _login(user, pass)) {
+                                    prefs.setBool('autologin', _shouldAutologin);
                                     prefs.setString('user', user);
                                     prefs.setString('pass', pass);
                                   }
-
-                                  App.fibs.login(user: user, pass: pass);
                                 },
                               ),
                             ],

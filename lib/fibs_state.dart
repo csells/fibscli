@@ -28,12 +28,21 @@ class FibsState extends ChangeNotifier {
 
   bool get loggedIn => _conn != null;
 
-  void login({@required String user, @required String pass}) {
+  Future<void> login({@required String user, @required String pass}) async {
     assert(!loggedIn);
 
     _conn = FibsConnection(_proxy, _port);
-    _conn.login(user, pass);
     _conn.stream.listen(_streamItem);
+    final cookie =
+        await _conn.login(user, pass).timeout(Duration(seconds: 3), onTimeout: () => FibsCookie.FIBS_Timeout);
+    if (cookie != FibsCookie.CLIP_WELCOME) {
+      _conn.close();
+      _conn = null;
+      throw Exception(cookie == FibsCookie.FIBS_Timeout
+          ? 'unable to connect; check your internet connection'
+          : 'invalid user name and password');
+    }
+
     _user = user;
     notifyListeners();
   }
@@ -41,7 +50,7 @@ class FibsState extends ChangeNotifier {
   void logout() async {
     assert(loggedIn);
     _conn.send('bye');
-    await Future.delayed(Duration(seconds: 1));
+    await Future.delayed(Duration(milliseconds: 100));
     _conn.close();
     _conn = null;
     whoInfos.clear();
