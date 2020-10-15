@@ -107,6 +107,12 @@ class _WhoPageState extends State<WhoPage> {
       builder: (context) => AlertDialog(
         title: Text('Who Info'),
         actions: [
+          OutlineButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text('Close'),
+          ),
           if (who.user != App.fibs.user && who.opponent.isNotEmpty)
             ElevatedButton(
               onPressed: () {
@@ -123,12 +129,6 @@ class _WhoPageState extends State<WhoPage> {
               },
               child: Text('Play'),
             ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: Text('Close'),
-          ),
         ],
         content: Container(
           width: 500,
