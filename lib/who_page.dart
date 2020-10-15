@@ -10,6 +10,7 @@ class WhoPage extends StatefulWidget {
 }
 
 class _WhoPageState extends State<WhoPage> {
+  var _showMessages = false;
   var _source = WhoDataSource(App.fibs.whoInfos, filter: 'both');
 
   @override
@@ -17,78 +18,75 @@ class _WhoPageState extends State<WhoPage> {
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text(App.title),
-          leading: Builder(
-            builder: (context) =>
-                IconButton(icon: Icon(Icons.message), onPressed: () => Scaffold.of(context).openDrawer()),
-          ),
-          actions: [OutlineButton(onPressed: () => App.fibs.logout(), child: Text('Logout'))],
-        ),
-        drawer: Drawer(
-          child: ChangeNotifierBuilder<NotifierList<FibsMessage>>(
-            notifier: App.fibs.messages,
-            builder: (context, messages, child) => ListView.builder(
-              itemCount: messages.length,
-              itemBuilder: (context, index) => index >= messages.length
-                  ? null
-                  : ListTile(
-                      key: ValueKey(index),
-                      title: Text(messages[index].toString()),
-                    ),
+          actions: [
+            IconButton(
+              onPressed: () => setState(() => _showMessages = !_showMessages),
+              icon: Icon(Icons.message),
+              tooltip: _showMessages ? 'hide messages' : 'show messages',
             ),
-          ),
+            OutlineButton(onPressed: () => App.fibs.logout(), child: Text('Logout')),
+          ],
         ),
-        body: Stack(
+        body: Row(
           children: [
-            ChangeNotifierBuilder<NotifierList<WhoInfo>>(
-              notifier: App.fibs.whoInfos,
-              builder: (context, whoInfos, child) => Column(
+            Expanded(
+              child: Stack(
                 children: [
-                  Container(
-                    alignment: Alignment.center,
-                    padding: EdgeInsets.all(10),
-                    child: Stack(
+                  ChangeNotifierBuilder<NotifierList<WhoInfo>>(
+                    notifier: App.fibs.whoInfos,
+                    builder: (context, whoInfos, child) => Column(
                       children: [
-                        Center(
-                          child: Text(
-                            'FIBS Who',
-                            style: TextStyle(
-                                color: Theme.of(context).primaryColor, fontWeight: FontWeight.w500, fontSize: 36),
+                        Container(
+                          alignment: Alignment.center,
+                          padding: EdgeInsets.all(10),
+                          child: Stack(
+                            children: [
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'FIBS Who',
+                                  style: TextStyle(
+                                      color: Theme.of(context).primaryColor, fontWeight: FontWeight.w500, fontSize: 36),
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: DropdownButton<String>(
+                                  value: _source.filter,
+                                  items: [
+                                    for (final item in ['both', 'humans', 'bots'])
+                                      DropdownMenuItem<String>(value: item, child: Text(item)),
+                                  ],
+                                  onChanged: (item) => setState(() => _source.filter = item),
+                                ),
+                              )
+                            ],
                           ),
                         ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: DropdownButton<String>(
-                            value: _source.filter,
-                            items: [
-                              for (final item in ['both', 'humans', 'bots'])
-                                DropdownMenuItem<String>(value: item, child: Text(item)),
+                        Expanded(
+                          child: SfDataGrid(
+                            source: _source,
+                            columnWidthMode: ColumnWidthMode.fill,
+                            allowMultiColumnSorting: true,
+                            allowSorting: true,
+                            allowTriStateSorting: true,
+                            onCellTap: _tapCell,
+                            columns: <GridColumn>[
+                              GridTextColumn(mappingName: 'user', headerText: 'user'),
+                              GridNumericColumn(mappingName: 'experience', headerText: 'experience'),
+                              GridTextColumn(mappingName: 'opponent', headerText: 'opponent'),
+                              GridNumericColumn(mappingName: 'rating', headerText: 'rating'),
+                              GridTextColumn(mappingName: 'ready', headerText: 'ready'),
                             ],
-                            onChanged: (item) => setState(() => _source.filter = item),
                           ),
-                        )
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: SfDataGrid(
-                      source: _source,
-                      columnWidthMode: ColumnWidthMode.fill,
-                      allowMultiColumnSorting: true,
-                      allowSorting: true,
-                      allowTriStateSorting: true,
-                      onCellTap: _tapCell,
-                      columns: <GridColumn>[
-                        GridTextColumn(mappingName: 'user', headerText: 'user'),
-                        GridNumericColumn(mappingName: 'experience', headerText: 'experience'),
-                        GridTextColumn(mappingName: 'opponent', headerText: 'opponent'),
-                        GridNumericColumn(mappingName: 'rating', headerText: 'rating'),
-                        GridTextColumn(mappingName: 'ready', headerText: 'ready'),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
+            if (_showMessages) MessagesView(),
           ],
         ),
       );
@@ -108,51 +106,49 @@ class _WhoPageState extends State<WhoPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Who Info'),
-        content: Column(
-          children: [
-            Table(
-              children: [
-                TableRow(children: [Text('user'), Text(who.user)]),
-                TableRow(children: [Text('away'), Text(who.away.toString())]),
-                TableRow(children: [Text('client'), Text(who.client)]),
-                TableRow(children: [Text('email'), Text(who.email)]),
-                TableRow(children: [Text('experience'), Text(who.experience.toString())]),
-                TableRow(children: [Text('hostname'), Text(who.hostname)]),
-                TableRow(children: [Text('last active'), Text(who.lastActive.toString())]),
-                TableRow(children: [Text('last login'), Text(who.lastLogin.toString())]),
-                TableRow(children: [Text('opponent'), Text(who.opponent)]),
-                TableRow(children: [Text('rating'), Text(who.rating.toStringAsFixed(2))]),
-                TableRow(children: [Text('ready'), Text(who.ready.toString())]),
-                TableRow(children: [Text('watching'), Text(who.watching)]),
-              ],
+        actions: [
+          if (who.user != App.fibs.user && who.opponent.isNotEmpty)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _watch(who);
+              },
+              child: Text('Watch'),
             ),
-            ButtonBar(
-              children: [
-                if (who.user != App.fibs.user && who.opponent.isNotEmpty)
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _watch(who);
-                    },
-                    child: Text('Watch'),
-                  ),
-                if (who.user != App.fibs.user && who.opponent.isEmpty && who.ready)
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _play(who);
-                    },
-                    child: Text('Play'),
-                  ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text('Close'),
-                ),
-              ],
+          if (who.user != App.fibs.user && who.opponent.isEmpty && who.ready)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _play(who);
+              },
+              child: Text('Play'),
             ),
-          ],
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text('Close'),
+          ),
+        ],
+        content: Container(
+          width: 500,
+          child: Table(
+            columnWidths: {0: FixedColumnWidth(100)},
+            children: [
+              TableRow(children: [Text('user'), Text(who.user)]),
+              TableRow(children: [Text('away'), Text(who.away.toString())]),
+              TableRow(children: [Text('client'), Text(who.client)]),
+              TableRow(children: [Text('email'), Text(who.email)]),
+              TableRow(children: [Text('experience'), Text(who.experience.toString())]),
+              TableRow(children: [Text('hostname'), Text(who.hostname)]),
+              TableRow(children: [Text('last active'), Text(who.lastActive.toString())]),
+              TableRow(children: [Text('last login'), Text(who.lastLogin.toString())]),
+              TableRow(children: [Text('opponent'), Text(who.opponent)]),
+              TableRow(children: [Text('rating'), Text(who.rating.toStringAsFixed(2))]),
+              TableRow(children: [Text('ready'), Text(who.ready.toString())]),
+              TableRow(children: [Text('watching'), Text(who.watching)]),
+            ],
+          ),
         ),
       ),
     );
@@ -232,4 +228,40 @@ class WhoDataSource extends DataGridSource<WhoInfo> {
           ? a.user.toLowerCase().compareTo(b.user.toLowerCase())
           : b.user.toLowerCase().compareTo(a.user.toLowerCase())
       : super.compare(a, b, sortColumn);
+}
+
+class MessagesView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 400,
+        decoration: BoxDecoration(border: Border.all(width: 1, color: Color.fromRGBO(0, 0, 0, 0.26))),
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.all(10),
+                child: Text(
+                  'FIBS Messages',
+                  style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.w500, fontSize: 36),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ChangeNotifierBuilder<NotifierList<FibsMessage>>(
+                notifier: App.fibs.messages,
+                builder: (context, messages, child) => ListView.builder(
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) => index >= messages.length
+                      ? null
+                      : ListTile(
+                          key: ValueKey(index),
+                          title: Text(messages[index].toString()),
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 }
