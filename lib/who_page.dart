@@ -76,13 +76,10 @@ class _WhoPageState extends State<WhoPage> {
                       allowMultiColumnSorting: true,
                       allowSorting: true,
                       allowTriStateSorting: true,
-                      onCellTap: (details) {
-                        final who = _source.getCellValue(details.rowColumnIndex.rowIndex, '') as WhoInfo;
-                        _tapWho(context, who);
-                      },
+                      onCellTap: _tapCell,
                       columns: <GridColumn>[
                         GridTextColumn(mappingName: 'user', headerText: 'user'),
-                        GridNumericColumn(mappingName: 'experience', headerText: 'experiece'),
+                        GridNumericColumn(mappingName: 'experience', headerText: 'experience'),
                         GridTextColumn(mappingName: 'opponent', headerText: 'opponent'),
                         GridNumericColumn(mappingName: 'rating', headerText: 'rating'),
                         GridTextColumn(mappingName: 'ready', headerText: 'ready'),
@@ -160,6 +157,12 @@ class _WhoPageState extends State<WhoPage> {
       ),
     );
   }
+
+  void _tapCell(DataGridCellTapDetails details) {
+    if (details.rowColumnIndex.rowIndex == 0) return; // header
+    final who = _source.getCellValue(details.rowColumnIndex.rowIndex - 1, '') as WhoInfo;
+    _tapWho(context, who);
+  }
 }
 
 class WhoDataSource extends DataGridSource<WhoInfo> {
@@ -222,4 +225,11 @@ class WhoDataSource extends DataGridSource<WhoInfo> {
         throw 'unreachable: columnName= $columnName';
     }
   }
+
+  @override
+  int compare(WhoInfo a, WhoInfo b, SortColumnDetails sortColumn) => sortColumn.name == 'user'
+      ? sortColumn.sortDirection == DataGridSortDirection.ascending
+          ? a.user.toLowerCase().compareTo(b.user.toLowerCase())
+          : b.user.toLowerCase().compareTo(a.user.toLowerCase())
+      : super.compare(a, b, sortColumn);
 }

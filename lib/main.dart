@@ -45,9 +45,9 @@ class _AppState extends State<App> {
           builder: (context, state, child) => Navigator(
             pages: [
               if (!state.loggedIn)
-                MaterialPage(builder: (context) => LoginPage())
+                MaterialPage(child: LoginPage())
               else ...[
-                MaterialPage(builder: (context) => WhoPage()),
+                MaterialPage(child: WhoPage()),
                 // MaterialPage(builder: (context) => GamePlayPage()),
               ]
             ],
