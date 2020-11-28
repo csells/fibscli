@@ -85,7 +85,7 @@ class FibsState extends ChangeNotifier {
   void logout() async {
     if (loggedIn) {
       _conn.send('bye');
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future<void>.delayed(Duration(milliseconds: 100));
       _conn.close();
     }
 

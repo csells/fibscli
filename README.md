@@ -11,6 +11,23 @@ The goal is to host it on the desktop and mobile web and make it work against th
 # screenshot
 ![screenshot](readme/screenshot.png)
 
+# usage
+fibscli uses [webtelnet](https://github.com/mudchina/webtelnet) to proxy from websockets to telnet.
+
+If running JIBS locally, then configure webtelnet like this:
+
+```sh
+$ webtelnet 8080 4321 -h localhost
+```
+
+If running against fibs.com, then configure webtelnet like this:
+
+```sh
+$ webtelnet 8080 4321 -h fibs.com
+```
+
+Now running fibscli will use a websocket on port 8080 of the localhost to connect to either JIBS or FIBS as appropriate.
+
 # FIBS TODO
 - live chat
 - watch backgammon
@@ -32,3 +49,4 @@ find composits of all dice
   e.g. dice composit == [4, 5] (no doubles), [4, 4, 4, 4] (doubles)
 zip each piece composit with composit of all dice
   e.g. [1-4, 1-5] (no doubles), [1-4, 1-4, 12-4, 12-4] (doubles)
+the rest TBD...

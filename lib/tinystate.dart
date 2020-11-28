@@ -64,7 +64,7 @@ class NotifierList<T> extends Iterable<T> with ChangeNotifier {
     notifyListeners();
   }
 
-  Iterable<T> sortedBy(Comparable Function(T element) selector) => _items.sortedBy(selector);
+  Iterable<T> sortedBy(Comparable<T> Function(T element) selector) => _items.sortedBy(selector);
 }
 
 class FutureBuilder2<T> extends StatelessWidget {

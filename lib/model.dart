@@ -172,7 +172,7 @@ class GammonState extends ChangeNotifier {
     for (var fromPip = 1; fromPip <= 24; ++fromPip) allLegalMoves.addAll(getLegalMoves(fromPip));
 
     // find all of the possible hops
-    final allHops = Set<int>.from(allLegalMoves.flatMap((m) => m.hops.map((h) => h.abs())));
+    final allHops = Set<int>.from(allLegalMoves.flatMap<int>((m) => m.hops.map<int>((h) => h.abs())));
 
     // remove dice that aren't usable
     for (final die in _dice.where((d) => d.available)) {

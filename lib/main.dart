@@ -1,20 +1,17 @@
-import 'package:device_preview/device_preview.dart';
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/login.dart';
 import 'package:fibscli/tinystate.dart';
 import 'package:fibscli/who_page.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:logging/logging.dart';
+import 'package:logging/logging.dart';
 
 void main() {
-  // Logger.root.level = Level.ALL; // defaults to Level.INFO
-  // Logger.root.onRecord.listen((record) {
-  //   print('${record.level.name}: ${record.time}: ${record.message}');
-  // });
-  // final enabled = !kReleaseMode;
-  final enabled = false;
-  runApp(DevicePreview(enabled: enabled, builder: (context) => App()));
+  Logger.root.level = Level.ALL; // defaults to Level.INFO
+  Logger.root.onRecord.listen((record) {
+    print('${record.level.name}: ${record.time}: ${record.message}');
+  });
+  runApp(App());
 }
 
 class App extends StatefulWidget {
@@ -38,20 +35,18 @@ class _AppState extends State<App> {
         title: App.title,
         theme: ThemeData(primarySwatch: Colors.green, visualDensity: VisualDensity.adaptivePlatformDensity),
         debugShowCheckedModeBanner: false,
-        locale: DevicePreview.of(context).locale,
-        builder: DevicePreview.appBuilder,
         home: ChangeNotifierBuilder<FibsState>(
           notifier: App.fibs,
           builder: (context, state, child) => Navigator(
             pages: [
               if (!state.loggedIn)
-                MaterialPage(child: LoginPage())
+                MaterialPage<void>(child: LoginPage())
               else ...[
-                MaterialPage(child: WhoPage()),
+                MaterialPage<void>(child: WhoPage()),
                 // MaterialPage(builder: (context) => GamePlayPage()),
               ]
             ],
-            onPopPage: (route, result) => route.didPop(result),
+            onPopPage: (route, dynamic result) => route.didPop(result),
           ),
         ),
       );

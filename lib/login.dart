@@ -36,10 +36,13 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<bool> _login(String user, String pass) async {
+    print('_login($user)');
+
     try {
       await App.fibs.login(user: user, pass: pass);
+      return true;
     } catch (ex) {
-      await showDialog(
+      await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text('Unable to login to FIBS'),
@@ -55,8 +58,6 @@ class _LoginPageState extends State<LoginPage> {
 
       return false;
     }
-
-    return true;
   }
 
   @override

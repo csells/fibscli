@@ -2,7 +2,7 @@ import 'package:fibscli/model.dart';
 import 'package:flutter/material.dart';
 
 class DieState {
-  final roll;
+  final int roll;
   bool available = true;
   DieState(this.roll);
 }

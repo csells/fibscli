@@ -1,8 +1,9 @@
+import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_datagrid/datagrid.dart';
+
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/main.dart';
 import 'package:fibscli/tinystate.dart';
-import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 
 class WhoPage extends StatefulWidget {
   @override
@@ -86,7 +87,7 @@ class _WhoPageState extends State<WhoPage> {
                 ],
               ),
             ),
-            if (_showMessages) MessagesView(),
+            // if (_showMessages) MessagesView(whoInfos: App.fibs.whoInfos),
           ],
         ),
       );
@@ -102,7 +103,7 @@ class _WhoPageState extends State<WhoPage> {
   }
 
   void _tapWho(BuildContext context, WhoInfo who) async {
-    showDialog(
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Who Info'),
@@ -230,7 +231,48 @@ class WhoDataSource extends DataGridSource<WhoInfo> {
       : super.compare(a, b, sortColumn);
 }
 
-class MessagesView extends StatelessWidget {
+/*
+enum UserState { none, playing, watching }
+
+class MessagesView extends StatefulWidget {
+  final NotifierList<WhoInfo> whoInfos;
+  final WhoInfo user;
+  final UserState userState;
+  const MessagesView({
+    @required this.whoInfos,
+    @required this.user,
+    @required this.userState,
+  });
+
+  @override
+  _MessagesViewState createState() => _MessagesViewState();
+}
+
+/// shows the options for sending messages based on the state of player, not playing or watching, playing, watching,
+/// command                   who can hear                  when can do           state of <user>
+/// shout <message>           everyone                      anytime               n/a
+/// say <message>             opponent (+ watchers?)        playing               n/a
+/// kibitz <message>          players + watchers            playing or watching   n/a
+/// whisper <message>         watchers                      playing or watching   n/a
+/// tell <user> <message>     <user>                        anytime               logged in
+/// message <user> <message>  <user>                        anytime               logged in or not (queued)
+class _MessagesViewState extends State<MessagesView> {
+  TextEditingController _controller;
+  var _hears = ''; // TODO: everyone
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _hears = widget.whoInfos.first.user;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => Container(
         width: 400,
@@ -261,7 +303,21 @@ class MessagesView extends StatelessWidget {
                 ),
               ),
             ),
+            Row(
+              children: [
+                DropdownButton<String>(
+                  value: _hears,
+                  items: [
+                    for (final item in ['everyone', 'players+watchers', 'watchers'])
+                      DropdownMenuItem<String>(value: item, child: Text(item)),
+                  ],
+                  onChanged: (item) => setState(() => _source.filter = item),
+                ),
+                Expanded(child: TextField(controller: _controller, decoration: InputDecoration(labelText: 'message'))),
+              ],
+            ),
           ],
         ),
       );
 }
+*/
