@@ -4,7 +4,7 @@ version: 1.0.0+1
 publish_to: none
 
 environment:
-  sdk: ">=2.7.0 <3.0.0"
+  sdk: ">=2.11.0 <3.0.0"
 
 dependencies:
   flutter:
@@ -16,6 +16,7 @@ dependencies:
   shared_preferences: ^0.5.12
   syncfusion_flutter_datagrid: ^18.3.35-beta
   trotter: ^1.2.0
+  web_socket_channel: ^1.1.0
 
 dev_dependencies:
   flutter_test:

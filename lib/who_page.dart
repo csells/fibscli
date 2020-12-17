@@ -25,6 +25,11 @@ class _WhoPageState extends State<WhoPage> {
               icon: Icon(Icons.message),
               tooltip: _showMessages ? 'hide messages' : 'show messages',
             ),
+            IconButton(
+              onPressed: App.fibs.connected ? () => _tapSend(context) : null,
+              icon: Icon(Icons.send),
+              tooltip: 'send command',
+            ),
             OutlineButton(onPressed: () => App.fibs.logout(), child: Text('Logout')),
           ],
         ),
@@ -97,9 +102,9 @@ class _WhoPageState extends State<WhoPage> {
     print('TODO: watch ${who.user}');
   }
 
-  void _play(WhoInfo who) {
+  void _invite(WhoInfo who) {
     assert(who != null);
-    print('TODO: play ${who.user}');
+    App.fibs.invite(who, 1);
   }
 
   void _tapWho(BuildContext context, WhoInfo who) async {
@@ -126,9 +131,9 @@ class _WhoPageState extends State<WhoPage> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _play(who);
+                _invite(who);
               },
-              child: Text('Play'),
+              child: Text('Invite'),
             ),
         ],
         content: Container(
@@ -160,6 +165,45 @@ class _WhoPageState extends State<WhoPage> {
     final who = _source.getCellValue(details.rowColumnIndex.rowIndex - 1, '') as WhoInfo;
     _tapWho(context, who);
   }
+
+  void _tapSend(BuildContext context) async {
+    final cmd = await SendComandDialog.getCommand(context);
+    if (cmd != null && cmd.isNotEmpty) App.fibs.send(cmd);
+  }
+}
+
+class SendComandDialog extends StatefulWidget {
+  static Future<String> getCommand(BuildContext context) async => await showDialog<String>(
+        context: context,
+        builder: (context) => Dialog(child: SendComandDialog()),
+      );
+
+  @override
+  _SendComandDialogState createState() => new _SendComandDialogState();
+}
+
+class _SendComandDialogState extends State<SendComandDialog> {
+  TextEditingController _controller;
+
+  @override
+  initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          children: [
+            Expanded(
+                child: TextField(decoration: InputDecoration(hintText: "command to send"), controller: _controller)),
+            OutlineButton(onPressed: () => Navigator.pop(context, ''), child: Text('Cancel')),
+            SizedBox(width: 8),
+            ElevatedButton(onPressed: () => Navigator.pop(context, _controller.text), child: Text('Send')),
+          ],
+        ),
+      );
 }
 
 class WhoDataSource extends DataGridSource<WhoInfo> {

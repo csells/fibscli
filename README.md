@@ -12,18 +12,18 @@ The goal is to host it on the desktop and mobile web and make it work against th
 ![screenshot](readme/screenshot.png)
 
 # usage
-fibscli uses [webtelnet](https://github.com/mudchina/webtelnet) to proxy from websockets to telnet.
+fibscli uses [websocat](https://github.com/vi/websocat) to proxy from websockets to telnet.
 
-If running JIBS locally, then configure webtelnet like this:
+If running JIBS locally, then configure websocat like this:
 
 ```sh
-$ webtelnet 8080 4321 -h localhost
+$ websocat --binary ws-l:127.0.0.1:8080 tcp:127.0.0.1:4321 --exit-on-eof -v
 ```
 
 If running against fibs.com, then configure webtelnet like this:
 
 ```sh
-$ webtelnet 8080 4321 -h fibs.com
+$ websocat --binary ws-l:127.0.0.1:8080 tcp:fibs.com:4321 --exit-on-eof -v
 ```
 
 Now running fibscli will use a websocket on port 8080 of the localhost to connect to either JIBS or FIBS as appropriate.

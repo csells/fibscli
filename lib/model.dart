@@ -8,9 +8,9 @@ import 'package:dartx/dartx.dart';
 class GammonState extends ChangeNotifier {
   static final _rand = Random();
 
-  // index: 1-24 == board, 0 == player1 home, player2 bar, 25 == player1 bar, player2 home
+  // index: 1-24 == board, 0 == player1 home/player2 bar, 25 == player1 bar/player2 home
   // value: list of piece ids, <0 == player1, >0 == player2
-  final _pips = List<List<int>>(26);
+  final _pips = List<List<int>>.filled(26, List<int>.empty());
 
   final _dice = <DieState>[]; // dice rolls and whether they're still available
   Player _turnPlayer;
@@ -125,7 +125,7 @@ class GammonState extends ChangeNotifier {
 
   bool _legalMove(GammonMove move) {
     // temp board state while checking each hop of the move
-    final movePips = List<List<int>>(26);
+    final movePips = List<List<int>>.filled(26, List<int>.empty());
     for (var i = 0; i < _pips.length; ++i) movePips[i] = List.from(_pips[i]);
 
     // only a legal move if each hop is legal

@@ -38,19 +38,22 @@ class FibsState extends ChangeNotifier {
   String _user;
 
   String get user => _user;
+  bool get connected => _conn != null && _conn.connected;
 
   void _streamItem(CookieMessage cm) {
     print(cm);
 
     // ignore: missing_enum_constant_in_switch
     switch (cm.cookie) {
+      // who
       case FibsCookie.CLIP_WHO_INFO:
-        addWho(WhoInfo.from(cm));
+        _addWho(WhoInfo.from(cm));
         break;
       case FibsCookie.CLIP_LOGOUT:
-        removeWho(cm.crumbs['name']);
+        _removeWho(cm.crumbs['name']);
         break;
 
+      // messages
       case FibsCookie.CLIP_KIBITZES:
       case FibsCookie.CLIP_MESSAGE:
       case FibsCookie.CLIP_SAYS:
@@ -67,7 +70,7 @@ class FibsState extends ChangeNotifier {
     assert(!loggedIn);
 
     _conn = FibsConnection(_proxy, _port);
-    _conn.stream.listen(_streamItem);
+    _conn.stream.listen(_streamItem, onDone: _reset);
     final cookie =
         await _conn.login(user, pass).timeout(Duration(seconds: 3), onTimeout: () => FibsCookie.FIBS_Timeout);
     if (cookie != FibsCookie.CLIP_WELCOME) {
@@ -89,20 +92,24 @@ class FibsState extends ChangeNotifier {
       _conn.close();
     }
 
+    App.prefs.value.setBool('autologin', false);
+    _reset();
+  }
+
+  void _reset() {
     _conn = null;
     whoInfos.clear();
     messages.clear();
-    App.prefs.value.setBool('autologin', false);
     _user = null;
     notifyListeners();
   }
 
-  void addWho(WhoInfo whoInfo) {
-    removeWho(whoInfo.user);
+  void _addWho(WhoInfo whoInfo) {
+    _removeWho(whoInfo.user);
     whoInfos.add(whoInfo);
   }
 
-  void removeWho(String user) {
+  void _removeWho(String user) {
     for (var i = 0; i != whoInfos.length; ++i) {
       if (whoInfos[i].user == user) {
         whoInfos.removeAt(i);
@@ -110,6 +117,12 @@ class FibsState extends ChangeNotifier {
       }
     }
   }
+
+  void invite(WhoInfo who, int matchLength) {
+    _conn.send('invite ${who.user} $matchLength');
+  }
+
+  void send(String cmd) => _conn.send(cmd);
 }
 
 // flutter: {cookie: FibsCookie.CLIP_WHO_INFO, crumbs: {name: chris, opponent: -, watching: -, ready: 1, away: 0, rating: 1500.0, experience: 0, idle: 0, login: 1601853512515, hostName: localhost, client: flutter-fibs, email: -}

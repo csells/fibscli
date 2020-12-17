@@ -4,15 +4,8 @@ import 'package:fibscli/tinystate.dart';
 import 'package:fibscli/who_page.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:logging/logging.dart';
 
-void main() {
-  Logger.root.level = Level.ALL; // defaults to Level.INFO
-  Logger.root.onRecord.listen((record) {
-    print('${record.level.name}: ${record.time}: ${record.message}');
-  });
-  runApp(App());
-}
+void main() => runApp(App());
 
 class App extends StatefulWidget {
   static const title = 'Backgammon';
