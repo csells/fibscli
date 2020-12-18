@@ -86,12 +86,7 @@ class FibsState extends ChangeNotifier {
   }
 
   void logout() async {
-    if (loggedIn) {
-      _conn.send('bye');
-      await Future<void>.delayed(Duration(milliseconds: 100));
-      _conn.close();
-    }
-
+    if (loggedIn) _conn.send('bye');
     App.prefs.value.setBool('autologin', false);
     _reset();
   }
@@ -118,10 +113,7 @@ class FibsState extends ChangeNotifier {
     }
   }
 
-  void invite(WhoInfo who, int matchLength) {
-    _conn.send('invite ${who.user} $matchLength');
-  }
-
+  void invite(WhoInfo who, int matchLength) => _conn.send('invite ${who.user} $matchLength');
   void send(String cmd) => _conn.send(cmd);
 }
 
