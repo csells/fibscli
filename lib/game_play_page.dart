@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:fibscli/dice.dart';
 import 'package:fibscli/main.dart';
 import 'package:fibscli/model.dart';
@@ -112,8 +114,10 @@ class _GameViewState extends State<GameView> {
             padding: const EdgeInsets.all(8.0),
             child: ChangeNotifierBuilder<GameViewController>(
               notifier: widget.controller,
-              builder: (context, controller, child) => RotatedBox(
-                quarterTurns: controller.reversed ? 2 : 0,
+              builder: (context, controller, child) => AnimatedContainer(
+                duration: Duration(milliseconds: 500),
+                transform: Matrix4.rotationZ(controller.reversed ? pi : 0),
+                transformAlignment: Alignment.center,
                 child: FittedBox(
                   child: Stack(
                     children: [

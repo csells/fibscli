@@ -1,4 +1,5 @@
 import 'package:fibscli/fibs_state.dart';
+import 'package:fibscli/game_play_page.dart';
 import 'package:fibscli/login.dart';
 import 'package:fibscli/tinystate.dart';
 import 'package:fibscli/who_page.dart';
@@ -32,12 +33,12 @@ class _AppState extends State<App> {
           notifier: App.fibs,
           builder: (context, state, child) => Navigator(
             pages: [
-              if (!state.loggedIn)
-                MaterialPage<void>(child: LoginPage())
-              else ...[
-                MaterialPage<void>(child: WhoPage()),
-                // MaterialPage(builder: (context) => GamePlayPage()),
-              ]
+              // if (!state.loggedIn)
+              //   MaterialPage<void>(child: LoginPage())
+              // else ...[
+              //   MaterialPage<void>(child: WhoPage()),
+              // ]
+              MaterialPage<void>(child: GamePlayPage()),
             ],
             onPopPage: (route, dynamic result) => route.didPop(result),
           ),
