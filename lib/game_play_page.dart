@@ -210,7 +210,7 @@ class _GameViewState extends State<GameView> {
                           key: ValueKey(layout.pieceId),
                           rect: layout.rect,
                           child: GestureDetector(
-                            onTap: GammonRules.signFor(_game.turnPlayer) != layout.pieceId.sign
+                            onTap: _game.turnPlayer != GammonRules.playerFor(layout.pieceId)
                                 ? null
                                 : () => _pieceTap(
                                     layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
@@ -262,7 +262,6 @@ class _GameViewState extends State<GameView> {
   }
 
   void _tapHome(Player player) => _move(GammonRules.homePipNoFor(player));
-
   void _pipTap(int toPip) => _move(toPip);
 
   void _move(int toEndPip) {

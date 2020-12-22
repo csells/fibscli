@@ -127,9 +127,8 @@ class PieceLayout {
 
     // draw the pieces on the bar
     for (final player in Player.values) {
-      final sign = GammonRules.signFor(player);
       final bar = GammonRules.barPipNoFor(player);
-      final pieces = pips[bar].where((p) => p.sign == sign).toList();
+      final pieces = pips[bar].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceId = pieces[i];
@@ -142,8 +141,7 @@ class PieceLayout {
 
     // draw the pieces in their homes
     for (final player in Player.values) {
-      final sign = GammonRules.signFor(player);
-      final pieces = pips[GammonRules.homePipNoFor(player)].where((p) => p.sign == sign).toList();
+      final pieces = pips[GammonRules.homePipNoFor(player)].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceId = pieces[i];

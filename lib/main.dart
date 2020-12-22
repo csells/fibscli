@@ -1,10 +1,10 @@
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/game_play_page.dart';
-import 'package:fibscli/login.dart';
 import 'package:fibscli/tinystate.dart';
-import 'package:fibscli/who_page.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:fibscli/login.dart';
+// import 'package:fibscli/who_page.dart';
 
 void main() => runApp(App());
 
