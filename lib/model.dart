@@ -58,8 +58,7 @@ class GammonState extends ChangeNotifier {
     if (fromPip.isEmpty) return;
 
     // do the pieces belong to the current player?
-    final sign = GammonRules._signFor(_turnPlayer);
-    if (!fromPip.any((p) => p.sign == sign)) return;
+    if (!fromPip.any((p) => GammonRules.playerFor(p) == _turnPlayer)) return;
 
     // check all components of the _dice for legal moves, taking into account doubles
     // need to uniqify the numbers for trotter
@@ -69,6 +68,7 @@ class GammonState extends ChangeNotifier {
     ];
 
     final comps = Compounds(stringRolls);
+    final sign = _turnPlayer == Player.one ? -1 : 1;
     for (final comp in comps().where((comp) => comp.isNotEmpty)) {
       // check if all of the moves along the way are legal for this compound to be legal
       final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
@@ -260,9 +260,6 @@ class GammonRules {
         [], // 25: player1 bar, player2 home
       ];
 
-  // TODO: remove _signFor; playerFor is enough and much more clear
-  static int _signFor(Player player) => player == Player.one ? -1 : 1;
-
   static Player playerFor(int n) => n < 0 ? Player.one : Player.two;
   static int homePipNoFor(Player player) => player == Player.one ? 0 : 25;
   static int barPipNoFor(Player player) => player == Player.one ? 25 : 0;
@@ -279,10 +276,9 @@ class GammonRules {
     if (toPipNo == homePipNo) return false;
     if (toPipNo == barPipNo) return false;
 
-    final sign = _signFor(player);
-    if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
+    if (!pips[fromPipNo].any((p) => playerFor(p) == player)) return false;
     if (pips[toPipNo].isEmpty) return true;
-    if (pips[toPipNo][0].sign == sign) return true;
+    if (playerFor(pips[toPipNo][0]) == player) return true;
     return false;
   }
 
@@ -290,8 +286,7 @@ class GammonRules {
   static GammonDelta move(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     assert(canMove(player, fromPipNo, toPipNo, pips));
     final fromPieces = pips[fromPipNo];
-    final sign = _signFor(player);
-    final index = fromPieces.lastIndexWhere((p) => p.sign == sign);
+    final index = fromPieces.lastIndexWhere((p) => playerFor(p) == player);
     final id = fromPieces.removeAt(index);
     final toPieces = pips[toPipNo];
     toPieces.add(id);
@@ -310,10 +305,9 @@ class GammonRules {
     if (toPipNo == homePipNo) return false;
     if (toPipNo == barPipNo) return false;
 
-    final sign = _signFor(player);
-    if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
+    if (!pips[fromPipNo].any((p) => playerFor(p) == player)) return false;
     if (pips[toPipNo].length != 1) return false;
-    if (pips[toPipNo][0].sign != sign) return true;
+    if (playerFor(pips[toPipNo][0]) != player) return true;
     return false;
   }
 
@@ -321,11 +315,10 @@ class GammonRules {
   static List<GammonDelta> hit(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     assert(canHit(player, fromPipNo, toPipNo, pips));
     final fromPieces = pips[fromPipNo];
-    final sign = _signFor(player);
-    final fromIndex = fromPieces.lastIndexWhere((p) => p.sign == sign);
+    final fromIndex = fromPieces.lastIndexWhere((p) => playerFor(p) == player);
     final fromId = fromPieces.removeAt(fromIndex);
     final toPieces = pips[toPipNo];
-    final toIndex = toPieces.lastIndexWhere((p) => p.sign != sign);
+    final toIndex = toPieces.lastIndexWhere((p) => playerFor(p) != player);
     final toId = toPieces.removeAt(toIndex);
     toPieces.add(fromId);
     final barPipNo = barPipNoFor(otherPlayer(player));
@@ -350,12 +343,11 @@ class GammonRules {
     if (fromPipNo == homePipNo) return false;
 
     // can't move a piece that isn't there
-    final sign = _signFor(player);
-    if (!pips[fromPipNo].any((p) => p.sign == sign)) return false;
+    if (!pips[fromPipNo].any((p) => playerFor(p) == player)) return false;
 
     // can't bear off if not all of the pieces are in the home board
     final otherPipNos = _playerNonHomeBoardPipNos[player.index];
-    for (final pipNo in otherPipNos) if (pips[pipNo].any((p) => p.sign == sign)) return false;
+    for (final pipNo in otherPipNos) if (pips[pipNo].any((p) => playerFor(p) == player)) return false;
 
     // can bear off if moving exactly to the homePipNo
     if (toPipNo == homePipNo) return true;
@@ -363,7 +355,7 @@ class GammonRules {
     // check if it's a forced bear off, i.e. no pieces on pips > fromPipNo
     final greaterHomeBoardPipNos = _playerHomeBoardPipNos[player.index]
         .where((pipNo) => player == Player.one ? pipNo > fromPipNo : pipNo < fromPipNo);
-    for (final pipNo in greaterHomeBoardPipNos) if (pips[pipNo].any((p) => p.sign == sign)) return false;
+    for (final pipNo in greaterHomeBoardPipNos) if (pips[pipNo].any((p) => playerFor(p) == player)) return false;
     return true;
   }
 
@@ -372,8 +364,7 @@ class GammonRules {
     assert(canBearOff(player, fromPipNo, toPipNo, pips));
 
     final fromPieces = pips[fromPipNo];
-    final sign = _signFor(player);
-    final index = fromPieces.lastIndexWhere((p) => p.sign == sign);
+    final index = fromPieces.lastIndexWhere((p) => playerFor(p) == player);
     final id = fromPieces.removeAt(index);
     final homePipNo = homePipNoFor(player);
     final homePieces = pips[homePipNo];
