@@ -68,7 +68,7 @@ class GammonState extends ChangeNotifier {
     ];
 
     final comps = Compounds(stringRolls);
-    final sign = _turnPlayer == Player.one ? -1 : 1;
+    final sign = GammonRules.signFor(_turnPlayer);
     for (final comp in comps().where((comp) => comp.isNotEmpty)) {
       // check if all of the moves along the way are legal for this compound to be legal
       final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
@@ -261,6 +261,7 @@ class GammonRules {
       ];
 
   static Player playerFor(int n) => n < 0 ? Player.one : Player.two;
+  static int signFor(Player player) => player == Player.one ? -1 : 1;
   static int homePipNoFor(Player player) => player == Player.one ? 0 : 25;
   static int barPipNoFor(Player player) => player == Player.one ? 25 : 0;
   static Player otherPlayer(Player player) => player == Player.one ? Player.two : Player.one;
