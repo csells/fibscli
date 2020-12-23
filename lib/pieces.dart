@@ -12,8 +12,8 @@ class PieceView extends StatelessWidget {
   final List<Color> _gradeColors;
   final PieceLayout layout;
   PieceView({@required this.layout})
-      : _gradeColors = _pieceColors[layout.pieceId.sign == -1 ? 0 : 1],
-        _textColor = layout.pieceId.sign == -1 ? Colors.white : Colors.black;
+      : _gradeColors = _pieceColors[layout.pieceID.sign == -1 ? 0 : 1],
+        _textColor = layout.pieceID.sign == -1 ? Colors.white : Colors.black;
 
   @override
   Widget build(BuildContext context) => layout.edge
@@ -61,7 +61,7 @@ class PieceLayout {
   static final _edgeHeight = 11.0;
 
   final int pipNo;
-  final int pieceId;
+  final int pieceID;
   final double left;
   final double top;
   final String label;
@@ -69,7 +69,7 @@ class PieceLayout {
   final bool edge;
   PieceLayout({
     @required this.pipNo,
-    @required this.pieceId,
+    @required this.pieceID,
     @required this.left,
     @required this.top,
     @required this.label,
@@ -100,24 +100,24 @@ class PieceLayout {
           final label = pieceCount > 5 && (h + 1) == pieceCount ? pieceCount.toString() : '';
           final dy = _dy * min(4, h);
           final highlight = pipNo == highlightedPiecePip && (h + 1) == min(pieceCount, 5);
-          final pieceId = pip[h];
+          final pieceID = pip[h];
 
           if (pipNo >= 1 && pipNo <= 6) {
             // bottom right
             yield PieceLayout(
-                pipNo: pipNo, pieceId: pieceId, left: 468 - dx, top: 371 - dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceID: pieceID, left: 468 - dx, top: 371 - dy, label: label, highlight: highlight);
           } else if (pipNo >= 7 && pipNo <= 12) {
             // bottom left
             yield PieceLayout(
-                pipNo: pipNo, pieceId: pieceId, left: 204 - dx, top: 371 - dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceID: pieceID, left: 204 - dx, top: 371 - dy, label: label, highlight: highlight);
           } else if (pipNo >= 13 && pipNo <= 18) {
             // top left
             yield PieceLayout(
-                pipNo: pipNo, pieceId: pieceId, left: 24 + dx, top: 21 + dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceID: pieceID, left: 24 + dx, top: 21 + dy, label: label, highlight: highlight);
           } else if (pipNo >= 19 && pipNo <= 24) {
             // top right
             yield PieceLayout(
-                pipNo: pipNo, pieceId: pieceId, left: 288 + dx, top: 21 + dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceID: pieceID, left: 288 + dx, top: 21 + dy, label: label, highlight: highlight);
           } else {
             assert(false);
           }
@@ -131,11 +131,11 @@ class PieceLayout {
       final pieces = pips[bar].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
-        final pieceId = pieces[i];
+        final pieceID = pieces[i];
         final label = (i + 1) == pieceCount && pieceCount > 3 ? pieceCount.toString() : '';
-        final top = pieceId.sign == -1 ? 254.0 + _dy * min(i, 2) : 138.0 - _dy * min(i, 2);
+        final top = pieceID.sign == -1 ? 254.0 + _dy * min(i, 2) : 138.0 - _dy * min(i, 2);
         final highlight = bar == highlightedPiecePip && i == 0;
-        yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 246, top: top, label: label, highlight: highlight);
+        yield PieceLayout(pipNo: 0, pieceID: pieceID, left: 246, top: top, label: label, highlight: highlight);
       }
     }
 
@@ -144,9 +144,9 @@ class PieceLayout {
       final pieces = pips[GammonRules.homePipNoFor(player)].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
-        final pieceId = pieces[i];
-        final top = pieceId.sign == -1 ? 386.0 - (_edgeHeight + 1) * i : 22.0 + (_edgeHeight + 1) * i;
-        yield PieceLayout(pipNo: 0, pieceId: pieceId, left: 520, top: top, label: '', edge: true);
+        final pieceID = pieces[i];
+        final top = pieceID.sign == -1 ? 386.0 - (_edgeHeight + 1) * i : 22.0 + (_edgeHeight + 1) * i;
+        yield PieceLayout(pipNo: 0, pieceID: pieceID, left: 520, top: top, label: '', edge: true);
       }
     }
   }

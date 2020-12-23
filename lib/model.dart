@@ -85,19 +85,23 @@ class GammonState extends ChangeNotifier {
     }
   }
 
-  void doMoveHitOrBearOff({@required int fromPipNo, @required int toPipNo}) {
+  List<GammonDelta> moveHitOrBearOff({@required int fromPipNo, @required int toPipNo}) {
+    final deltas = <GammonDelta>[];
+
     if (GammonRules.canMove(_turnPlayer, fromPipNo, toPipNo, pips)) {
-      GammonRules.doMove(_turnPlayer, fromPipNo, toPipNo, pips);
+      deltas.add(GammonRules.move(_turnPlayer, fromPipNo, toPipNo, pips));
     } else if (GammonRules.canHit(_turnPlayer, fromPipNo, toPipNo, pips)) {
-      GammonRules.doHit(_turnPlayer, fromPipNo, toPipNo, pips);
+      deltas.addAll(GammonRules.hit(_turnPlayer, fromPipNo, toPipNo, pips));
     } else if (GammonRules.canBearOff(_turnPlayer, fromPipNo, toPipNo, pips)) {
-      GammonRules.doBearOff(_turnPlayer, fromPipNo, toPipNo, pips);
-    } else {
-      return;
+      deltas.add(GammonRules.bearOff(_turnPlayer, fromPipNo, toPipNo, pips));
     }
 
-    _useDie((fromPipNo - toPipNo).abs());
-    notifyListeners();
+    if (deltas.isNotEmpty) {
+      _useDie((fromPipNo - toPipNo).abs());
+      notifyListeners();
+    }
+
+    return deltas;
   }
 
   int pipCount({@required int sign}) {
@@ -135,11 +139,11 @@ class GammonState extends ChangeNotifier {
 
       // check this hop and update temp game state for next hop
       if (GammonRules.canMove(move.player, fromPipNo, toPipNo, movePips)) {
-        GammonRules.doMove(move.player, fromPipNo, toPipNo, movePips);
+        GammonRules.move(move.player, fromPipNo, toPipNo, movePips);
       } else if (GammonRules.canHit(move.player, fromPipNo, toPipNo, movePips)) {
-        GammonRules.doHit(move.player, fromPipNo, toPipNo, movePips);
+        GammonRules.hit(move.player, fromPipNo, toPipNo, movePips);
       } else if (GammonRules.canBearOff(move.player, fromPipNo, toPipNo, movePips)) {
-        GammonRules.doBearOff(move.player, fromPipNo, toPipNo, movePips);
+        GammonRules.bearOff(move.player, fromPipNo, toPipNo, movePips);
       } else {
         return false;
       }
@@ -179,6 +183,13 @@ class GammonState extends ChangeNotifier {
       if (!allHops.contains(die.roll)) die.available = false;
     }
   }
+}
+
+class GammonDelta {
+  final int pieceID;
+  final int fromPipNo;
+  final int toPipNo;
+  GammonDelta({@required this.pieceID, @required this.fromPipNo, @required this.toPipNo});
 }
 
 extension GammonMoves on Iterable<GammonMove> {
@@ -249,7 +260,9 @@ class GammonRules {
         [], // 25: player1 bar, player2 home
       ];
 
+  // TODO: remove _signFor; playerFor is enough and much more clear
   static int _signFor(Player player) => player == Player.one ? -1 : 1;
+
   static Player playerFor(int n) => n < 0 ? Player.one : Player.two;
   static int homePipNoFor(Player player) => player == Player.one ? 0 : 25;
   static int barPipNoFor(Player player) => player == Player.one ? 25 : 0;
@@ -274,7 +287,7 @@ class GammonRules {
   }
 
   // move the piece without hitting
-  static void doMove(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
+  static GammonDelta move(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     assert(canMove(player, fromPipNo, toPipNo, pips));
     final fromPieces = pips[fromPipNo];
     final sign = _signFor(player);
@@ -282,6 +295,8 @@ class GammonRules {
     final id = fromPieces.removeAt(index);
     final toPieces = pips[toPipNo];
     toPieces.add(id);
+
+    return GammonDelta(pieceID: id, fromPipNo: fromPipNo, toPipNo: toPipNo);
   }
 
   // can the piece can be hit?
@@ -303,7 +318,7 @@ class GammonRules {
   }
 
   // hit a lone piece
-  static void doHit(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
+  static List<GammonDelta> hit(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     assert(canHit(player, fromPipNo, toPipNo, pips));
     final fromPieces = pips[fromPipNo];
     final sign = _signFor(player);
@@ -315,6 +330,11 @@ class GammonRules {
     toPieces.add(fromId);
     final barPipNo = barPipNoFor(otherPlayer(player));
     pips[barPipNo].add(toId);
+
+    return [
+      GammonDelta(pieceID: fromId, fromPipNo: fromPipNo, toPipNo: toPipNo), // hitter
+      GammonDelta(pieceID: fromId, fromPipNo: toPipNo, toPipNo: barPipNo), // hittee
+    ];
   }
 
   static final _playerHomeBoardPipNos = [1.rangeTo(6), 19.rangeTo(24)];
@@ -348,7 +368,7 @@ class GammonRules {
   }
 
   // bear off the piece
-  static void doBearOff(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
+  static GammonDelta bearOff(Player player, int fromPipNo, int toPipNo, List<List<int>> pips) {
     assert(canBearOff(player, fromPipNo, toPipNo, pips));
 
     final fromPieces = pips[fromPipNo];
@@ -358,5 +378,7 @@ class GammonRules {
     final homePipNo = homePipNoFor(player);
     final homePieces = pips[homePipNo];
     homePieces.add(id);
+
+    return GammonDelta(pieceID: id, fromPipNo: fromPipNo, toPipNo: homePipNo);
   }
 }

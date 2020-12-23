@@ -207,10 +207,10 @@ class _GameViewState extends State<GameView> {
                       for (final layout in PieceLayout.getLayouts(game, highlightedPiecePip: _fromPip))
                         AnimatedPositioned.fromRect(
                           duration: Duration(milliseconds: 250),
-                          key: ValueKey(layout.pieceId),
+                          key: ValueKey(layout.pieceID),
                           rect: layout.rect,
                           child: GestureDetector(
-                            onTap: _game.turnPlayer != GammonRules.playerFor(layout.pieceId)
+                            onTap: _game.turnPlayer != GammonRules.playerFor(layout.pieceID)
                                 ? null
                                 : () => _pieceTap(
                                     layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
@@ -270,14 +270,21 @@ class _GameViewState extends State<GameView> {
 
     // if this is a legal move, do the move
     if (hops != null) {
+      // track deltas at each hop
+      final hopDeltas = List<List<GammonDelta>>.filled(hops.length, List<GammonDelta>.empty());
+
       // move the piece for each hop
       var fromPip = _fromPip;
-      for (final hop in hops) {
+      for (var i = 0; i != hops.length; ++i) {
+        final hop = hops[i];
         final toPip = fromPip + hop;
-        _game.doMoveHitOrBearOff(fromPipNo: fromPip, toPipNo: toPip);
+        hopDeltas[i] = _game.moveHitOrBearOff(fromPipNo: fromPip, toPipNo: toPip);
         fromPip = toPip;
       }
     }
+
+    // convert deltas for each hop into a sequence of positions for each affected piece
+    // TODO
 
     // reset
     setState(() {
