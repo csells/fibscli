@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:fibscli/dice.dart';
 import 'package:fibscli/main.dart';
 import 'package:fibscli/model.dart';
@@ -10,6 +9,7 @@ import 'package:fibscli/tinystate.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dartx/dartx.dart';
 
 class GamePlayPage extends StatefulWidget {
   @override
@@ -281,10 +281,10 @@ class _GameViewState extends State<GameView> {
         hopDeltas[i] = _game.moveHitOrBearOff(fromPipNo: fromPip, toPipNo: toPip);
         fromPip = toPip;
       }
-    }
 
-    // convert deltas for each hop into a sequence of positions for each affected piece
-    // TODO
+      // convert deltas for each hop into a sequence of positions for each affected piece
+      final piecePositions = _piecePositionsFor(hopDeltas);
+    }
 
     // reset
     setState(() {
@@ -301,6 +301,48 @@ class _GameViewState extends State<GameView> {
   bool _highlightHome(Player player) {
     final homePipNo = GammonRules.homePipNoFor(player);
     return _legalMoves.any((m) => m.toPipNo == homePipNo);
+  }
+
+  static Map<int, List<Offset>> _piecePositionsFor(List<List<GammonDelta>> hopDeltas) {
+    final flatDeltas = [
+      for (final hop in hopDeltas)
+        for (final delta in hop) delta
+    ];
+
+    // find each piece that moves
+    final pieceIDs = [for (final delta in flatDeltas) delta.pieceID].distinct().toList();
+
+    // find the first pip for each piece
+    final fromPipNoForPieces = <int, int>{};
+    for (final pieceID in pieceIDs) {
+      fromPipNoForPieces[pieceID] = flatDeltas.firstWhere((d) => d.pieceID == pieceID).fromPipNo;
+    }
+
+    // initialize the list of pips that each piece travels
+    final piecePips = <int, List<int>>{};
+    for (final pieceID in pieceIDs) piecePips[pieceID] = [];
+
+    // get pip for each piece at each hop (most won't move)
+    for (final hop in hopDeltas) {
+      for (final pieceID in pieceIDs) {
+        // the piece either moved to a new pip  this hop or stayed at the same pip
+        final toPip = hop.firstOrNullWhere((d) => d.pieceID == pieceID)?.toPipNo ?? fromPipNoForPieces[pieceID];
+
+        // add the pip to this hop for this piece
+        piecePips[pieceID].add(toPip);
+
+        // keep track of this piece's pip in case it's need for the next hop
+        fromPipNoForPieces[pieceID] = toPip;
+      }
+    }
+
+    for (final pieceID in piecePips.keys) {
+      print('$pieceID: ${piecePips[pieceID]}');
+    }
+
+    // translate pips into offsets
+    // TODO
+    return {};
   }
 }
 
