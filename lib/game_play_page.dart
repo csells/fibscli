@@ -211,20 +211,16 @@ class _GameViewState extends State<GameView> {
                             ? AnimatedLayouts(
                                 layouts: _pieceLayouts.remove(layout.pieceID),
                                 child: GestureDetector(
-                                  onTap: _game.turnPlayer != GammonRules.playerFor(layout.pieceID)
-                                      ? null
-                                      : () => _pieceTap(
-                                          layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
+                                  onTap: () => _pieceTap(
+                                      layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
                                   child: PieceView(layout: layout),
                                 ),
                               )
                             : Positioned.fromRect(
                                 rect: layout.rect,
                                 child: GestureDetector(
-                                  onTap: _game.turnPlayer != GammonRules.playerFor(layout.pieceID)
-                                      ? null
-                                      : () => _pieceTap(
-                                          layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
+                                  onTap: () => _pieceTap(
+                                      layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
                                   child: PieceView(layout: layout),
                                 ),
                               ),

@@ -34,7 +34,6 @@ Now running fibscli will use a websocket on port 8080 of the localhost to connec
 - play backgammon
 
 # UI TODO
-- ok to click on an opponent piece when you're hitting them
 - move a hit piece *after* it's been hit
 - clicking on the board should clear the selected pip piece
 - draw moving pieces on top of other pieces
