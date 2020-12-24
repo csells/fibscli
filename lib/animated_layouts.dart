@@ -1,5 +1,6 @@
 import 'package:fibscli/pieces.dart';
 import 'package:flutter/widgets.dart';
+import 'package:dartx/dartx.dart';
 
 class AnimatedLayouts extends StatefulWidget {
   final List<PieceLayout> layouts;
@@ -24,8 +25,12 @@ class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderSt
   void initState() {
     super.initState();
 
+    final distance = [
+      for (var i = 1; i != widget.layouts.length; ++i)
+        (widget.layouts[i - 1].offset - widget.layouts[i].offset).distance
+    ].sum();
     final animatable = _animatableFor(widget.layouts);
-    _controller = AnimationController(vsync: this, duration: Duration(milliseconds: 250));
+    _controller = AnimationController(vsync: this, duration: Duration(milliseconds: (distance * 1.5).floor()));
     _animation = animatable.animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
     _controller.forward();
   }
