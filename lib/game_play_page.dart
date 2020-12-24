@@ -334,6 +334,10 @@ class _GameViewState extends State<GameView> {
       }
     }
 
+    for (final pieceID in pieceLayouts.keys) {
+      print('$pieceID: ${pieceLayouts[pieceID]}');
+    }
+
     return pieceLayouts;
   }
 }

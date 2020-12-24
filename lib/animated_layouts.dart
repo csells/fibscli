@@ -37,8 +37,16 @@ class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderSt
 
   static Animatable<PieceLayout> _animatableFor(List<PieceLayout> layouts) => TweenSequence(
         [
-          for (var i = 1; i != layouts.length; ++i)
-            TweenSequenceItem(tween: PieceLayoutTween(begin: layouts[i - 1], end: layouts[i]), weight: 1),
+          for (var i = 1; i != layouts.length; ++i) ...[
+            TweenSequenceItem(
+              tween: PieceLayoutTween(begin: layouts[i - 1], end: layouts[i]),
+              weight: (layouts[i - 1].offset - layouts[i].offset).distance,
+            ),
+            TweenSequenceItem(
+              tween: ConstantTween(layouts[i]),
+              weight: 100,
+            ),
+          ],
         ],
       );
 
@@ -61,12 +69,14 @@ class PieceLayoutTween extends Tween<PieceLayout> {
     // these things shouldn't change...
     assert(begin.edge == end.edge);
     assert(begin.highlight == end.highlight);
-    assert(begin.label == end.label);
     assert(begin.pieceID == end.pieceID);
 
     // only the offset and the pipno changes
     assert(begin.offset != end.offset);
     assert(begin.pipNo != end.pipNo);
+
+    // label could change...
+    // assert(begin.label == end.label);
   }
 
   @override
@@ -74,7 +84,7 @@ class PieceLayoutTween extends Tween<PieceLayout> {
         pipNo: 0, // used?
         pieceID: begin.pieceID,
         offset: Offset.lerp(begin.offset, end.offset, t), // only the offset changes
-        label: begin.label,
+        label: '', // used?
         highlight: begin.highlight,
         edge: begin.edge,
       );
