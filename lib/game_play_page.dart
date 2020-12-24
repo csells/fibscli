@@ -96,6 +96,7 @@ class _GameViewState extends State<GameView> {
   final _game = GammonState();
   var _legalMoves = <GammonMove>[];
   int _fromPip;
+  Map<int, List<PieceLayout>> _pieceLayouts;
 
   @override
   void initState() {
@@ -270,20 +271,24 @@ class _GameViewState extends State<GameView> {
 
     // if this is a legal move, do the move
     if (hops != null) {
-      // track deltas at each hop
-      final hopDeltas = List<List<GammonDelta>>.filled(hops.length, List<GammonDelta>.empty());
+      // track moved pieces and game states at each hop
+      final movedPieceIDs = <int>{};
+      final gameStates = <GammonState>[GammonState.from(_game)];
 
       // move the piece for each hop
       var fromPip = _fromPip;
       for (var i = 0; i != hops.length; ++i) {
         final hop = hops[i];
         final toPip = fromPip + hop;
-        hopDeltas[i] = _game.moveHitOrBearOff(fromPipNo: fromPip, toPipNo: toPip);
+        final deltas = _game.moveHitOrBearOff(fromPipNo: fromPip, toPipNo: toPip);
+        movedPieceIDs.addAll([for (final delta in deltas) delta.pieceID]);
+        gameStates.add(GammonState.from(_game));
         fromPip = toPip;
       }
 
-      // convert deltas for each hop into a sequence of positions for each affected piece
-      final piecePositions = _piecePositionsFor(hopDeltas);
+      // convert game states for each hop into a sequence of layouts for each affected piece
+      assert(gameStates.length == hops.length + 1);
+      _pieceLayouts = _pieceLayoutsFor(movedPieceIDs.toList(), gameStates);
     }
 
     // reset
@@ -303,46 +308,26 @@ class _GameViewState extends State<GameView> {
     return _legalMoves.any((m) => m.toPipNo == homePipNo);
   }
 
-  static Map<int, List<Offset>> _piecePositionsFor(List<List<GammonDelta>> hopDeltas) {
-    final flatDeltas = [
-      for (final hop in hopDeltas)
-        for (final delta in hop) delta
-    ];
+  static Map<int, List<PieceLayout>> _pieceLayoutsFor(List<int> pieceIDs, List<GammonState> gameStates) {
+    // initialize the list of layouts that each piece travels
+    final pieceLayouts = <int, List<PieceLayout>>{};
+    for (final pieceID in pieceIDs) pieceLayouts[pieceID] = [];
 
-    // find each piece that moves
-    final pieceIDs = [for (final delta in flatDeltas) delta.pieceID].distinct().toList();
-
-    // find the first pip for each piece
-    final fromPipNoForPieces = <int, int>{};
-    for (final pieceID in pieceIDs) {
-      fromPipNoForPieces[pieceID] = flatDeltas.firstWhere((d) => d.pieceID == pieceID).fromPipNo;
-    }
-
-    // initialize the list of pips that each piece travels
-    final piecePips = <int, List<int>>{};
-    for (final pieceID in pieceIDs) piecePips[pieceID] = [];
-
-    // get pip for each piece at each hop (most won't move)
-    for (final hop in hopDeltas) {
+    // get layout for each piece at each hop (most won't move)
+    for (final state in gameStates) {
+      final layouts = PieceLayout.getLayouts(state);
       for (final pieceID in pieceIDs) {
-        // the piece either moved to a new pip  this hop or stayed at the same pip
-        final toPip = hop.firstOrNullWhere((d) => d.pieceID == pieceID)?.toPipNo ?? fromPipNoForPieces[pieceID];
-
-        // add the pip to this hop for this piece
-        piecePips[pieceID].add(toPip);
-
-        // keep track of this piece's pip in case it's need for the next hop
-        fromPipNoForPieces[pieceID] = toPip;
+        // add the layout to this hop for this piece
+        final layout = layouts.firstWhere((l) => l.pieceID == pieceID);
+        pieceLayouts[pieceID].add(layout);
       }
     }
 
-    for (final pieceID in piecePips.keys) {
-      print('$pieceID: ${piecePips[pieceID]}');
+    for (final pieceID in pieceLayouts.keys) {
+      print('$pieceID: ${pieceLayouts[pieceID]}');
     }
 
-    // translate pips into offsets
-    // TODO
-    return {};
+    return pieceLayouts;
   }
 }
 

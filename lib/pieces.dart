@@ -53,37 +53,36 @@ class PieceView extends StatelessWidget {
 }
 
 class PieceLayout {
-  static final _pieceWidth = 28.0;
-  static final _pieceHeight = 28.0;
-  static final _dx = 36.0;
-  static final _dy = 28.0;
-  static final _edgeWidth = 32.0;
-  static final _edgeHeight = 11.0;
+  static final _pieceSize = Size(28, 28);
+  static final _offset = Offset(36, 28);
+  static final _edgeSize = Size(32, 11);
 
   final int pipNo;
   final int pieceID;
-  final double left;
-  final double top;
+  final Offset offset;
   final String label;
   final bool highlight;
   final bool edge;
+
   PieceLayout({
     @required this.pipNo,
     @required this.pieceID,
-    @required this.left,
-    @required this.top,
+    @required this.offset,
     @required this.label,
     this.highlight = false,
     this.edge = false,
   });
 
-  Rect get rect =>
-      edge ? Rect.fromLTWH(left, top, _edgeWidth, _edgeHeight) : Rect.fromLTWH(left, top, _pieceWidth, _pieceHeight);
+  Size get size => edge ? _edgeSize : _pieceSize;
+  Rect get rect => offset & size;
+
+  @override
+  String toString() => 'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect)';
 
   static Iterable<PieceLayout> getLayouts(GammonState state, {int highlightedPiecePip}) sync* {
     final pips = state.pips;
     assert(pips.length == 26);
-    assert(_pieceWidth == _pieceHeight);
+    assert(_pieceSize.width == _pieceSize.height);
 
     // draw the pieces on the board
     for (var j = 0; j != 4; j++) {
@@ -93,31 +92,31 @@ class PieceLayout {
         if (pip.isEmpty) continue;
         assert(pip.every((p) => p.sign == pip[0].sign));
         final pieceCount = pip.length;
-        final dx = _dx * i;
+        final dx = _offset.dx * i;
 
         for (var h = 0; h != pieceCount; ++h) {
           // if there's more than 5, the last one gets a label w/ the total number of pieces in the stack
           final label = pieceCount > 5 && (h + 1) == pieceCount ? pieceCount.toString() : '';
-          final dy = _dy * min(4, h);
+          final dy = _offset.dy * min(4, h);
           final highlight = pipNo == highlightedPiecePip && (h + 1) == min(pieceCount, 5);
           final pieceID = pip[h];
 
           if (pipNo >= 1 && pipNo <= 6) {
             // bottom right
             yield PieceLayout(
-                pipNo: pipNo, pieceID: pieceID, left: 468 - dx, top: 371 - dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceID: pieceID, offset: Offset(468 - dx, 371 - dy), label: label, highlight: highlight);
           } else if (pipNo >= 7 && pipNo <= 12) {
             // bottom left
             yield PieceLayout(
-                pipNo: pipNo, pieceID: pieceID, left: 204 - dx, top: 371 - dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceID: pieceID, offset: Offset(204 - dx, 371 - dy), label: label, highlight: highlight);
           } else if (pipNo >= 13 && pipNo <= 18) {
             // top left
             yield PieceLayout(
-                pipNo: pipNo, pieceID: pieceID, left: 24 + dx, top: 21 + dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceID: pieceID, offset: Offset(24 + dx, 21 + dy), label: label, highlight: highlight);
           } else if (pipNo >= 19 && pipNo <= 24) {
             // top right
             yield PieceLayout(
-                pipNo: pipNo, pieceID: pieceID, left: 288 + dx, top: 21 + dy, label: label, highlight: highlight);
+                pipNo: pipNo, pieceID: pieceID, offset: Offset(288 + dx, 21 + dy), label: label, highlight: highlight);
           } else {
             assert(false);
           }
@@ -133,9 +132,9 @@ class PieceLayout {
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];
         final label = (i + 1) == pieceCount && pieceCount > 3 ? pieceCount.toString() : '';
-        final top = pieceID.sign == -1 ? 254.0 + _dy * min(i, 2) : 138.0 - _dy * min(i, 2);
+        final top = pieceID.sign == -1 ? 254.0 + _offset.dy * min(i, 2) : 138.0 - _offset.dy * min(i, 2);
         final highlight = bar == highlightedPiecePip && i == 0;
-        yield PieceLayout(pipNo: 0, pieceID: pieceID, left: 246, top: top, label: label, highlight: highlight);
+        yield PieceLayout(pipNo: 0, pieceID: pieceID, offset: Offset(246, top), label: label, highlight: highlight);
       }
     }
 
@@ -145,8 +144,8 @@ class PieceLayout {
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];
-        final top = pieceID.sign == -1 ? 386.0 - (_edgeHeight + 1) * i : 22.0 + (_edgeHeight + 1) * i;
-        yield PieceLayout(pipNo: 0, pieceID: pieceID, left: 520, top: top, label: '', edge: true);
+        final top = pieceID.sign == -1 ? 386.0 - (_edgeSize.height + 1) * i : 22.0 + (_edgeSize.height + 1) * i;
+        yield PieceLayout(pipNo: 0, pieceID: pieceID, offset: Offset(520, top), label: '', edge: true);
       }
     }
   }
