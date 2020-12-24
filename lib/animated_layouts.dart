@@ -40,7 +40,7 @@ class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderSt
           for (var i = 1; i != layouts.length; ++i) ...[
             TweenSequenceItem(
               tween: PieceLayoutTween(begin: layouts[i - 1], end: layouts[i]),
-              weight: (layouts[i - 1].offset - layouts[i].offset).distance,
+              weight: (layouts[i - 1].offset - layouts[i].offset).distance + 1,
             ),
             TweenSequenceItem(
               tween: ConstantTween(layouts[i]),
@@ -71,9 +71,9 @@ class PieceLayoutTween extends Tween<PieceLayout> {
     assert(begin.highlight == end.highlight);
     assert(begin.pieceID == end.pieceID);
 
-    // only the offset and the pipno changes
-    assert(begin.offset != end.offset);
-    assert(begin.pipNo != end.pipNo);
+    // only the offset and the pipno changes (accept when it doesn't...)
+    // assert(begin.offset != end.offset);
+    // assert(begin.pipNo != end.pipNo);
 
     // label could change...
     // assert(begin.label == end.label);

@@ -327,7 +327,7 @@ class GammonRules {
 
     return [
       GammonDelta(pieceID: fromId, fromPipNo: fromPipNo, toPipNo: toPipNo), // hitter
-      GammonDelta(pieceID: fromId, fromPipNo: toPipNo, toPipNo: barPipNo), // hittee
+      GammonDelta(pieceID: toId, fromPipNo: toPipNo, toPipNo: barPipNo), // hittee
     ];
   }
 
