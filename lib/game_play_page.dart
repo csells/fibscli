@@ -218,9 +218,7 @@ class _GameViewState extends State<GameView> {
                                   child: PieceView(layout: layout),
                                 ),
                               )
-                            : AnimatedPositioned.fromRect(
-                                duration: Duration(milliseconds: 250),
-                                key: ValueKey(layout.pieceID),
+                            : Positioned.fromRect(
                                 rect: layout.rect,
                                 child: GestureDetector(
                                   onTap: _game.turnPlayer != GammonRules.playerFor(layout.pieceID)
@@ -334,10 +332,6 @@ class _GameViewState extends State<GameView> {
         final layout = layouts.firstWhere((l) => l.pieceID == pieceID);
         pieceLayouts[pieceID].add(layout);
       }
-    }
-
-    for (final pieceID in pieceLayouts.keys) {
-      print('$pieceID: ${pieceLayouts[pieceID]}');
     }
 
     return pieceLayouts;
