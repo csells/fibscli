@@ -3,19 +3,17 @@ import 'package:flutter/widgets.dart';
 
 class AnimatedLayouts extends StatefulWidget {
   final List<PieceLayout> layouts;
-  final void Function() onEnd;
   final Widget child;
 
-  AnimatedLayouts({this.layouts, this.child, this.onEnd = _noop})
-      : assert(layouts != null),
+  AnimatedLayouts({
+    @required this.layouts,
+    @required this.child,
+  })  : assert(layouts != null),
         assert(layouts.length > 1),
-        assert(onEnd != null),
         assert(child != null);
 
   @override
   _AnimatedLayoutsState createState() => _AnimatedLayoutsState();
-
-  static void _noop() {}
 }
 
 class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderStateMixin {
@@ -29,7 +27,7 @@ class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderSt
     final animatable = _animatableFor(widget.layouts);
     _controller = AnimationController(vsync: this, duration: Duration(milliseconds: 250));
     _animation = animatable.animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
-    _controller.forward().then((_) => widget.onEnd());
+    _controller.forward();
   }
 
   static Animatable<PieceLayout> _animatableFor(List<PieceLayout> layouts) => TweenSequence(
@@ -60,15 +58,15 @@ class PieceLayoutTween extends Tween<PieceLayout> {
     assert(begin.highlight == end.highlight);
     assert(begin.label == end.label);
     assert(begin.pieceID == end.pieceID);
-    assert(begin.pipNo == end.pipNo);
 
-    // only the offset changes
+    // only the offset and the pipno changes
     assert(begin.offset != end.offset);
+    assert(begin.pipNo != end.pipNo);
   }
 
   @override
   PieceLayout lerp(double t) => PieceLayout(
-        pipNo: begin.pipNo,
+        pipNo: 0, // used?
         pieceID: begin.pieceID,
         offset: Offset.lerp(begin.offset, end.offset, t), // only the offset changes
         label: begin.label,

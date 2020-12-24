@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:fibscli/animated_layouts.dart';
 import 'package:fibscli/dice.dart';
 import 'package:fibscli/main.dart';
 import 'package:fibscli/model.dart';
@@ -96,7 +97,7 @@ class _GameViewState extends State<GameView> {
   final _game = GammonState();
   var _legalMoves = <GammonMove>[];
   int _fromPip;
-  Map<int, List<PieceLayout>> _pieceLayouts;
+  final _pieceLayouts = <int, List<PieceLayout>>{};
 
   @override
   void initState() {
@@ -206,18 +207,29 @@ class _GameViewState extends State<GameView> {
 
                       // pieces
                       for (final layout in PieceLayout.getLayouts(game, highlightedPiecePip: _fromPip))
-                        AnimatedPositioned.fromRect(
-                          duration: Duration(milliseconds: 250),
-                          key: ValueKey(layout.pieceID),
-                          rect: layout.rect,
-                          child: GestureDetector(
-                            onTap: _game.turnPlayer != GammonRules.playerFor(layout.pieceID)
-                                ? null
-                                : () => _pieceTap(
-                                    layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
-                            child: PieceView(layout: layout),
-                          ),
-                        ),
+                        _pieceLayouts.containsKey(layout.pieceID)
+                            ? AnimatedLayouts(
+                                layouts: _pieceLayouts.remove(layout.pieceID),
+                                child: GestureDetector(
+                                  onTap: _game.turnPlayer != GammonRules.playerFor(layout.pieceID)
+                                      ? null
+                                      : () => _pieceTap(
+                                          layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
+                                  child: PieceView(layout: layout),
+                                ),
+                              )
+                            : AnimatedPositioned.fromRect(
+                                duration: Duration(milliseconds: 250),
+                                key: ValueKey(layout.pieceID),
+                                rect: layout.rect,
+                                child: GestureDetector(
+                                  onTap: _game.turnPlayer != GammonRules.playerFor(layout.pieceID)
+                                      ? null
+                                      : () => _pieceTap(
+                                          layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
+                                  child: PieceView(layout: layout),
+                                ),
+                              ),
 
                       // dice
                       for (final layout in DieLayout.getLayouts(game))
@@ -288,7 +300,8 @@ class _GameViewState extends State<GameView> {
 
       // convert game states for each hop into a sequence of layouts for each affected piece
       assert(gameStates.length == hops.length + 1);
-      _pieceLayouts = _pieceLayoutsFor(movedPieceIDs.toList(), gameStates);
+      assert(_pieceLayouts.isEmpty);
+      _pieceLayouts.addAll(_pieceLayoutsFor(movedPieceIDs.toList(), gameStates));
     }
 
     // reset
