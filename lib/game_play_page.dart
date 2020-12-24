@@ -133,16 +133,24 @@ class _GameViewState extends State<GameView> {
                       // outer board
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(20, 20, 216, 380),
-                        child: Container(
-                          decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                        child: GestureDetector(
+                          onTap: _tapBoard,
+                          child: Container(
+                            decoration:
+                                BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                          ),
                         ),
                       ),
 
                       // home board
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(284, 20, 216, 380),
-                        child: Container(
-                          decoration: BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                        child: GestureDetector(
+                          onTap: _tapBoard,
+                          child: Container(
+                            decoration:
+                                BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                          ),
                         ),
                       ),
 
@@ -151,7 +159,7 @@ class _GameViewState extends State<GameView> {
                         Positioned.fromRect(
                           rect: layout.rect,
                           child: GestureDetector(
-                            onTap: () => _pipTap(layout.pip),
+                            onTap: () => _tapPip(layout.pip),
                             child: PipTriangle(
                               pip: layout.pip,
                               highlight: _legalMoves.hasHops(fromPipNo: _fromPip, toPipNo: layout.pip),
@@ -211,7 +219,7 @@ class _GameViewState extends State<GameView> {
                             ? AnimatedLayouts(
                                 layouts: _pieceLayouts.remove(layout.pieceID),
                                 child: GestureDetector(
-                                  onTap: () => _pieceTap(
+                                  onTap: () => _tapPiece(
                                       layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
                                   child: PieceView(layout: layout),
                                 ),
@@ -219,7 +227,7 @@ class _GameViewState extends State<GameView> {
                             : Positioned.fromRect(
                                 rect: layout.rect,
                                 child: GestureDetector(
-                                  onTap: () => _pieceTap(
+                                  onTap: () => _tapPiece(
                                       layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
                                   child: PieceView(layout: layout),
                                 ),
@@ -250,7 +258,7 @@ class _GameViewState extends State<GameView> {
         ),
       );
 
-  void _pieceTap(int pipNo) {
+  void _tapPiece(int pipNo) {
     // if there are legal moves, try to move
     if (_legalMoves.isNotEmpty) {
       _move(pipNo);
@@ -269,7 +277,7 @@ class _GameViewState extends State<GameView> {
   }
 
   void _tapHome(Player player) => _move(GammonRules.homePipNoFor(player));
-  void _pipTap(int toPip) => _move(toPip);
+  void _tapPip(int toPip) => _move(toPip);
 
   void _move(int toEndPip) {
     // find the first set of hops that move from the current pip to the desired pip
@@ -298,7 +306,10 @@ class _GameViewState extends State<GameView> {
       _pieceLayouts.addAll(_pieceLayoutsFor(movedPieceIDs.toList(), gameStates));
     }
 
-    // reset
+    _reset();
+  }
+
+  void _reset() {
     setState(() {
       _legalMoves.clear();
       _fromPip = null;
@@ -335,6 +346,10 @@ class _GameViewState extends State<GameView> {
     }
 
     return pieceLayouts;
+  }
+
+  void _tapBoard() {
+    _reset();
   }
 }
 
