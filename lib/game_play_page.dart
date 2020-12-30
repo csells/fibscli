@@ -10,7 +10,6 @@ import 'package:fibscli/tinystate.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:dartx/dartx.dart';
 
 class GamePlayPage extends StatefulWidget {
   @override
@@ -341,9 +340,9 @@ class _GameViewState extends State<GameView> {
       }
     }
 
-    for (final pieceID in pieceLayouts.keys) {
-      print('$pieceID: ${pieceLayouts[pieceID]}');
-    }
+    // for (final pieceID in pieceLayouts.keys) {
+    //   print('$pieceID: ${pieceLayouts[pieceID]}');
+    // }
 
     return pieceLayouts;
   }
