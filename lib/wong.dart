@@ -29,6 +29,8 @@ anBoardPost[] = { 0 -2 0 0 0 2 4 0 2 0 0 0 -5 5 0 0 0 -3 0 -5 0 0 0 0 2 0 0 0 }
  * and LegalMove( anBoardPre, anBoardPost, anRoll, anMove ) would return true
  * and set anMove[] to { 8 5 6 5 0 0 0 0 }.
  */
+import 'package:flutter/foundation.dart';
+
 class _moveData {
   int fFound, cMaxMoves, cMaxPips, cMoves, cPips;
   List<int> anBoard;
@@ -252,5 +254,44 @@ List<List<int>> ToModel(List<int> wongBoard) {
 
 List<int> fromModel(List<List<int>> modelBoard) {
   assert(modelBoard.length == 26);
-  return null; // TODO
+
+  final wongBoard = List<int>.filled(28, 0);
+
+  // player1 home
+  wongBoard[26] = modelBoard[0].where((pid) => pid < 0).length;
+
+  // player2 home
+  wongBoard[27] = modelBoard[25].where((pid) => pid > 0).length;
+
+  // player1 bar
+  wongBoard[25] = modelBoard[25].where((pid) => pid < 0).length;
+
+  // player2 bar
+  wongBoard[0] = modelBoard[0].where((pid) => pid > 0).length;
+
+  // board points
+  for (var j = 1; j != 25; j++) {
+    final count = modelBoard[j].length;
+    if (count == 0) continue;
+
+    final player1 = modelBoard[j][0].sign == 1;
+    wongBoard[j] = player1 ? count : -count;
+  }
+
+  if (kDebugMode) {
+    var p1pips = wongBoard[26] + wongBoard[25];
+    var p2pips = wongBoard[27] + wongBoard[0];
+    for (var j = 1; j != 25; j++) {
+      final player1 = wongBoard[j] > 0;
+      if (player1) {
+        p1pips += wongBoard[j];
+      } else {
+        p2pips += wongBoard[j].abs(); // could be 0
+      }
+    }
+    assert(p1pips == 15);
+    assert(p2pips == 15);
+  }
+
+  return wongBoard;
 }

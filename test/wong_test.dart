@@ -42,7 +42,7 @@ void main() {
     expect(legalMove, false);
   });
 
-  test('wongToModel: initial board', () {
+  test('wong.ToModel: initial board', () {
     final wongBoard = [
       0, // 0: player2 bar
       -2, // 1: 2x white (player2)
@@ -83,7 +83,7 @@ void main() {
     }
   });
 
-  test('wongToModel: bar, no home', () {
+  test('wong.ToModel: two bars, no home', () {
     final wongBoard = [
       1, // 0: 1x white (player2) bar
       -1, // 1: 1x white (player2)
@@ -109,7 +109,7 @@ void main() {
       0, // 21
       0, // 22
       0, // 23
-      1, // 24: 2x white (player1)
+      1, // 24: 1x black (player1)
       1, // 25: 1x black (player1) bar
       0, // 26: 0x black (player1) home
       0, // 27: 0x white (player2) home
@@ -120,7 +120,7 @@ void main() {
 
     final expectedBoard = <List<int>>[
       [1], // 0: 0x black (player1) home, 1x white (player2) bar
-      [2], // 1: 2x white (player2)
+      [2], // 1: 1x white (player2)
       [], // 2
       [], // 3
       [], // 4
@@ -143,8 +143,8 @@ void main() {
       [], // 21
       [], // 22
       [], // 23
-      [-1], // 24: 2x black (player1)
-      [-15], // 25: player1 bar, player2 home
+      [-1], // 24: 1x black (player1)
+      [-15], // 25: 1x black (player1) bar, 0x white (player2) home
     ];
 
     for (var pip = 0; pip != 26; ++pip) {
@@ -152,7 +152,76 @@ void main() {
     }
   });
 
-  test('wongToModel: no bar, home', () {
+  test('wong.ToModel: one bar, no home', () {
+    final wongBoard = [
+      1, // 0: 1x white (player2) bar
+      -1, // 1: 1x white (player2)
+      0, // 2
+      0, // 3
+      0, // 4
+      0, // 5
+      5, // 6: 5x black (player1)
+      0, // 7
+      3, // 8: 3x black (player1)
+      0, // 9
+      0, // 10
+      0, // 11
+      -5, // 12: 5x white (player2)
+      5, // 13: 5x black (player1)
+      0, // 14
+      0, // 15
+      0, // 16
+      -3, // 17: 3x white (player1)
+      0, // 18
+      -5, // 19: 5x white (player2)
+      0, // 20
+      0, // 21
+      0, // 22
+      0, // 23
+      2, // 24: 2x black (player1)
+      0, // 25: 0x black (player1) bar
+      0, // 26: 0x black (player1) home
+      0, // 27: 0x white (player2) home
+    ];
+
+    final modelBoard = wong.ToModel(wongBoard);
+    expect(modelBoard.length, 26);
+
+    final expectedBoard = <List<int>>[
+      [1], // 0: 0x black (player1) home, 1x white (player2) bar
+      [2], // 1: 2x white (player2)
+      [], // 2
+      [], // 3
+      [], // 4
+      [], // 5
+      [-15, -14, -13, -12, -11], // 6: 5x black (player1)
+      [], // 7
+      [-10, -9, -8], // 8: 3x black (player1)
+      [], // 9
+      [], // 10
+      [], // 11
+      [3, 4, 5, 6, 7], // 12: 5x white (player2)
+      [-7, -6, -5, -4, -3], // 13: 5x black (player1)
+      [], // 14
+      [], // 15
+      [], // 16
+      [8, 9, 10], // 17: 3x white (player2)
+      [], // 18
+      [11, 12, 13, 14, 15], // 19: 5x white (player2)
+      [], // 20
+      [], // 21
+      [], // 22
+      [], // 23
+      [-2, -1], // 24: 2x black (player1)
+      [], // 25: 0x black (player1) bar, 0x white (player2) home
+    ];
+
+    for (var pip = 0; pip != 26; ++pip) {
+      expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
+    }
+  });
+
+  test('wong.ToModel: no bar, two home', () {
     final wongBoard = [
       0, // 0: player2 bar
       14, // 1: 14x black (player1)
@@ -178,7 +247,7 @@ void main() {
       0, // 21
       0, // 22
       0, // 23
-      -14, // 24: 2x white (player2)
+      -14, // 24: 14x white (player2)
       0, // 25: player1 bar
       1, // 26: player1 home
       1, // 27: player2 home
@@ -221,7 +290,76 @@ void main() {
     }
   });
 
-  test('wongToModel: bar, home', () {
+  test('wong.ToModel: no bar, one home', () {
+    final wongBoard = [
+      0, // 0: player2 bar
+      14, // 1: 14x black (player1)
+      0, // 2
+      0, // 3
+      0, // 4
+      0, // 5
+      0, // 6
+      0, // 7
+      0, // 8
+      0, // 9
+      0, // 10
+      0, // 11
+      0, // 12
+      0, // 13
+      0, // 14
+      0, // 15
+      0, // 16
+      0, // 17
+      0, // 18
+      0, // 19
+      0, // 20
+      0, // 21
+      0, // 22
+      0, // 23
+      -15, // 24: 15x white (player2)
+      0, // 25: player1 bar
+      1, // 26: 1x black (player1) home
+      0, // 27: 0x white (player2) home
+    ];
+
+    final modelBoard = wong.ToModel(wongBoard);
+    expect(modelBoard.length, 26);
+
+    final expectedBoard = <List<int>>[
+      [-15], // 0: 1x black (player1) home, 0x white (player2) bar
+      [-14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1], // 1: 14x black (player1)
+      [], // 2
+      [], // 3
+      [], // 4
+      [], // 5
+      [], // 6
+      [], // 7
+      [], // 8
+      [], // 9
+      [], // 10
+      [], // 11
+      [], // 12
+      [], // 13
+      [], // 14
+      [], // 15
+      [], // 16
+      [], // 17
+      [], // 18
+      [], // 19
+      [], // 20
+      [], // 21
+      [], // 22
+      [], // 23
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], // 24: 15x white (player2)
+      [], // 25: 0x black (player1) bar, 0x white (player2) home
+    ];
+
+    for (var pip = 0; pip != 26; ++pip) {
+      expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
+    }
+  });
+
+  test('wong.ToModel: bar, home', () {
     final wongBoard = [
       1, // 0: 1x white (player2) bar
       13, // 1: 13x black (player1)
@@ -289,4 +427,6 @@ void main() {
       expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
     }
   });
+
+
 }
