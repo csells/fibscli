@@ -374,3 +374,4 @@ class GammonRules {
     return GammonDelta(pieceID: id, fromPipNo: fromPipNo, toPipNo: homePipNo);
   }
 }
+
