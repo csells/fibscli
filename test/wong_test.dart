@@ -3,43 +3,48 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fibscli/wong.dart' as wong;
 
 void main() {
-  test('wong.legalMove: basic', () {
+  test('wong.legalMoves: simple', () {
     // Playing an opening 13 as 8/5 6/5:
-    final anBoardPre = [0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
-    final anBoardPost = [0, -2, 0, 0, 0, 2, 4, 0, 2, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
-    final anRoll = [1, 3];
+    final boardPre = [0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
+    final boardPost = [0, -2, 0, 0, 0, 2, 4, 0, 2, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
+    final roll = [1, 3];
 
-    // get the legal move
-    final anMove = List<int>.filled(8, 0);
-    final legalMove = wong.legalMove(anBoardPre, anBoardPost, anRoll, anMove);
+    // get the legal move(s)
+    final moves = wong.legalMoves(boardPre: boardPre, boardPost: boardPost, roll: roll);
 
-    // LegalMove( anBoardPre, anBoardPost, anRoll, anMove ) would return true
+    // LegalMove( boardPre, boardPost, roll, anMove ) would return true
     // anMove[] would be set to { 8 5 6 5 0 0 0 0 }
-    expect(legalMove, true);
-    expect(anMove, [8, 5, 6, 5, 0, 0, 0, 0]);
+    expect(moves, [8, 5, 6, 5, 0, 0, 0, 0]);
   });
 
-  test('wong.legalMove: legal bearoff', () {
-    final anBoardPre = [0, -2, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0];
-    final anBoardPost = [0, -2, 0, 0, 0, 0, 14, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 0, 0, 1, 0];
-    final anRoll = [6, 5];
+  test('wong.legalMove: simple', () {
+    // Playing an opening 13 as 8/5 6/5:
+    final boardPre = [0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
+    final boardPost = [0, -2, 0, 0, 0, 2, 4, 0, 2, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
+    final roll = [1, 3];
+    final moves = [8, 5, 6, 5, 0, 0, 0, 0];
 
-    final anMove = List<int>.filled(8, 0);
-    final legalMove = wong.legalMove(anBoardPre, anBoardPost, anRoll, anMove);
-
-    expect(legalMove, true);
-    expect(anMove, [6, 26, 0, 0, 0, 0, 0, 0]);
+    // check if moves are legal
+    final board = wong.legalMove(board: boardPre, moves: moves, roll: roll);
+    expect(board, boardPost);
   });
 
-  test('wong.legalMove: illegal bearoff', () {
-    final anBoardPre = [0, -2, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, -5, 0, 0, 0, 10, -3, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0];
-    final anBoardPost = [0, -2, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, -5, 0, 0, 0, 10, -3, 0, -5, 0, 0, 0, 0, 0, 0, 1, 0];
-    final anRoll = [6, 5];
+  test('wong.legalMoves: legal bearoff', () {
+    final boardPre = [0, -2, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0];
+    final boardPost = [0, -2, 0, 0, 0, 0, 14, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 0, 0, 1, 0];
+    final roll = [6, 5];
 
-    final anMove = List<int>.filled(8, 0);
-    final legalMove = wong.legalMove(anBoardPre, anBoardPost, anRoll, anMove);
+    final moves = wong.legalMoves(boardPre: boardPre, boardPost: boardPost, roll: roll);
+    expect(moves, [6, 26, 0, 0, 0, 0, 0, 0]);
+  });
 
-    expect(legalMove, false);
+  test('wong.legalMoves: illegal bearoff', () {
+    final boardPre = [0, -2, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, -5, 0, 0, 0, 10, -3, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0];
+    final boardPost = [0, -2, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, -5, 0, 0, 0, 10, -3, 0, -5, 0, 0, 0, 0, 0, 0, 1, 0];
+    final roll = [6, 5];
+
+    final moves = wong.legalMoves(boardPre: boardPre, boardPost: boardPost, roll: roll);
+    expect(moves, null);
   });
 
   test('wong.toModel: initial board', () {

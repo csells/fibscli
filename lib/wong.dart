@@ -32,15 +32,18 @@ anBoardPost[] = { 0 -2 0 0 0 2 4 0 2 0 0 0 -5 5 0 0 0 -3 0 -5 0 0 0 0 2 0 0 0 }
 import 'package:flutter/foundation.dart';
 
 class _moveData {
-  int fFound, cMaxMoves, cMaxPips, cMoves, cPips;
+  int fFound;
+  int cMaxMoves;
+  int cMaxPips;
+  int cMoves;
+  int cPips;
   List<int> anBoard;
   List<int> anRoll;
   List<int> anMove;
 }
 
 void _applyMove(List<int> anBoard, int iSrc, int nRoll) {
-  int iDest = iSrc - nRoll;
-
+  var iDest = iSrc - nRoll;
   if (iDest < 1) iDest = 26;
 
   anBoard[iSrc]--;
@@ -48,33 +51,29 @@ void _applyMove(List<int> anBoard, int iSrc, int nRoll) {
   if (anBoard[iDest] < 0) {
     anBoard[iDest] = 1;
     anBoard[0]++;
-  } else
+  } else {
     anBoard[iDest]++;
+  }
 }
 
 int _equalBoard(List<int> an0, List<int> an1) {
-  int i;
-
-  for (i = 0; i < 28; i++) if (an0[i] != an1[i]) return 0;
-
+  for (var i = 0; i < 28; i++) if (an0[i] != an1[i]) return 0;
   return 1;
 }
 
 int _canMove(List<int> anBoard, int iSrc, int nPips) {
-  int i, nBack = 0, iDest = iSrc - nPips;
+  var nBack = 0;
+  final iDest = iSrc - nPips;
 
   if (iDest > 0) return (anBoard[iDest] >= -1) ? 1 : 0;
 
-  for (i = 1; i < 26; i++) if (anBoard[i] > 0) nBack = i;
-
+  for (var i = 1; i < 26; i++) if (anBoard[i] > 0) nBack = i;
   return (nBack <= 6 && (iSrc == nBack || iDest == 0)) ? 1 : 0;
 }
 
 void _saveMoves(int cMoves, int cPips, List<int> anBoard, List<int> anMove, _moveData pmd) {
   assert(anBoard.length == 28);
   assert(anMove.length == 8);
-
-  int i;
 
   if (cMoves < pmd.cMaxMoves || cPips < pmd.cMaxPips) return;
 
@@ -86,16 +85,20 @@ void _saveMoves(int cMoves, int cPips, List<int> anBoard, List<int> anMove, _mov
     pmd.cMoves = cMoves;
     pmd.cPips = cPips;
 
-    for (i = 0; i < 8; i++) pmd.anMove[i] = i < cMoves * 2 ? anMove[i] : 0;
-  } else if (pmd.cMaxMoves > pmd.cMoves || pmd.cMaxPips > pmd.cPips) pmd.fFound = 0;
+    for (var i = 0; i < 8; i++) {
+      pmd.anMove[i] = i < cMoves * 2 ? anMove[i] : 0;
+    }
+  } else if (pmd.cMaxMoves > pmd.cMoves || pmd.cMaxPips > pmd.cPips) {
+    pmd.fFound = 0;
+  }
 }
 
 int _generateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<int> anMove, _moveData pmd) {
   assert(anBoard.length == 28);
   assert(anMove.length == 8);
-  int i, iCopy, fUsed = 0;
+  var fUsed = 0;
 
-  var anBoardNew = List<int>.filled(28, 0);
+  final anBoardNew = List<int>.filled(28, 0);
 
   if (nMoveDepth > 3 || pmd.anRoll[nMoveDepth] == 0) return -1;
 
@@ -105,24 +108,23 @@ int _generateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<i
     anMove[nMoveDepth * 2] = 25;
     anMove[nMoveDepth * 2 + 1] = 25 - pmd.anRoll[nMoveDepth];
 
-    for (i = 0; i < 28; i++) anBoardNew[i] = anBoard[i];
-
+    for (var i = 0; i < 28; i++) anBoardNew[i] = anBoard[i];
     _applyMove(anBoardNew, 25, pmd.anRoll[nMoveDepth]);
 
-    if (_generateMoves(anBoardNew, nMoveDepth + 1, 24, cPip + pmd.anRoll[nMoveDepth], anMove, pmd) != 0)
+    if (_generateMoves(anBoardNew, nMoveDepth + 1, 24, cPip + pmd.anRoll[nMoveDepth], anMove, pmd) != 0) {
       _saveMoves(nMoveDepth + 1, cPip + pmd.anRoll[nMoveDepth], anBoardNew, anMove, pmd);
+    }
 
     return 0;
   } else {
-    for (i = iPip; i != 0; i--)
+    for (var i = iPip; i != 0; i--)
       if (anBoard[i] > 0 && _canMove(anBoard, i, pmd.anRoll[nMoveDepth]) != 0) {
         anMove[nMoveDepth * 2] = i;
         anMove[nMoveDepth * 2 + 1] = i - pmd.anRoll[nMoveDepth];
 
         if (anMove[nMoveDepth * 2 + 1] < 1) anMove[nMoveDepth * 2 + 1] = 26;
 
-        for (iCopy = 0; iCopy < 28; iCopy++) anBoardNew[iCopy] = anBoard[iCopy];
-
+        for (var iCopy = 0; iCopy < 28; iCopy++) anBoardNew[iCopy] = anBoard[iCopy];
         _applyMove(anBoardNew, i, pmd.anRoll[nMoveDepth]);
 
         if (_generateMoves(
@@ -133,7 +135,9 @@ int _generateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<i
               anMove,
               pmd,
             ) !=
-            0) _saveMoves(nMoveDepth + 1, cPip + pmd.anRoll[nMoveDepth], anBoardNew, anMove, pmd);
+            0) {
+          _saveMoves(nMoveDepth + 1, cPip + pmd.anRoll[nMoveDepth], anBoardNew, anMove, pmd);
+        }
 
         fUsed = 1;
       }
@@ -143,16 +147,16 @@ int _generateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<i
 }
 
 int _legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, List<int> anMove) {
+  assert(anBoardPre != null);
+  assert(anBoardPost != null);
   assert(anBoardPre.length == 28);
   assert(anBoardPost.length == 28);
   assert(anRoll.length == 2);
   assert(anMove.length == 8);
 
-  var md = _moveData();
-  int i;
-  var anMoveTemp = List<int>.filled(8, 0);
-  var anRollRaw = List<int>.filled(4, 0);
-  int fLegalMoves;
+  final md = _moveData();
+  final anMoveTemp = List<int>.filled(8, 0);
+  final anRollRaw = List<int>.filled(4, 0);
 
   md.fFound = md.cMaxMoves = md.cMaxPips = md.cMoves = md.cPips = 0;
   md.anBoard = anBoardPost;
@@ -161,10 +165,9 @@ int _legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, Li
 
   anRollRaw[0] = anRoll[0];
   anRollRaw[1] = anRoll[1];
-
   anRollRaw[2] = anRollRaw[3] = (anRoll[0] == anRoll[1]) ? anRoll[0] : 0;
 
-  fLegalMoves = _generateMoves(anBoardPre, 0, 24, 0, anMoveTemp, md) == 0 ? 1 : 0;
+  var fLegalMoves = _generateMoves(anBoardPre, 0, 24, 0, anMoveTemp, md) == 0 ? 1 : 0;
 
   if (anRoll[0] != anRoll[1]) {
     // bug fix in original source
@@ -176,16 +179,35 @@ int _legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, Li
   }
 
   if (fLegalMoves == 0) {
-    for (i = 0; i < 8; i++) anMove[i] = 0;
-
+    for (var i = 0; i < 8; i++) anMove[i] = 0;
     return _equalBoard(anBoardPre, anBoardPost);
   }
 
   return md.fFound;
 }
 
-bool legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, List<int> anMove) =>
-    _legalMove(anBoardPre, anBoardPost, anRoll, anMove) != 0;
+/// given pre and post boards in Wong format with a roll, calculates the legal moves to get there
+List<int> legalMoves({
+  @required List<int> boardPre,
+  @required List<int> boardPost,
+  @required List<int> roll,
+}) {
+  final moves = List<int>.filled(8, 0);
+  final result = _legalMove(boardPre, boardPost, roll, moves) != 0;
+  return result ? moves : null;
+}
+
+/// giving a board and moves in Wong format and a roll, calculates the legal post move board
+List<int> legalMove({
+  @required List<int> board,
+  @required List<int> roll,
+  @required List<int> moves,
+}) {
+  assert(board != null);
+  assert(roll != null);
+  assert(moves != null);
+  return null;
+}
 
 /*
  * Wong boards are represented as arrays of 28 ints for the 24 points (0 is
