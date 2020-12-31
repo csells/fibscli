@@ -1,5 +1,5 @@
-import 'package:fibscli/wong.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fibscli/wong.dart' as wong;
 
 void main() {
   test('LegalMove: basic', () {
@@ -10,11 +10,11 @@ void main() {
 
     // get the legal move
     final anMove = List<int>.filled(8, 0);
-    final legalMove = LegalMove(anBoardPre, anBoardPost, anRoll, anMove);
+    final legalMove = wong.legalMove(anBoardPre, anBoardPost, anRoll, anMove);
 
     // LegalMove( anBoardPre, anBoardPost, anRoll, anMove ) would return true
     // anMove[] would be set to { 8 5 6 5 0 0 0 0 }
-    expect(legalMove, 1);
+    expect(legalMove, true);
     expect(anMove, [8, 5, 6, 5, 0, 0, 0, 0]);
   });
 
@@ -24,11 +24,10 @@ void main() {
     final anRoll = [6, 5];
 
     final anMove = List<int>.filled(8, 0);
-    final legalMove = LegalMove(anBoardPre, anBoardPost, anRoll, anMove);
+    final legalMove = wong.legalMove(anBoardPre, anBoardPost, anRoll, anMove);
 
-    expect(legalMove, 1);
+    expect(legalMove, true);
     expect(anMove, [6, 26, 0, 0, 0, 0, 0, 0]);
-    print(anMove);
   });
 
   test('LegalMove: illegal bearoff', () {
@@ -37,8 +36,8 @@ void main() {
     final anRoll = [6, 5];
 
     final anMove = List<int>.filled(8, 0);
-    final legalMove = LegalMove(anBoardPre, anBoardPost, anRoll, anMove);
+    final legalMove = wong.legalMove(anBoardPre, anBoardPost, anRoll, anMove);
 
-    expect(legalMove, 0);
+    expect(legalMove, false);
   });
 }

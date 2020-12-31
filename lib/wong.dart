@@ -29,14 +29,14 @@ anBoardPost[] = { 0 -2 0 0 0 2 4 0 2 0 0 0 -5 5 0 0 0 -3 0 -5 0 0 0 0 2 0 0 0 }
  * and LegalMove( anBoardPre, anBoardPost, anRoll, anMove ) would return true
  * and set anMove[] to { 8 5 6 5 0 0 0 0 }.
  */
-class movedata {
+class _moveData {
   int fFound, cMaxMoves, cMaxPips, cMoves, cPips;
   List<int> anBoard;
   List<int> anRoll;
   List<int> anMove;
 }
 
-void ApplyMove(List<int> anBoard, int iSrc, int nRoll) {
+void _applyMove(List<int> anBoard, int iSrc, int nRoll) {
   int iDest = iSrc - nRoll;
 
   if (iDest < 1) iDest = 26;
@@ -50,7 +50,7 @@ void ApplyMove(List<int> anBoard, int iSrc, int nRoll) {
     anBoard[iDest]++;
 }
 
-int EqualBoard(List<int> an0, List<int> an1) {
+int _equalBoard(List<int> an0, List<int> an1) {
   int i;
 
   for (i = 0; i < 28; i++) if (an0[i] != an1[i]) return 0;
@@ -58,7 +58,7 @@ int EqualBoard(List<int> an0, List<int> an1) {
   return 1;
 }
 
-int CanMove(List<int> anBoard, int iSrc, int nPips) {
+int _canMove(List<int> anBoard, int iSrc, int nPips) {
   int i, nBack = 0, iDest = iSrc - nPips;
 
   if (iDest > 0) return (anBoard[iDest] >= -1) ? 1 : 0;
@@ -68,7 +68,7 @@ int CanMove(List<int> anBoard, int iSrc, int nPips) {
   return (nBack <= 6 && (iSrc == nBack || iDest == 0)) ? 1 : 0;
 }
 
-void SaveMoves(int cMoves, int cPips, List<int> anBoard, List<int> anMove, movedata pmd) {
+void _saveMoves(int cMoves, int cPips, List<int> anBoard, List<int> anMove, _moveData pmd) {
   assert(anBoard.length == 28);
   assert(anMove.length == 8);
 
@@ -79,7 +79,7 @@ void SaveMoves(int cMoves, int cPips, List<int> anBoard, List<int> anMove, moved
   pmd.cMaxMoves = cMoves;
   pmd.cMaxPips = cPips;
 
-  if (EqualBoard(anBoard, pmd.anBoard) != 0) {
+  if (_equalBoard(anBoard, pmd.anBoard) != 0) {
     pmd.fFound = 1;
     pmd.cMoves = cMoves;
     pmd.cPips = cPips;
@@ -88,7 +88,7 @@ void SaveMoves(int cMoves, int cPips, List<int> anBoard, List<int> anMove, moved
   } else if (pmd.cMaxMoves > pmd.cMoves || pmd.cMaxPips > pmd.cPips) pmd.fFound = 0;
 }
 
-int GenerateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<int> anMove, movedata pmd) {
+int _generateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<int> anMove, _moveData pmd) {
   assert(anBoard.length == 28);
   assert(anMove.length == 8);
   int i, iCopy, fUsed = 0;
@@ -105,15 +105,15 @@ int GenerateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<in
 
     for (i = 0; i < 28; i++) anBoardNew[i] = anBoard[i];
 
-    ApplyMove(anBoardNew, 25, pmd.anRoll[nMoveDepth]);
+    _applyMove(anBoardNew, 25, pmd.anRoll[nMoveDepth]);
 
-    if (GenerateMoves(anBoardNew, nMoveDepth + 1, 24, cPip + pmd.anRoll[nMoveDepth], anMove, pmd) != 0)
-      SaveMoves(nMoveDepth + 1, cPip + pmd.anRoll[nMoveDepth], anBoardNew, anMove, pmd);
+    if (_generateMoves(anBoardNew, nMoveDepth + 1, 24, cPip + pmd.anRoll[nMoveDepth], anMove, pmd) != 0)
+      _saveMoves(nMoveDepth + 1, cPip + pmd.anRoll[nMoveDepth], anBoardNew, anMove, pmd);
 
     return 0;
   } else {
     for (i = iPip; i != 0; i--)
-      if (anBoard[i] > 0 && CanMove(anBoard, i, pmd.anRoll[nMoveDepth]) != 0) {
+      if (anBoard[i] > 0 && _canMove(anBoard, i, pmd.anRoll[nMoveDepth]) != 0) {
         anMove[nMoveDepth * 2] = i;
         anMove[nMoveDepth * 2 + 1] = i - pmd.anRoll[nMoveDepth];
 
@@ -121,9 +121,9 @@ int GenerateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<in
 
         for (iCopy = 0; iCopy < 28; iCopy++) anBoardNew[iCopy] = anBoard[iCopy];
 
-        ApplyMove(anBoardNew, i, pmd.anRoll[nMoveDepth]);
+        _applyMove(anBoardNew, i, pmd.anRoll[nMoveDepth]);
 
-        if (GenerateMoves(
+        if (_generateMoves(
               anBoardNew,
               nMoveDepth + 1,
               pmd.anRoll[0] == pmd.anRoll[1] ? i : 24,
@@ -131,7 +131,7 @@ int GenerateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<in
               anMove,
               pmd,
             ) !=
-            0) SaveMoves(nMoveDepth + 1, cPip + pmd.anRoll[nMoveDepth], anBoardNew, anMove, pmd);
+            0) _saveMoves(nMoveDepth + 1, cPip + pmd.anRoll[nMoveDepth], anBoardNew, anMove, pmd);
 
         fUsed = 1;
       }
@@ -140,13 +140,13 @@ int GenerateMoves(List<int> anBoard, int nMoveDepth, int iPip, int cPip, List<in
   return fUsed != 0 ? 0 : -1;
 }
 
-int LegalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, List<int> anMove) {
+int _legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, List<int> anMove) {
   assert(anBoardPre.length == 28);
   assert(anBoardPost.length == 28);
   assert(anRoll.length == 2);
   assert(anMove.length == 8);
 
-  var md = movedata();
+  var md = _moveData();
   int i;
   var anMoveTemp = List<int>.filled(8, 0);
   var anRollRaw = List<int>.filled(4, 0);
@@ -162,21 +162,24 @@ int LegalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, Lis
 
   anRollRaw[2] = anRollRaw[3] = (anRoll[0] == anRoll[1]) ? anRoll[0] : 0;
 
-  fLegalMoves = GenerateMoves(anBoardPre, 0, 24, 0, anMoveTemp, md) == 0 ? 1 : 0;
+  fLegalMoves = _generateMoves(anBoardPre, 0, 24, 0, anMoveTemp, md) == 0 ? 1 : 0;
 
   if (anRoll[0] != anRoll[1]) {
     var temp = anRollRaw[0];
     anRollRaw[0] = anRoll[1];
     anRollRaw[1] = temp;
 
-    fLegalMoves |= GenerateMoves(anBoardPre, 0, 24, 0, anMoveTemp, md) == 0 ? 1 : 0;
+    fLegalMoves |= _generateMoves(anBoardPre, 0, 24, 0, anMoveTemp, md) == 0 ? 1 : 0;
   }
 
   if (fLegalMoves == 0) {
     for (i = 0; i < 8; i++) anMove[i] = 0;
 
-    return EqualBoard(anBoardPre, anBoardPost);
+    return _equalBoard(anBoardPre, anBoardPost);
   }
 
   return md.fFound;
 }
+
+bool legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, List<int> anMove) =>
+    _legalMove(anBoardPre, anBoardPost, anRoll, anMove) != 0;
