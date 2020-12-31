@@ -201,7 +201,7 @@ bool legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, Li
  * Pip 25 is player's bar and player2's home.
 */
 
-List<List<int>> ToModel(List<int> wongBoard) {
+List<List<int>> toModel(List<int> wongBoard) {
   assert(wongBoard.length == 28);
 
   final modelBoard = List<List<int>>.generate(26, (i) => <int>[]);
@@ -274,7 +274,7 @@ List<int> fromModel(List<List<int>> modelBoard) {
     final count = modelBoard[j].length;
     if (count == 0) continue;
 
-    final player1 = modelBoard[j][0].sign == 1;
+    final player1 = modelBoard[j][0] < 0;
     wongBoard[j] = player1 ? count : -count;
   }
 

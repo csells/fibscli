@@ -42,7 +42,7 @@ void main() {
     expect(legalMove, false);
   });
 
-  test('wong.ToModel: initial board', () {
+  test('wong.toModel: initial board', () {
     final wongBoard = [
       0, // 0: player2 bar
       -2, // 1: 2x white (player2)
@@ -74,16 +74,21 @@ void main() {
       0, // 27: player2 home
     ];
 
-    final modelBoard = wong.ToModel(wongBoard);
+    final modelBoard = wong.toModel(wongBoard);
     expect(modelBoard.length, 26);
 
     final expectedBoard = GammonRules.initialPips();
     for (var pip = 0; pip != 26; ++pip) {
       expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
     }
+
+    final wongBoard2 = wong.fromModel(modelBoard);
+    for (var pip = 0; pip != 28; ++pip) {
+      expect(wongBoard2[pip], wongBoard[pip], reason: 'pip $pip');
+    }
   });
 
-  test('wong.ToModel: two bars, no home', () {
+  test('wong.toModel: two bars, no home', () {
     final wongBoard = [
       1, // 0: 1x white (player2) bar
       -1, // 1: 1x white (player2)
@@ -115,7 +120,7 @@ void main() {
       0, // 27: 0x white (player2) home
     ];
 
-    final modelBoard = wong.ToModel(wongBoard);
+    final modelBoard = wong.toModel(wongBoard);
     expect(modelBoard.length, 26);
 
     final expectedBoard = <List<int>>[
@@ -150,9 +155,14 @@ void main() {
     for (var pip = 0; pip != 26; ++pip) {
       expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
     }
+
+    final wongBoard2 = wong.fromModel(modelBoard);
+    for (var pip = 0; pip != 28; ++pip) {
+      expect(wongBoard2[pip], wongBoard[pip], reason: 'pip $pip');
+    }
   });
 
-  test('wong.ToModel: one bar, no home', () {
+  test('wong.toModel: one bar, no home', () {
     final wongBoard = [
       1, // 0: 1x white (player2) bar
       -1, // 1: 1x white (player2)
@@ -184,7 +194,7 @@ void main() {
       0, // 27: 0x white (player2) home
     ];
 
-    final modelBoard = wong.ToModel(wongBoard);
+    final modelBoard = wong.toModel(wongBoard);
     expect(modelBoard.length, 26);
 
     final expectedBoard = <List<int>>[
@@ -219,9 +229,14 @@ void main() {
     for (var pip = 0; pip != 26; ++pip) {
       expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
     }
+
+    final wongBoard2 = wong.fromModel(modelBoard);
+    for (var pip = 0; pip != 28; ++pip) {
+      expect(wongBoard2[pip], wongBoard[pip], reason: 'pip $pip');
+    }
   });
 
-  test('wong.ToModel: no bar, two home', () {
+  test('wong.toModel: no bar, two home', () {
     final wongBoard = [
       0, // 0: player2 bar
       14, // 1: 14x black (player1)
@@ -253,7 +268,7 @@ void main() {
       1, // 27: player2 home
     ];
 
-    final modelBoard = wong.ToModel(wongBoard);
+    final modelBoard = wong.toModel(wongBoard);
     expect(modelBoard.length, 26);
 
     final expectedBoard = <List<int>>[
@@ -288,9 +303,14 @@ void main() {
     for (var pip = 0; pip != 26; ++pip) {
       expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
     }
+
+    final wongBoard2 = wong.fromModel(modelBoard);
+    for (var pip = 0; pip != 28; ++pip) {
+      expect(wongBoard2[pip], wongBoard[pip], reason: 'pip $pip');
+    }
   });
 
-  test('wong.ToModel: no bar, one home', () {
+  test('wong.toModel: no bar, one home', () {
     final wongBoard = [
       0, // 0: player2 bar
       14, // 1: 14x black (player1)
@@ -322,7 +342,7 @@ void main() {
       0, // 27: 0x white (player2) home
     ];
 
-    final modelBoard = wong.ToModel(wongBoard);
+    final modelBoard = wong.toModel(wongBoard);
     expect(modelBoard.length, 26);
 
     final expectedBoard = <List<int>>[
@@ -357,9 +377,14 @@ void main() {
     for (var pip = 0; pip != 26; ++pip) {
       expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
     }
+
+    final wongBoard2 = wong.fromModel(modelBoard);
+    for (var pip = 0; pip != 28; ++pip) {
+      expect(wongBoard2[pip], wongBoard[pip], reason: 'pip $pip');
+    }
   });
 
-  test('wong.ToModel: bar, home', () {
+  test('wong.toModel: bar, home', () {
     final wongBoard = [
       1, // 0: 1x white (player2) bar
       13, // 1: 13x black (player1)
@@ -391,7 +416,7 @@ void main() {
       1, // 27: player2 home
     ];
 
-    final modelBoard = wong.ToModel(wongBoard);
+    final modelBoard = wong.toModel(wongBoard);
     expect(modelBoard.length, 26);
 
     final expectedBoard = <List<int>>[
@@ -426,7 +451,10 @@ void main() {
     for (var pip = 0; pip != 26; ++pip) {
       expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
     }
+
+    final wongBoard2 = wong.fromModel(modelBoard);
+    for (var pip = 0; pip != 28; ++pip) {
+      expect(wongBoard2[pip], wongBoard[pip], reason: 'pip $pip');
+    }
   });
-
-
 }
