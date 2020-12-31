@@ -165,6 +165,7 @@ int _legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, Li
   fLegalMoves = _generateMoves(anBoardPre, 0, 24, 0, anMoveTemp, md) == 0 ? 1 : 0;
 
   if (anRoll[0] != anRoll[1]) {
+    // bug fix in original source
     var temp = anRollRaw[0];
     anRollRaw[0] = anRoll[1];
     anRollRaw[1] = temp;
@@ -183,3 +184,73 @@ int _legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, Li
 
 bool legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, List<int> anMove) =>
     _legalMove(anBoardPre, anBoardPost, anRoll, anMove) != 0;
+
+/*
+ * Wong boards are represented as arrays of 28 ints for the 24 points (0 is
+ * the opponent's bar; 1 to 24 are the board points from the point of
+ * view of the player moving; 25 is the player's bar; 26 is the player's
+ * home and 27 is the opponent's home). The player's chequers
+ * are represented by positive integers and the opponent's by negatives.
+ * 
+ * Model boards are represented as a list of lists of piece IDs, from 1-15,
+ * negative in the case of player1 and positive in the case of player2.
+ * Pip 0 is player1's home and player2's bar.
+ * Pip 1-24 are board points.
+ * Pip 25 is player's bar and player2's home.
+*/
+
+List<List<int>> ToModel(List<int> wongBoard) {
+  assert(wongBoard.length == 28);
+
+  final modelBoard = List<List<int>>.generate(26, (i) => <int>[]);
+  var p1pip = 15;
+  var p2pip = 1;
+
+  // player1 home
+  for (var i = 0; i != wongBoard[26]; ++i) {
+    modelBoard[0].add(-p1pip);
+    p1pip--;
+  }
+
+  // player2 home
+  for (var i = 0; i != wongBoard[27]; ++i) {
+    modelBoard[25].add(p2pip);
+    p2pip++;
+  }
+
+  // player1 bar
+  for (var i = 0; i != wongBoard[25]; ++i) {
+    modelBoard[25].add(-p1pip);
+    p1pip--;
+  }
+
+  // player2 bar
+  for (var i = 0; i != wongBoard[0]; ++i) {
+    modelBoard[0].add(p2pip);
+    p2pip++;
+  }
+
+  // board points
+  for (var j = 1; j != 25; j++) {
+    var count = wongBoard[j].abs();
+    var player1 = wongBoard[j].sign == 1;
+    for (var i = 0; i != count; ++i) {
+      if (player1) {
+        modelBoard[j].add(-p1pip);
+        p1pip--;
+      } else {
+        modelBoard[j].add(p2pip);
+        p2pip++;
+      }
+    }
+  }
+
+  assert(p1pip == 0);
+  assert(p2pip == 16);
+  return modelBoard;
+}
+
+List<int> fromModel(List<List<int>> modelBoard) {
+  assert(modelBoard.length == 26);
+  return null; // TODO
+}

@@ -233,30 +233,30 @@ class GammonMove {
 class GammonRules {
   static List<List<int>> initialPips() => <List<int>>[
         [], // 0: player1 home, player2 bar
-        [1, 2], // 1: 2x whites
+        [1, 2], // 1: 2x white (player2)
         [], // 2
         [], // 3
         [], // 4
         [], // 5
-        [-11, -12, -13, -14, -15], // 6: 5x blacks
+        [-15, -14, -13, -12, -11], // 6: 5x black (player1)
         [], // 7
-        [-8, -9, -10], // 8: 3x blacks
+        [-10, -9, -8], // 8: 3x black (player1)
         [], // 9
         [], // 10
         [], // 11
-        [3, 4, 5, 6, 7], // 12: 5x whites
-        [-3, -4, -5, -6, -7], // 13: 5x blacks
+        [3, 4, 5, 6, 7], // 12: 5x white (player2)
+        [-7, -6, -5, -4, -3], // 13: 5x black (player1)
         [], // 14
         [], // 15
         [], // 16
-        [8, 9, 10], // 17: 3x whites
+        [8, 9, 10], // 17: 3x white (player2)
         [], // 18
-        [11, 12, 13, 14, 15], // 19: 5x whites
+        [11, 12, 13, 14, 15], // 19: 5x white (player2)
         [], // 20
         [], // 21
         [], // 22
         [], // 23
-        [-1, -2], // 24: 2x blacks
+        [-2, -1], // 24: 2x black (player1)
         [], // 25: player1 bar, player2 home
       ];
 
@@ -374,4 +374,3 @@ class GammonRules {
     return GammonDelta(pieceID: id, fromPipNo: fromPipNo, toPipNo: homePipNo);
   }
 }
-
