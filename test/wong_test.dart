@@ -21,11 +21,11 @@ void main() {
     // Playing an opening 13 as 8/5 6/5:
     final boardPre = [0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
     final boardPost = [0, -2, 0, 0, 0, 2, 4, 0, 2, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
-    final roll = [1, 3];
-    final moves = [8, 5, 6, 5, 0, 0, 0, 0];
+    final roll = [3, 1];
+    final sources = [8, 6];
 
     // check if moves are legal
-    final board = wong.checkLegalMoves(board: boardPre, moves: moves, roll: roll);
+    final board = wong.checkLegalMoves(board: boardPre, sources: sources, roll: roll);
     expect(board, boardPost);
   });
 
@@ -38,6 +38,16 @@ void main() {
     expect(moves, [6, 26, 0, 0, 0, 0, 0, 0]);
   });
 
+  test('wong.checkLegalMoves: legal bearoff', () {
+    final boardPre = [0, -2, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0];
+    final boardPost = [0, -2, 0, 0, 0, 0, 14, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 0, 0, 1, 0];
+    final roll = [6, 5];
+    final sources = [6];
+
+    final board = wong.checkLegalMoves(board: boardPre, roll: roll, sources: sources);
+    expect(board, boardPost);
+  });
+
   test('wong.getLegalMoves: illegal bearoff', () {
     final boardPre = [0, -2, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, -5, 0, 0, 0, 10, -3, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0];
     final boardPost = [0, -2, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, -5, 0, 0, 0, 10, -3, 0, -5, 0, 0, 0, 0, 0, 0, 1, 0];
@@ -45,6 +55,15 @@ void main() {
 
     final moves = wong.getLegalMoves(boardPre: boardPre, boardPost: boardPost, roll: roll);
     expect(moves, null);
+  });
+
+  test('wong.checkLegalMoves: illegal bearoff', () {
+    final boardPre = [0, -2, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, -5, 0, 0, 0, 10, -3, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0];
+    final roll = [6, 5];
+    final sources = [6];
+
+    final board = wong.checkLegalMoves(board: boardPre, roll: roll, sources: sources);
+    expect(board, null);
   });
 
   test('wong.toModel: initial board', () {
