@@ -187,7 +187,7 @@ int _legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, Li
 }
 
 /// given pre and post boards in Wong format with a roll, calculates the legal moves to get there
-List<int> legalMoves({
+List<int> getLegalMoves({
   @required List<int> boardPre,
   @required List<int> boardPost,
   @required List<int> roll,
@@ -197,16 +197,47 @@ List<int> legalMoves({
   return result ? moves : null;
 }
 
-/// giving a board and moves in Wong format and a roll, calculates the legal post move board
-List<int> legalMove({
+/// giving a board and moves in Wong format and a roll, calculates the legal board post-move
+/// NOTE: this assumes player1 (black)
+/// TODO: make this work for player2 (white) as well
+List<int> checkLegalMoves({
   @required List<int> board,
   @required List<int> roll,
   @required List<int> moves,
 }) {
   assert(board != null);
-  assert(roll != null);
   assert(moves != null);
-  return null;
+
+  // create the post-moves board
+  final boardPost = List<int>.from(board);
+  final rollPost = <int>[];
+  for (var i = 0; i != moves.length; i += 2) {
+    final iSrc = moves[i];
+    if (iSrc == 0) continue;
+    final nRoll = iSrc - moves[i + 1];
+    assert(nRoll > 0);
+    rollPost.add(nRoll);
+    _applyMove(boardPost, iSrc, nRoll);
+  }
+
+  // check the roll
+  if (kDebugMode) {
+    assert(rollPost.length == 2 || rollPost.length == 4);
+
+    if (rollPost.length == 2) {
+      assert(roll[0] != roll[1]);
+      assert(rollPost[0] == roll[0] && rollPost[1] == roll[1] || rollPost[0] == roll[1] && rollPost[1] == roll[0]);
+    } else if (rollPost.length == 4) {
+      assert(roll[0] == roll[1]);
+      assert(rollPost[0] == roll[0]);
+      assert(rollPost[1] == roll[0]);
+      assert(rollPost[2] == roll[0]);
+      assert(rollPost[3] == roll[0]);
+    }
+  }
+
+  final result = getLegalMoves(boardPre: board, boardPost: boardPost, roll: roll);
+  return result != null ? boardPost : null;
 }
 
 /*
