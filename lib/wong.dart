@@ -197,28 +197,34 @@ List<int> getLegalMoves({
   return result ? moves : null;
 }
 
-/// giving a board in Wong format, a roll and a set of source pips, calculates the legal board post-move
+/// giving a board and a set of moves in Wong format and a roll, calculates the legal board post-move
 /// NOTE: this assumes player1 (black)
 /// TODO: make this work for player2 (white) as well
 List<int> checkLegalMoves({
   @required List<int> board,
   @required List<int> roll,
-  @required List<int> sources,
+  @required List<int> moves,
 }) {
   assert(board != null);
-  assert(sources != null);
+  assert(moves != null);
   assert(roll.length == 2);
 
   // create the raw roll (expand to 4 rolls for doubles)
   final rawRoll = List<int>.from(roll);
   if (roll[0] == roll[1]) rawRoll.addAll(roll);
 
-  // possible to have dice you can't use
-  assert(rawRoll.length >= sources.length);
+  // possible to have dice you can't use (but oves are in pairs...)
+  assert(rawRoll.length * 2 >= moves.length);
 
   // create the post-moves board
   final boardPost = List<int>.from(board);
-  for (var i = 0; i != sources.length; ++i) _applyMove(boardPost, sources[i], rawRoll[i]);
+  for (var i = 0; i != moves.length; i += 2) {
+    if (moves[i] == 0) continue;
+    var dest = moves[i] - roll[i ~/ 2];
+    if (dest < 1) dest = 26;
+    assert(dest == moves[i + 1]);
+    _applyMove(boardPost, moves[i], rawRoll[i ~/ 2]);
+  }
 
   final result = getLegalMoves(boardPre: board, boardPost: boardPost, roll: roll);
   return result != null ? boardPost : null;

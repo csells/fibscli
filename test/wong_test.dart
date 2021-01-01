@@ -22,10 +22,10 @@ void main() {
     final boardPre = [0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
     final boardPost = [0, -2, 0, 0, 0, 2, 4, 0, 2, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
     final roll = [3, 1];
-    final sources = [8, 6];
+    final moves = [8, 5, 6, 5];
 
     // check if moves are legal
-    final board = wong.checkLegalMoves(board: boardPre, sources: sources, roll: roll);
+    final board = wong.checkLegalMoves(board: boardPre, moves: moves, roll: roll);
     expect(board, boardPost);
   });
 
@@ -42,9 +42,9 @@ void main() {
     final boardPre = [0, -2, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0];
     final boardPost = [0, -2, 0, 0, 0, 0, 14, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 0, 0, 1, 0];
     final roll = [6, 5];
-    final sources = [6];
+    final moves = [6, 26];
 
-    final board = wong.checkLegalMoves(board: boardPre, roll: roll, sources: sources);
+    final board = wong.checkLegalMoves(board: boardPre, roll: roll, moves: moves);
     expect(board, boardPost);
   });
 
@@ -60,9 +60,9 @@ void main() {
   test('wong.checkLegalMoves: illegal bearoff', () {
     final boardPre = [0, -2, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, -5, 0, 0, 0, 10, -3, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0];
     final roll = [6, 5];
-    final sources = [6];
+    final moves = [6, 26];
 
-    final board = wong.checkLegalMoves(board: boardPre, roll: roll, sources: sources);
+    final board = wong.checkLegalMoves(board: boardPre, roll: roll, moves: moves);
     expect(board, null);
   });
 
