@@ -21,8 +21,8 @@ void main() {
     // Playing an opening 13 as 8/5 6/5:
     final boardPre = [0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
     final boardPost = [0, -2, 0, 0, 0, 2, 4, 0, 2, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0];
-    final roll = [3, 1];
-    final moves = [8, 5, 6, 5];
+    final roll = [1, 3];
+    final moves = [6, 5, 8, 5];
 
     // check if moves are legal
     final board = wong.checkLegalMoves(board: boardPre, moves: moves, roll: roll);
@@ -66,6 +66,34 @@ void main() {
     expect(board, null);
   });
 
+  test('wong.checkLegalMoves: one off the bar', () {
+    final boardPre = [0, -2, 0, 0, 0, 0, 4, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 1, 0, 0];
+    final boardPost = [0, -2, 0, 0, 0, 0, 4, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 1, 0, 0, 0, 2, 0, 0, 0];
+    final roll = [5, 6];
+    final moves = [25, 20];
+
+    final board = wong.checkLegalMoves(board: boardPre, roll: roll, moves: moves);
+    expect(board, boardPost);
+  });
+
+  test('wong.checkLegalMoves: two off the bar', () {});
+
+  test('wong.checkLegalMoves: three off the bar', () {});
+
+  test('wong.checkLegalMoves: four off the bar', () {});
+
+  test('wong.checkLegalMoves: forced home', () {});
+
+  test('wong.checkLegalMoves: forced two dice', () {});
+
+  test('wong.checkLegalMoves: forced three dice', () {});
+
+  test('wong.checkLegalMoves: forced larger die', () {});
+
+  test('wong.checkLegalMoves: hit blot', () {});
+
+  test('wong.checkLegalMoves: illegal hit', () {});
+
   test('wong.toModel: initial board', () {
     final wongBoard = [
       0, // 0: player2 bar
@@ -101,7 +129,7 @@ void main() {
     final modelBoard = wong.toModel(wongBoard);
     expect(modelBoard.length, 26);
 
-    final expectedBoard = GammonRules.initialPips();
+    final expectedBoard = GammonRules.initialBoard();
     for (var pip = 0; pip != 26; ++pip) {
       expect(modelBoard[pip], expectedBoard[pip], reason: 'pip $pip');
     }

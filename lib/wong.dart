@@ -170,7 +170,7 @@ int _legalMove(List<int> anBoardPre, List<int> anBoardPost, List<int> anRoll, Li
   var fLegalMoves = _generateMoves(anBoardPre, 0, 24, 0, anMoveTemp, md) == 0 ? 1 : 0;
 
   if (anRoll[0] != anRoll[1]) {
-    // bug fix in original source
+    // fixed: bug from original source
     var temp = anRollRaw[0];
     anRollRaw[0] = anRoll[1];
     anRollRaw[1] = temp;
@@ -198,8 +198,7 @@ List<int> getLegalMoves({
 }
 
 /// giving a board and a set of moves in Wong format and a roll, calculates the legal board post-move
-/// NOTE: this assumes player1 (black)
-/// TODO: make this work for player2 (white) as well
+/// NOTE: this assumes player1 (black) and doesn't work for player2 (white)
 List<int> checkLegalMoves({
   @required List<int> board,
   @required List<int> roll,

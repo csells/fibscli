@@ -21,6 +21,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  fibsboard:
+    path: ../fibsboard/
 
 flutter:
   uses-material-design: true

@@ -63,7 +63,7 @@ packages:
       name: cupertino_icons
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.1+1"
+    version: "1.0.2"
   dartx:
     dependency: "direct main"
     description:
@@ -85,6 +85,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.1.3"
+  fibsboard:
+    dependency: "direct dev"
+    description:
+      path: "../fibsboard"
+      relative: true
+    source: path
+    version: "1.1.0"
   fibscli_lib:
     dependency: "direct main"
     description:
@@ -286,14 +293,14 @@ packages:
       name: syncfusion_flutter_core
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "18.3.51"
+    version: "18.4.32"
   syncfusion_flutter_datagrid:
     dependency: "direct main"
     description:
       name: syncfusion_flutter_datagrid
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "18.3.51-beta"
+    version: "18.4.32-beta"
   term_glyph:
     dependency: transitive
     description:
