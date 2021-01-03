@@ -297,8 +297,11 @@ class _GameViewState extends State<GameView> {
       for (var i = 0; i != hops.length; ++i) {
         final hop = hops[i];
         final toPip = fromPip + hop;
-        final deltas = _game.moveHitOrBearOff(fromPipNo: fromPip, toPipNo: toPip);
-        movedPieceIDs.addAll([for (final delta in deltas) delta.pieceID]);
+        final deltasForHops = _game.moveHitOrBearOff(fromPipNo: fromPip, toPipNo: toPip);
+        movedPieceIDs.addAll([
+          for (final deltasForHop in deltasForHops)
+            for (final delta in deltasForHop) delta.pieceID
+        ]);
         gameStates.add(GammonState.from(_game));
         fromPip = toPip;
       }

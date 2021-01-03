@@ -85,7 +85,7 @@ class GammonState extends ChangeNotifier {
     }
   }
 
-  List<GammonDelta> moveHitOrBearOff({@required int fromPipNo, @required int toPipNo}) {
+  List<List<GammonDelta>> moveHitOrBearOff({@required int fromPipNo, @required int toPipNo}) {
     final hop = toPipNo - fromPipNo;
     final move = GammonMove(fromPipNo: fromPipNo, toPipNo: toPipNo, hops: [hop]);
     final deltas = GammonRules.applyMove(pips, move);
@@ -264,24 +264,24 @@ class GammonRules {
   static int barPipNoFor(Player player) => player == Player.one ? 25 : 0;
   static Player otherPlayer(Player player) => player == Player.one ? Player.two : Player.one;
 
-  static List<GammonDelta> applyMove(List<List<int>> board, GammonMove move) {
+  static List<List<GammonDelta>> applyMove(List<List<int>> board, GammonMove move) {
     assert(move.hops.length >= 1 && move.hops.length <= 4);
     assert(move.hops.length <= 2 || move.hops.all((h) => h == move.hops[0]),
         'if there are more than two hops, they must be from doubles');
 
     // track each hop
-    final deltas = <GammonDelta>[];
+    final deltas = <List<GammonDelta>>[];
     for (final hop in move.hops) {
-      final fromPipNo = deltas.isEmpty ? move.fromPipNo : deltas.last.toPipNo;
+      final fromPipNo = deltas.isEmpty ? move.fromPipNo : deltas.last[0].toPipNo;
       final toPipNo = fromPipNo + hop;
 
       // check each hop
       if (GammonRules.canMove(move.player, fromPipNo, toPipNo, board)) {
-        deltas.add(GammonRules.move(board, move.player, fromPipNo, toPipNo));
+        deltas.add([GammonRules.move(board, move.player, fromPipNo, toPipNo)]);
       } else if (GammonRules.canHit(board, move.player, fromPipNo, toPipNo)) {
-        deltas.addAll(GammonRules.hit(board, move.player, fromPipNo, toPipNo));
+        deltas.add(GammonRules.hit(board, move.player, fromPipNo, toPipNo));
       } else if (GammonRules.canBearOff(board, move.player, fromPipNo, toPipNo)) {
-        deltas.add(GammonRules.bearOff(board, move.player, fromPipNo, toPipNo));
+        deltas.add([GammonRules.bearOff(board, move.player, fromPipNo, toPipNo)]);
       } else {
         // only a legal move if each hop is legal
         deltas.clear();
@@ -292,7 +292,7 @@ class GammonRules {
     return deltas;
   }
 
-  static List<GammonDelta> legalMove(List<List<int>> board, GammonMove move) {
+  static List<List<GammonDelta>> legalMove(List<List<int>> board, GammonMove move) {
     // temp board state while checking each hop of the move
     final tempBoard = List<List<int>>.generate(board.length, (i) => List.from(board[i]));
     return applyMove(tempBoard, move);

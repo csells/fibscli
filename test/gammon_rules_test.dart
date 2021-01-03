@@ -23,12 +23,12 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 6, toPipNo: 5);
-    final deltas = GammonRules.legalMove(board, move);
-    expect(deltas, isNotEmpty);
-    expect(deltas, hasLength(1));
-    expect(deltas[0].kind, GammonDeltaKind.move);
-    expect(deltas[0].fromPipNo, 6);
-    expect(deltas[0].toPipNo, 5);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isNotEmpty);
+    expect(deltasForHops, hasLength(1));
+    expect(deltasForHops[0][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[0][0].fromPipNo, 6);
+    expect(deltasForHops[0][0].toPipNo, 5);
   });
 
   test('one-hop move from open (white)', () {
@@ -50,12 +50,12 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 1, toPipNo: 5);
-    final deltas = GammonRules.legalMove(board, move);
-    expect(deltas, isNotEmpty);
-    expect(deltas, hasLength(1));
-    expect(deltas[0].kind, GammonDeltaKind.move);
-    expect(deltas[0].fromPipNo, 1);
-    expect(deltas[0].toPipNo, 5);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isNotEmpty);
+    expect(deltasForHops, hasLength(1));
+    expect(deltasForHops[0][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[0][0].fromPipNo, 1);
+    expect(deltasForHops[0][0].toPipNo, 5);
   });
 
   test('two-hop move from open', () {
@@ -77,15 +77,15 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 13, toPipNo: 5, hops: [-6, -2]);
-    final deltas = GammonRules.legalMove(board, move);
-    expect(deltas, isNotEmpty);
-    expect(deltas, hasLength(2));
-    expect(deltas[0].kind, GammonDeltaKind.move);
-    expect(deltas[0].fromPipNo, 13);
-    expect(deltas[0].toPipNo, 7);
-    expect(deltas[1].kind, GammonDeltaKind.move);
-    expect(deltas[1].fromPipNo, 7);
-    expect(deltas[1].toPipNo, 5);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isNotEmpty);
+    expect(deltasForHops, hasLength(2));
+    expect(deltasForHops[0][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[0][0].fromPipNo, 13);
+    expect(deltasForHops[0][0].toPipNo, 7);
+    expect(deltasForHops[1][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[1][0].fromPipNo, 7);
+    expect(deltasForHops[1][0].toPipNo, 5);
   });
 
   test('three-hop move from open', () {
@@ -107,18 +107,18 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 13, toPipNo: 7, hops: [-2, -2, -2]);
-    final deltas = GammonRules.legalMove(board, move);
-    expect(deltas, isNotEmpty);
-    expect(deltas, hasLength(3));
-    expect(deltas[0].kind, GammonDeltaKind.move);
-    expect(deltas[0].fromPipNo, 13);
-    expect(deltas[0].toPipNo, 11);
-    expect(deltas[1].kind, GammonDeltaKind.move);
-    expect(deltas[1].fromPipNo, 11);
-    expect(deltas[1].toPipNo, 9);
-    expect(deltas[2].kind, GammonDeltaKind.move);
-    expect(deltas[2].fromPipNo, 9);
-    expect(deltas[2].toPipNo, 7);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isNotEmpty);
+    expect(deltasForHops, hasLength(3));
+    expect(deltasForHops[0][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[0][0].fromPipNo, 13);
+    expect(deltasForHops[0][0].toPipNo, 11);
+    expect(deltasForHops[1][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[1][0].fromPipNo, 11);
+    expect(deltasForHops[1][0].toPipNo, 9);
+    expect(deltasForHops[2][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[2][0].fromPipNo, 9);
+    expect(deltasForHops[2][0].toPipNo, 7);
   });
 
   test('four-hop move from open', () {
@@ -140,21 +140,21 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 13, toPipNo: 5, hops: [-2, -2, -2, -2]);
-    final deltas = GammonRules.legalMove(board, move);
-    expect(deltas, isNotEmpty);
-    expect(deltas, hasLength(4));
-    expect(deltas[0].kind, GammonDeltaKind.move);
-    expect(deltas[0].fromPipNo, 13);
-    expect(deltas[0].toPipNo, 11);
-    expect(deltas[1].kind, GammonDeltaKind.move);
-    expect(deltas[1].fromPipNo, 11);
-    expect(deltas[1].toPipNo, 9);
-    expect(deltas[2].kind, GammonDeltaKind.move);
-    expect(deltas[2].fromPipNo, 9);
-    expect(deltas[2].toPipNo, 7);
-    expect(deltas[3].kind, GammonDeltaKind.move);
-    expect(deltas[3].fromPipNo, 7);
-    expect(deltas[3].toPipNo, 5);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isNotEmpty);
+    expect(deltasForHops, hasLength(4));
+    expect(deltasForHops[0][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[0][0].fromPipNo, 13);
+    expect(deltasForHops[0][0].toPipNo, 11);
+    expect(deltasForHops[1][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[1][0].fromPipNo, 11);
+    expect(deltasForHops[1][0].toPipNo, 9);
+    expect(deltasForHops[2][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[2][0].fromPipNo, 9);
+    expect(deltasForHops[2][0].toPipNo, 7);
+    expect(deltasForHops[3][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[3][0].fromPipNo, 7);
+    expect(deltasForHops[3][0].toPipNo, 5);
   });
 
   test('one-hop illegal move from open', () {
@@ -176,8 +176,8 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 6, toPipNo: 1);
-    final result = GammonRules.legalMove(board, move);
-    expect(result, isEmpty);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isEmpty);
   });
 
   test('one-hop illegal move from open (white)', () {
@@ -199,8 +199,8 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 1, toPipNo: 6);
-    final result = GammonRules.legalMove(board, move);
-    expect(result, isEmpty);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isEmpty);
   });
 
   test('two-hop illegal move from open', () {
@@ -222,8 +222,8 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 6, toPipNo: 1, hops: [-1, -4]);
-    final result = GammonRules.legalMove(board, move);
-    expect(result, isEmpty);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isEmpty);
   });
 
   test('three-hop illegal move from open', () {
@@ -245,8 +245,8 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 24, toPipNo: 6, hops: [-6, -6, -6]);
-    final result = GammonRules.legalMove(board, move);
-    expect(result, isEmpty);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isEmpty);
   });
 
   test('four-hop illegal move from open', () {
@@ -268,8 +268,8 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 19, toPipNo: 7, hops: [-3, -3, -3, -3]);
-    final result = GammonRules.legalMove(board, move);
-    expect(result, isEmpty);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isEmpty);
   });
 
   test('one-hop hit', () {
@@ -291,15 +291,15 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 6, toPipNo: 2);
-    final deltas = GammonRules.legalMove(board, move);
-    expect(deltas, isNotEmpty);
-    expect(deltas, hasLength(2));
-    expect(deltas[0].kind, GammonDeltaKind.hit);
-    expect(deltas[0].fromPipNo, 6);
-    expect(deltas[0].toPipNo, 2);
-    expect(deltas[1].kind, GammonDeltaKind.bar);
-    expect(deltas[1].fromPipNo, 2);
-    expect(deltas[1].toPipNo, 0);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isNotEmpty);
+    expect(deltasForHops, hasLength(1));
+    expect(deltasForHops[0][0].kind, GammonDeltaKind.hit);
+    expect(deltasForHops[0][0].fromPipNo, 6);
+    expect(deltasForHops[0][0].toPipNo, 2);
+    expect(deltasForHops[0][1].kind, GammonDeltaKind.bar);
+    expect(deltasForHops[0][1].fromPipNo, 2);
+    expect(deltasForHops[0][1].toPipNo, 0);
   });
 
   test('two-hop hit', () {
@@ -321,18 +321,18 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 6, toPipNo: 2, hops: [-1, -3]);
-    final deltas = GammonRules.legalMove(board, move);
-    expect(deltas, isNotEmpty);
-    expect(deltas, hasLength(3));
-    expect(deltas[0].kind, GammonDeltaKind.move);
-    expect(deltas[0].fromPipNo, 6);
-    expect(deltas[0].toPipNo, 5);
-    expect(deltas[1].kind, GammonDeltaKind.hit);
-    expect(deltas[1].fromPipNo, 5);
-    expect(deltas[1].toPipNo, 2);
-    expect(deltas[2].kind, GammonDeltaKind.bar);
-    expect(deltas[2].fromPipNo, 2);
-    expect(deltas[2].toPipNo, 0);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isNotEmpty);
+    expect(deltasForHops, hasLength(2));
+    expect(deltasForHops[0][0].kind, GammonDeltaKind.move);
+    expect(deltasForHops[0][0].fromPipNo, 6);
+    expect(deltasForHops[0][0].toPipNo, 5);
+    expect(deltasForHops[1][0].kind, GammonDeltaKind.hit);
+    expect(deltasForHops[1][0].fromPipNo, 5);
+    expect(deltasForHops[1][0].toPipNo, 2);
+    expect(deltasForHops[1][1].kind, GammonDeltaKind.bar);
+    expect(deltasForHops[1][1].fromPipNo, 2);
+    expect(deltasForHops[1][1].toPipNo, 0);
   });
 
   test('two hops, two hits', () {
@@ -354,20 +354,20 @@ void main() {
 
     final board = fb.boardFromLines(lines);
     final move = GammonMove(fromPipNo: 6, toPipNo: 1, hops: [-4, -1]);
-    final deltas = GammonRules.legalMove(board, move);
-    expect(deltas, isNotEmpty);
-    expect(deltas, hasLength(4));
-    expect(deltas[0].kind, GammonDeltaKind.hit);
-    expect(deltas[0].fromPipNo, 6);
-    expect(deltas[0].toPipNo, 2);
-    expect(deltas[1].kind, GammonDeltaKind.bar);
-    expect(deltas[1].fromPipNo, 2);
-    expect(deltas[1].toPipNo, 0);
-    expect(deltas[2].kind, GammonDeltaKind.hit);
-    expect(deltas[2].fromPipNo, 2);
-    expect(deltas[2].toPipNo, 1);
-    expect(deltas[3].kind, GammonDeltaKind.bar);
-    expect(deltas[3].fromPipNo, 1);
-    expect(deltas[3].toPipNo, 0);
+    final deltasForHops = GammonRules.legalMove(board, move);
+    expect(deltasForHops, isNotEmpty);
+    expect(deltasForHops, hasLength(2));
+    expect(deltasForHops[0][0].kind, GammonDeltaKind.hit);
+    expect(deltasForHops[0][0].fromPipNo, 6);
+    expect(deltasForHops[0][0].toPipNo, 2);
+    expect(deltasForHops[0][1].kind, GammonDeltaKind.bar);
+    expect(deltasForHops[0][1].fromPipNo, 2);
+    expect(deltasForHops[0][1].toPipNo, 0);
+    expect(deltasForHops[1][0].kind, GammonDeltaKind.hit);
+    expect(deltasForHops[1][0].fromPipNo, 2);
+    expect(deltasForHops[1][0].toPipNo, 1);
+    expect(deltasForHops[1][1].kind, GammonDeltaKind.bar);
+    expect(deltasForHops[1][1].fromPipNo, 1);
+    expect(deltasForHops[1][1].toPipNo, 0);
   });
 }
