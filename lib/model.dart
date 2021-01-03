@@ -52,6 +52,17 @@ class GammonState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // calculate legal moves for all pips
+  Map<int, List<GammonMove>> getAllLegalMoves() {
+    final legalMovesForPips = <int, List<GammonMove>>{};
+    for (var pipNo = 0; pipNo != _board.length; ++pipNo) {
+      final legalMoves = getLegalMoves(pipNo).toList();
+      if (legalMoves.isNotEmpty) legalMovesForPips[pipNo] = legalMoves;
+    }
+    return legalMovesForPips;
+  }
+
+  // TODO: remove dups
   Iterable<GammonMove> getLegalMoves(int fromStartPipNo) sync* {
     // are there pieces on this pip?
     final fromPip = _board[fromStartPipNo];
@@ -267,7 +278,7 @@ class GammonRules {
 
   static Player playerFor(int pieceID) => pieceID < 0 ? Player.one : Player.two;
   static int signFor(Player player) => player == Player.one ? -1 : 1;
-  static int homePipNoFor(Player player) => player == Player.one ? 0 : 25;
+  static int offPipNoFor(Player player) => player == Player.one ? 0 : 25;
   static int barPipNoFor(Player player) => player == Player.one ? 25 : 0;
   static Player otherPlayer(Player player) => player == Player.one ? Player.two : Player.one;
 
@@ -330,10 +341,10 @@ class GammonRules {
     if (fromPipNo < 0 || fromPipNo > 25) return false;
     if (toPipNo < 0 || toPipNo > 25) return false;
 
-    final homePipNo = homePipNoFor(player);
+    final offPipNo = offPipNoFor(player);
     final barPipNo = barPipNoFor(player);
-    if (fromPipNo == homePipNo) return false;
-    if (toPipNo == homePipNo) return false;
+    if (fromPipNo == offPipNo) return false;
+    if (toPipNo == offPipNo) return false;
     if (toPipNo == barPipNo) return false;
 
     if (!board[fromPipNo].any((p) => playerFor(p) == player)) return false;
@@ -359,10 +370,10 @@ class GammonRules {
     if (fromPipNo < 0 || fromPipNo > 25) return false;
     if (toPipNo < 0 || toPipNo > 25) return false;
 
-    final homePipNo = homePipNoFor(player);
+    final offPipNo = offPipNoFor(player);
     final barPipNo = barPipNoFor(player);
-    if (fromPipNo == homePipNo) return false;
-    if (toPipNo == homePipNo) return false;
+    if (fromPipNo == offPipNo) return false;
+    if (toPipNo == offPipNo) return false;
     if (toPipNo == barPipNo) return false;
 
     if (!board[fromPipNo].any((p) => playerFor(p) == player)) return false;
@@ -398,9 +409,9 @@ class GammonRules {
     if (fromPipNo < 0 || fromPipNo > 25) return false;
     if (toPipNo > 0 && toPipNo < 25) return false;
 
-    // can't move from home
-    final homePipNo = homePipNoFor(player);
-    if (fromPipNo == homePipNo) return false;
+    // can't move after being born off
+    final offPipNo = offPipNoFor(player);
+    if (fromPipNo == offPipNo) return false;
 
     // can't move a piece that isn't there
     if (!board[fromPipNo].any((p) => playerFor(p) == player)) return false;
@@ -409,8 +420,8 @@ class GammonRules {
     final otherPipNos = _playerNonHomeBoardPipNos[player.index];
     for (final pipNo in otherPipNos) if (board[pipNo].any((p) => playerFor(p) == player)) return false;
 
-    // can bear off if moving exactly to the homePipNo
-    if (toPipNo == homePipNo) return true;
+    // can bear off if moving exactly to the offPipNo
+    if (toPipNo == offPipNo) return true;
 
     // check if it's a forced bear off, i.e. no pieces on pips > fromPipNo
     final greaterHomeBoardPipNos = _playerHomeBoardPipNos[player.index]
@@ -426,10 +437,10 @@ class GammonRules {
     final fromPieces = board[fromPipNo];
     final index = fromPieces.lastIndexWhere((p) => playerFor(p) == player);
     final id = fromPieces.removeAt(index);
-    final homePipNo = homePipNoFor(player);
-    final homePieces = board[homePipNo];
-    homePieces.add(id);
+    final offPipNo = offPipNoFor(player);
+    final offPieces = board[offPipNo];
+    offPieces.add(id);
 
-    return GammonDelta(kind: GammonDeltaKind.bearoff, pieceID: id, fromPipNo: fromPipNo, toPipNo: homePipNo);
+    return GammonDelta(kind: GammonDeltaKind.bearoff, pieceID: id, fromPipNo: fromPipNo, toPipNo: offPipNo);
   }
 }

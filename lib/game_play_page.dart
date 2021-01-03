@@ -94,8 +94,8 @@ class GameView extends StatefulWidget {
 
 class _GameViewState extends State<GameView> {
   final _game = GammonState();
-  var _legalMoves = <GammonMove>[];
-  int _fromPip;
+  var _legalMovesForPips = <int, List<GammonMove>>{};
+  int _fromPipNo;
   final _pieceLayouts = <int, List<PieceLayout>>{};
 
   @override
@@ -103,6 +103,7 @@ class _GameViewState extends State<GameView> {
     super.initState();
 
     _game.nextTurn();
+    _reset();
     widget.controller.onUndo = () {
       _reset();
       _game.undo();
@@ -165,7 +166,7 @@ class _GameViewState extends State<GameView> {
                             onTap: () => _tapPip(layout.pip),
                             child: PipTriangle(
                               pip: layout.pip,
-                              highlight: _legalMoves.hasHops(fromPipNo: _fromPip, toPipNo: layout.pip),
+                              highlight: _highlightPip(layout.pip),
                             ),
                           ),
                         ),
@@ -175,31 +176,31 @@ class _GameViewState extends State<GameView> {
                         ),
                       ],
 
-                      // player1 home
+                      // player1 off
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(520, 216, 32, 183),
                         child: GestureDetector(
-                          onTap: () => _tapHome(Player.one),
+                          onTap: () => _tapOff(Player.one),
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
                               border: Border.all(
-                                  color: _highlightHome(Player.one) ? Colors.yellow : Colors.black, width: 2),
+                                  color: _highlightOff(Player.one) ? Colors.yellow : Colors.black, width: 2),
                             ),
                           ),
                         ),
                       ),
 
-                      // player2 home
+                      // player2 off
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(520, 20, 32, 183),
                         child: GestureDetector(
-                          onTap: () => _tapHome(Player.two),
+                          onTap: () => _tapOff(Player.two),
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
                               border: Border.all(
-                                  color: _highlightHome(Player.two) ? Colors.yellow : Colors.black, width: 2),
+                                  color: _highlightOff(Player.two) ? Colors.yellow : Colors.black, width: 2),
                             ),
                           ),
                         ),
@@ -217,7 +218,7 @@ class _GameViewState extends State<GameView> {
                       // ),
 
                       // pieces
-                      for (final layout in PieceLayout.getLayouts(game.board, highlightedPiecePip: _fromPip))
+                      for (final layout in PieceLayout.getLayouts(game.board, highlightedPiecePip: _fromPipNo))
                         _pieceLayouts.containsKey(layout.pieceID)
                             ? AnimatedLayouts(
                                 layouts: _pieceLayouts.remove(layout.pieceID),
@@ -262,34 +263,36 @@ class _GameViewState extends State<GameView> {
       );
 
   void _tapPiece(int pipNo) {
-    // if there are legal moves, try to move
-    if (_legalMoves.isNotEmpty) {
+    if (_fromPipNo == null) {
+      // if there's no pip to move from selected, select one
+      setState(() => _fromPipNo = pipNo);
+    } else {
+      // if there is a pip to move from selected, attempt to move to this piece
       _move(pipNo);
-      return;
     }
-
-    // calculate legal moves
-    assert(_legalMoves.isEmpty);
-    final legalMoves = _game.getLegalMoves(pipNo).toList();
-    if (legalMoves.isEmpty) return;
-
-    setState(() {
-      _fromPip = pipNo;
-      _legalMoves.addAll(legalMoves);
-    });
   }
 
-  void _tapHome(Player player) => _move(GammonRules.homePipNoFor(player));
+  // // calculate legal moves
+  // assert(_legalMovesForPips.isEmpty);
+  // final legalMoves = _game.getLegalMoves(pipNo).toList();
+  // if (legalMoves.isEmpty) return;
+
+  // setState(() {
+  //   _legalMovesForPips.addAll(legalMoves);
+  // });
+
+  void _tapOff(Player player) => _move(GammonRules.offPipNoFor(player));
   void _tapPip(int toPipNo) => _move(toPipNo);
 
   void _move(int toEndPipNo) {
     // find the first set of hops that move from the current pip to the desired pip
-    final hops = _legalMoves.hops(fromPipNo: _fromPip, toPipNo: toEndPipNo);
+    final hops =
+        _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo].hops(fromPipNo: _fromPipNo, toPipNo: toEndPipNo);
 
     // if this is a legal move, do the move
     if (hops != null) {
       final initialBoard = List<List<int>>.generate(_game.board.length, (i) => List<int>.from(_game.board[i]));
-      final move = GammonMove(fromPipNo: _fromPip, toPipNo: toEndPipNo, hops: hops);
+      final move = GammonMove(fromPipNo: _fromPipNo, toPipNo: toEndPipNo, hops: hops);
       final deltasForHops = _game.applyMove(move: move);
 
       // convert game states for each hop into a sequence of layouts for each affected piece
@@ -303,19 +306,30 @@ class _GameViewState extends State<GameView> {
 
   void _reset() {
     setState(() {
-      _legalMoves.clear();
-      _fromPip = null;
+      _legalMovesForPips = _game.getAllLegalMoves();
+      _fromPipNo = null;
     });
   }
 
   void _tapDice() {
     // can't go to the next turn until there are no more available dice
-    if (_game.dice.every((d) => !d.available)) _game.nextTurn();
+    if (_game.dice.every((d) => !d.available)) {
+      _game.nextTurn();
+      _reset();
+    }
   }
 
-  bool _highlightHome(Player player) {
-    final homePipNo = GammonRules.homePipNoFor(player);
-    return _legalMoves.any((m) => m.toPipNo == homePipNo);
+  bool _highlightOff(Player player) {
+    final offPipNo = GammonRules.offPipNoFor(player);
+    final legalMoves = _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo];
+    return legalMoves != null && legalMoves.any((m) => m.toPipNo == offPipNo);
+  }
+
+  bool _highlightPip(int pip) {
+    print('_highlightPip($pip)');
+    if (_fromPipNo != null) return pip == _fromPipNo;
+    final legalMoves = _legalMovesForPips[pip];
+    return legalMoves != null && legalMoves.hasHops(fromPipNo: _fromPipNo, toPipNo: pip);
   }
 
   static Map<int, List<PieceLayout>> _pieceLayoutsFor(

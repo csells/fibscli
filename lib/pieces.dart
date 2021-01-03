@@ -139,7 +139,7 @@ class PieceLayout {
 
     // draw the pieces in their homes
     for (final player in Player.values) {
-      final pieces = board[GammonRules.homePipNoFor(player)].where((p) => GammonRules.playerFor(p) == player).toList();
+      final pieces = board[GammonRules.offPipNoFor(player)].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];
