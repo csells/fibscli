@@ -73,21 +73,21 @@ class GammonState extends ChangeNotifier {
       // check if all of the moves along the way are legal for this compound to be legal
       final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
       final toEndPipNo = fromStartPipNo + hops.sum();
-      final move = GammonMove(player: _turnPlayer, fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
+      final move = GammonMove(fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
       if (GammonRules.legalMove(move, _pips).isNotEmpty) {
         final clampedToEndPipNo = toEndPipNo < 0
             ? 0
             : toEndPipNo > 25
                 ? 25
                 : toEndPipNo;
-        yield GammonMove(player: move.player, fromPipNo: move.fromPipNo, toPipNo: clampedToEndPipNo, hops: move.hops);
+        yield GammonMove(fromPipNo: move.fromPipNo, toPipNo: clampedToEndPipNo, hops: move.hops);
       }
     }
   }
 
   List<GammonDelta> moveHitOrBearOff({@required int fromPipNo, @required int toPipNo}) {
     final hop = toPipNo - fromPipNo;
-    final move = GammonMove(player: _turnPlayer, fromPipNo: fromPipNo, toPipNo: toPipNo, hops: [hop]);
+    final move = GammonMove(fromPipNo: fromPipNo, toPipNo: toPipNo, hops: [hop]);
     final deltas = GammonRules.applyMove(move, pips);
 
     if (deltas.isNotEmpty) {
@@ -180,20 +180,24 @@ extension GammonMoves on Iterable<GammonMove> {
 enum Player { one, two }
 
 class GammonMove {
-  final Player player;
   final int fromPipNo;
   final int toPipNo;
   final hops = <int>[];
-  GammonMove({@required this.player, @required this.fromPipNo, @required this.toPipNo, List<int> hops})
-      : assert(player != null) {
+  GammonMove({@required this.fromPipNo, @required this.toPipNo, List<int> hops}) {
     assert(this.hops.isEmpty);
+
     if (hops == null) {
-      this.hops.add(toPipNo - fromPipNo.abs());
+      this.hops.add(toPipNo - fromPipNo);
     } else {
       if (hops.isEmpty) throw Exception('hops must not be empty');
       this.hops.addAll(hops);
     }
+
+    assert(this.hops.all((h) => h.abs() >= 1 && h.abs() <= 6), 'all hops are die rolls');
+    assert(this.hops.all((h) => h.sign == this.hops[0].sign), 'all hops must go in the same direction');
   }
+
+  Player get player => GammonRules.playerFor(hops[0]);
 
   @override
   String toString() => 'GammonMove(player: $player, fromPipNo: $fromPipNo, toPipNo: $toPipNo, hops: $hops)';
@@ -201,15 +205,11 @@ class GammonMove {
   @override
   bool operator ==(Object o) =>
       (identical(this, o)) ||
-      o is GammonMove &&
-          o.player == player &&
-          o.fromPipNo == fromPipNo &&
-          o.toPipNo == toPipNo &&
-          listEquals(o.hops, hops);
+      o is GammonMove && o.fromPipNo == fromPipNo && o.toPipNo == toPipNo && listEquals(o.hops, hops);
 
   @override
   int get hashCode {
-    var hash = player.hashCode ^ fromPipNo.hashCode ^ toPipNo.hashCode;
+    var hash = fromPipNo.hashCode ^ toPipNo.hashCode;
     for (final hop in hops) hash ^= hop.hashCode;
     return hash;
   }
