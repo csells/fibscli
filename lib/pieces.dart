@@ -79,16 +79,15 @@ class PieceLayout {
   @override
   String toString() => 'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect)';
 
-  static Iterable<PieceLayout> getLayouts(GammonState state, {int highlightedPiecePip}) sync* {
-    final pips = state.pips;
-    assert(pips.length == 26);
+  static Iterable<PieceLayout> getLayouts(List<List<int>> board, {int highlightedPiecePip}) sync* {
+    assert(board.length == 26);
     assert(_pieceSize.width == _pieceSize.height);
 
     // draw the pieces on the board
     for (var j = 0; j != 4; j++) {
       for (var i = 0; i != 6; ++i) {
         final pipNo = j * 6 + i + 1;
-        final pip = pips[pipNo];
+        final pip = board[pipNo];
         if (pip.isEmpty) continue;
         assert(pip.every((p) => p.sign == pip[0].sign));
         final pieceCount = pip.length;
@@ -127,7 +126,7 @@ class PieceLayout {
     // draw the pieces on the bar
     for (final player in Player.values) {
       final bar = GammonRules.barPipNoFor(player);
-      final pieces = pips[bar].where((p) => GammonRules.playerFor(p) == player).toList();
+      final pieces = board[bar].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];
@@ -140,7 +139,7 @@ class PieceLayout {
 
     // draw the pieces in their homes
     for (final player in Player.values) {
-      final pieces = pips[GammonRules.homePipNoFor(player)].where((p) => GammonRules.playerFor(p) == player).toList();
+      final pieces = board[GammonRules.homePipNoFor(player)].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];

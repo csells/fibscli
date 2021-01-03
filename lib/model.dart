@@ -17,15 +17,15 @@ class GammonState extends ChangeNotifier {
   GammonState _undoState; // state for implementing undo
 
   GammonState() {
-    _setState(pips: GammonRules.initialBoard(), dice: <DieState>[], turnPlayer: Player.two);
+    _setState(board: GammonRules.initialBoard(), dice: <DieState>[], turnPlayer: Player.two);
   }
 
   void _setState({
-    @required List<List<int>> pips,
+    @required List<List<int>> board,
     @required List<DieState> dice,
     @required Player turnPlayer,
   }) {
-    for (var i = 0; i < pips.length; ++i) _board[i] = List.from(pips[i]);
+    for (var i = 0; i < board.length; ++i) _board[i] = List.from(board[i]);
 
     _dice.clear();
     _dice.addAll(dice.map((d) => DieState(d.roll)).toList());
@@ -34,10 +34,10 @@ class GammonState extends ChangeNotifier {
   }
 
   GammonState.from(GammonState state) {
-    _setState(pips: state._board, dice: state._dice, turnPlayer: state._turnPlayer);
+    _setState(board: state._board, dice: state._dice, turnPlayer: state._turnPlayer);
   }
 
-  List<List<int>> get pips => List.unmodifiable(_board);
+  List<List<int>> get board => List.unmodifiable(_board);
   List<DieState> get dice => List.unmodifiable(_dice);
   Player get turnPlayer => _turnPlayer;
 
@@ -48,7 +48,7 @@ class GammonState extends ChangeNotifier {
   }
 
   void undo() {
-    _setState(pips: _undoState._board, dice: _undoState._dice, turnPlayer: _undoState._turnPlayer);
+    _setState(board: _undoState._board, dice: _undoState._dice, turnPlayer: _undoState._turnPlayer);
     notifyListeners();
   }
 
@@ -85,13 +85,12 @@ class GammonState extends ChangeNotifier {
     }
   }
 
-  List<List<GammonDelta>> moveHitOrBearOff({@required int fromPipNo, @required int toPipNo}) {
-    final hop = toPipNo - fromPipNo;
-    final move = GammonMove(fromPipNo: fromPipNo, toPipNo: toPipNo, hops: [hop]);
-    final deltas = GammonRules.applyMove(pips, move);
+  List<List<GammonDelta>> applyMove({@required GammonMove move}) {
+    assert(move != null);
+    final deltas = GammonRules.applyMove(board, move);
 
     if (deltas.isNotEmpty) {
-      _useDie(hop.abs());
+      for (final hop in move.hops) _useDie(hop.abs());
       notifyListeners();
     }
 
@@ -168,6 +167,14 @@ class GammonDelta {
 
   @override
   String toString() => '$kind: $pieceID, $fromPipNo=>$toPipNo';
+
+  @override
+  bool operator ==(Object o) =>
+      (identical(this, o)) ||
+      o is GammonDelta && o.kind == kind && o.pieceID == pieceID && o.fromPipNo == fromPipNo && o.toPipNo == toPipNo;
+
+  @override
+  int get hashCode => kind.index ^ pieceID ^ fromPipNo.hashCode ^ toPipNo.hashCode;
 }
 
 extension GammonMoves on Iterable<GammonMove> {
@@ -290,6 +297,26 @@ class GammonRules {
     }
 
     return deltas;
+  }
+
+  static void applyDeltasForHop(List<List<int>> board, List<GammonDelta> deltasForHop) {
+    if (deltasForHop.isEmpty) return;
+
+    assert(deltasForHop.length == 1 || deltasForHop.length == 2, 'only doing a single hop');
+    assert([GammonDeltaKind.bearoff, GammonDeltaKind.hit, GammonDeltaKind.move].contains(deltasForHop[0].kind));
+    assert(deltasForHop.length == 1 || deltasForHop[1].pieceID != deltasForHop[0].pieceID);
+    assert(deltasForHop.length == 1 || deltasForHop[1].kind == GammonDeltaKind.bar);
+
+    // apply the delta by recreating the move
+    final delta = deltasForHop[0];
+    final move = GammonMove(fromPipNo: delta.fromPipNo, toPipNo: delta.toPipNo);
+    final deltas = applyMove(board, move);
+
+    // check that the deltas we get back match the deltas we were sent
+    assert(deltas.length == 1);
+    for (var i = 0; i != deltas[0].length; ++i) {
+      assert(deltas[0][i] == deltasForHop[i], 'must get back the same delta that was sent in');
+    }
   }
 
   static List<List<GammonDelta>> legalMove(List<List<int>> board, GammonMove move) {
