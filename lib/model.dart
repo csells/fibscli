@@ -263,6 +263,10 @@ class GammonRules {
   static Player otherPlayer(Player player) => player == Player.one ? Player.two : Player.one;
 
   static List<GammonDelta> applyMove(GammonMove move, List<List<int>> board) {
+    assert(move.hops.length >= 1 && move.hops.length <= 4);
+    assert(move.hops.length <= 2 || move.hops.all((h) => h == move.hops[0]),
+        'if there are more than two hops, they must be from doubles');
+
     // track each hop
     final deltas = <GammonDelta>[];
     for (final hop in move.hops) {
