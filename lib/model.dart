@@ -86,12 +86,12 @@ class GammonState extends ChangeNotifier {
   }
 
   List<GammonDelta> moveHitOrBearOff({@required int fromPipNo, @required int toPipNo}) {
-    final hop = (fromPipNo - toPipNo).abs();
+    final hop = toPipNo - fromPipNo;
     final move = GammonMove(player: _turnPlayer, fromPipNo: fromPipNo, toPipNo: toPipNo, hops: [hop]);
     final deltas = GammonRules.applyMove(move, pips);
 
     if (deltas.isNotEmpty) {
-      _useDie(hop);
+      _useDie(hop.abs());
       notifyListeners();
     }
 
@@ -165,6 +165,9 @@ class GammonDelta {
   final int fromPipNo;
   final int toPipNo;
   GammonDelta({@required @required this.kind, this.pieceID, @required this.fromPipNo, @required this.toPipNo});
+
+  @override
+  String toString() => '$kind: $pieceID, $fromPipNo=>$toPipNo';
 }
 
 extension GammonMoves on Iterable<GammonMove> {
@@ -180,10 +183,17 @@ class GammonMove {
   final Player player;
   final int fromPipNo;
   final int toPipNo;
-  final List<int> hops;
-  GammonMove({@required this.player, @required this.fromPipNo, @required this.toPipNo, @required this.hops})
-      : assert(player != null),
-        assert(hops != null && hops.isNotEmpty);
+  final hops = <int>[];
+  GammonMove({@required this.player, @required this.fromPipNo, @required this.toPipNo, List<int> hops})
+      : assert(player != null) {
+    assert(this.hops.isEmpty);
+    if (hops == null) {
+      this.hops.add(toPipNo - fromPipNo.abs());
+    } else {
+      if (hops.isEmpty) throw Exception('hops must not be empty');
+      this.hops.addAll(hops);
+    }
+  }
 
   @override
   String toString() => 'GammonMove(player: $player, fromPipNo: $fromPipNo, toPipNo: $toPipNo, hops: $hops)';

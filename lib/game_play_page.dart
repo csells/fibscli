@@ -101,8 +101,12 @@ class _GameViewState extends State<GameView> {
   @override
   void initState() {
     super.initState();
-    widget.controller.onUndo = () => _game.undo();
+
     _game.nextTurn();
+    widget.controller.onUndo = () {
+      _reset();
+      _game.undo();
+    };
   }
 
   @override
@@ -271,7 +275,7 @@ class _GameViewState extends State<GameView> {
 
     setState(() {
       _fromPip = pipNo;
-      _legalMoves = legalMoves;
+      _legalMoves.addAll(legalMoves);
     });
   }
 
