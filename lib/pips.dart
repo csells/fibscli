@@ -12,7 +12,7 @@ class PipLabel extends StatelessWidget {
       child: RotatedBox(
         quarterTurns: reversed ? 2 : 0,
         child: Text(
-          layout.pip.toString(),
+          layout.pipNo.toString(),
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.black, fontSize: 10),
         ),
@@ -37,12 +37,12 @@ class PipLayout {
   static final double height = 150;
   static final double labelHeight = 15;
 
-  final int pip;
+  final int pipNo;
   final double left;
   final double top;
   final double labelDy;
   PipLayout({
-    @required this.pip,
+    @required this.pipNo,
     @required this.left,
     @required this.top,
     @required this.labelDy,
@@ -61,19 +61,19 @@ class PipLayout {
 
           // bottom-right
           if (pip >= 1 && pip <= 6) {
-            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 249, labelDy: height + 1));
+            layouts.add(PipLayout(pipNo: pip, left: 285 + dx, top: 249, labelDy: height + 1));
           }
           // bottom-left
           else if (pip >= 7 && pip <= 12) {
-            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 249, labelDy: height + 1));
+            layouts.add(PipLayout(pipNo: pip, left: 21 + dx, top: 249, labelDy: height + 1));
           }
           // top-left
           else if (pip >= 13 && pip <= 18) {
-            layouts.add(PipLayout(pip: pip, left: 21 + dx, top: 21, labelDy: -labelHeight - 1));
+            layouts.add(PipLayout(pipNo: pip, left: 21 + dx, top: 21, labelDy: -labelHeight - 1));
           }
           // top-right
           else if (pip >= 19 && pip <= 24) {
-            layouts.add(PipLayout(pip: pip, left: 285 + dx, top: 21, labelDy: -labelHeight - 1));
+            layouts.add(PipLayout(pipNo: pip, left: 285 + dx, top: 21, labelDy: -labelHeight - 1));
           }
           // error
           else {

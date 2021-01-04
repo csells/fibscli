@@ -59,10 +59,17 @@ class GammonState extends ChangeNotifier {
       final legalMoves = getLegalMoves(pipNo).toList();
       if (legalMoves.isNotEmpty) legalMovesForPips[pipNo] = legalMoves;
     }
+
+    // ensure no duplicates
+    if (kDebugMode) {
+      for (var i = 0; i != board.length; ++i) {
+        assert(board[i].length == board[i].distinct().length);
+      }
+    }
+
     return legalMovesForPips;
   }
 
-  // TODO: remove dups
   Iterable<GammonMove> getLegalMoves(int fromStartPipNo) sync* {
     // are there pieces on this pip?
     final fromPip = _board[fromStartPipNo];
@@ -189,6 +196,7 @@ class GammonDelta {
 }
 
 extension GammonMoves on Iterable<GammonMove> {
+  // TODO: make this singleOrNullWhere
   List<int> hops({int fromPipNo, int toPipNo}) =>
       this.firstOrNullWhere((m) => m.fromPipNo == fromPipNo && m.toPipNo == toPipNo)?.hops;
 

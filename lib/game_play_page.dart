@@ -163,10 +163,10 @@ class _GameViewState extends State<GameView> {
                         Positioned.fromRect(
                           rect: layout.rect,
                           child: GestureDetector(
-                            onTap: () => _tapPip(layout.pip),
+                            onTap: () => _tapPip(layout.pipNo),
                             child: PipTriangle(
-                              pip: layout.pip,
-                              highlight: _highlightPip(layout.pip),
+                              pip: layout.pipNo,
+                              highlight: _highlightPip(layout.pipNo),
                             ),
                           ),
                         ),
@@ -184,8 +184,8 @@ class _GameViewState extends State<GameView> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
-                              border: Border.all(
-                                  color: _highlightOff(Player.one) ? Colors.yellow : Colors.black, width: 2),
+                              border:
+                                  Border.all(color: _highlightOff(Player.one) ? Colors.yellow : Colors.black, width: 2),
                             ),
                           ),
                         ),
@@ -199,8 +199,8 @@ class _GameViewState extends State<GameView> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
-                              border: Border.all(
-                                  color: _highlightOff(Player.two) ? Colors.yellow : Colors.black, width: 2),
+                              border:
+                                  Border.all(color: _highlightOff(Player.two) ? Colors.yellow : Colors.black, width: 2),
                             ),
                           ),
                         ),
@@ -218,7 +218,7 @@ class _GameViewState extends State<GameView> {
                       // ),
 
                       // pieces
-                      for (final layout in PieceLayout.getLayouts(game.board, highlightedPiecePip: _fromPipNo))
+                      for (final layout in PieceLayout.getLayouts(game.board, _pipNosToHighlight))
                         _pieceLayouts.containsKey(layout.pieceID)
                             ? AnimatedLayouts(
                                 layouts: _pieceLayouts.remove(layout.pieceID),
@@ -261,6 +261,8 @@ class _GameViewState extends State<GameView> {
           ),
         ),
       );
+
+  List<int> get _pipNosToHighlight => _fromPipNo != null ? [_fromPipNo] : _legalMovesForPips.keys.toList();
 
   void _tapPiece(int pipNo) {
     if (_fromPipNo == null) {
@@ -325,11 +327,10 @@ class _GameViewState extends State<GameView> {
     return legalMoves != null && legalMoves.any((m) => m.toPipNo == offPipNo);
   }
 
-  bool _highlightPip(int pip) {
-    print('_highlightPip($pip)');
-    if (_fromPipNo != null) return pip == _fromPipNo;
-    final legalMoves = _legalMovesForPips[pip];
-    return legalMoves != null && legalMoves.hasHops(fromPipNo: _fromPipNo, toPipNo: pip);
+  bool _highlightPip(int pipNo) {
+    final legalMoves = _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo];
+    final result = legalMoves != null && legalMoves.hasHops(fromPipNo: _fromPipNo, toPipNo: pipNo);
+    return result;
   }
 
   static Map<int, List<PieceLayout>> _pieceLayoutsFor(

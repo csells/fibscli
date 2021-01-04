@@ -27,7 +27,7 @@ class PieceView extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(begin: Alignment.topLeft, colors: _gradeColors),
-            border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: 1),
+            border: Border.all(color: layout.highlight ? Colors.yellow : Colors.black, width: layout.highlight ? 2 : 1),
           ),
           child: Center(
             child: FractionallySizedBox(
@@ -77,16 +77,19 @@ class PieceLayout {
   Rect get rect => offset & size;
 
   @override
-  String toString() => 'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect)';
+  String toString() => 'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect, highlight=$highlight)';
 
-  static Iterable<PieceLayout> getLayouts(List<List<int>> board, {int highlightedPiecePip}) sync* {
+  static Iterable<PieceLayout> getLayouts(List<List<int>> board, [List<int> pipNosToHighlight]) sync* {
     assert(board.length == 26);
     assert(_pieceSize.width == _pieceSize.height);
+
+    pipNosToHighlight ??= [];
 
     // draw the pieces on the board
     for (var j = 0; j != 4; j++) {
       for (var i = 0; i != 6; ++i) {
         final pipNo = j * 6 + i + 1;
+        final highlightedPiecePip = pipNosToHighlight.contains(pipNo);
         final pip = board[pipNo];
         if (pip.isEmpty) continue;
         assert(pip.every((p) => p.sign == pip[0].sign));
@@ -97,7 +100,7 @@ class PieceLayout {
           // if there's more than 5, the last one gets a label w/ the total number of pieces in the stack
           final label = pieceCount > 5 && (h + 1) == pieceCount ? pieceCount.toString() : '';
           final dy = _offset.dy * min(4, h);
-          final highlight = pipNo == highlightedPiecePip && (h + 1) == min(pieceCount, 5);
+          final highlight = highlightedPiecePip && (h + 1) == min(pieceCount, 5);
           final pieceID = pip[h];
 
           if (pipNo >= 1 && pipNo <= 6) {
@@ -126,13 +129,14 @@ class PieceLayout {
     // draw the pieces on the bar
     for (final player in Player.values) {
       final bar = GammonRules.barPipNoFor(player);
+      final highlightedPiecePip = pipNosToHighlight.contains(bar);
       final pieces = board[bar].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];
         final label = (i + 1) == pieceCount && pieceCount > 3 ? pieceCount.toString() : '';
         final top = pieceID.sign == -1 ? 254.0 + _offset.dy * min(i, 2) : 138.0 - _offset.dy * min(i, 2);
-        final highlight = bar == highlightedPiecePip && i == 0;
+        final highlight = highlightedPiecePip && i == 0;
         yield PieceLayout(pipNo: 0, pieceID: pieceID, offset: Offset(246, top), label: label, highlight: highlight);
       }
     }
