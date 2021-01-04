@@ -34,16 +34,17 @@ Now running fibscli will use a websocket on port 8080 of the localhost to connec
 - play backgammon
 
 # UI TODO
-- shouldn't allow any other moves while dice are on the bar
-- move a hit piece *after* it's been hit
-- draw moving pieces on top of other pieces
-- don't show the label while it's moving
+- test the GammonState + GammonRules
+  - shouldn't allow any other moves while dice are on the bar
+  - implement the forced moves rule (instead of just removing moves that aren't available as you go)
 - detect end game
 - first move (different colored dice)
-- test the GammonState + GammonRules
-- implement the forced moves rule (instead of just removing moves that aren't available as you go)
+- move a hit piece *after* it's been hit
+- publish to github.io
+- draw moving pieces on top of other pieces
+- don't show the label while it's moving
 - prefer moves w/ hits when picking from multiple moves
-- publish to fibscli.github.io
+- show end game stats (# of doubles/player, total of dice rolls/player)
 
 # Legal turns algorithm
 find composits of all pieces on all pips + bar (up to number of dice) for the player, e.g. white: [1, 1, 12, 12, 12, 12, 12, ...]

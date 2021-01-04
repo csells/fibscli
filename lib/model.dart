@@ -52,54 +52,9 @@ class GammonState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // calculate legal moves for all pips
   Map<int, List<GammonMove>> getAllLegalMoves() {
-    final legalMovesForPips = <int, List<GammonMove>>{};
-    for (var pipNo = 0; pipNo != _board.length; ++pipNo) {
-      final legalMoves = getLegalMoves(pipNo).toList();
-      assert(legalMoves.length == legalMoves.distinct().length, 'ensure no duplicate moves');
-      if (legalMoves.isNotEmpty) legalMovesForPips[pipNo] = legalMoves;
-    }
-
-    return legalMovesForPips;
-  }
-
-  List<GammonMove> getLegalMoves(int fromStartPipNo) {
-    // are there pieces on this pip?
-    final fromPip = _board[fromStartPipNo];
-    if (fromPip.isEmpty) return [];
-
-    // do the pieces belong to the current player?
-    if (!fromPip.any((p) => GammonRules.playerFor(p) == _turnPlayer)) return [];
-
-    // check all components of the _dice for legal moves, taking into account doubles
-    // need to uniqify the numbers for trotter
-    final availableDice = _dice.where((d) => d.available).toList();
-    final stringRolls = [
-      for (var i = 0; i != availableDice.length; ++i) '${availableDice[i].roll}${String.fromCharCode(97 + i)}'
-    ];
-
-    // use a set to avoid dups generated from doubles
-    final legalMoves = <GammonMove>{};
-
-    final comps = Compounds(stringRolls);
-    final sign = GammonRules.signFor(_turnPlayer);
-    for (final comp in comps().where((comp) => comp.isNotEmpty)) {
-      // check if all of the moves along the way are legal for this compound to be legal
-      final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
-      final toEndPipNo = fromStartPipNo + hops.sum();
-      final move = GammonMove(fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
-      if (GammonRules.legalMove(_board, move).isNotEmpty) {
-        final clampedToEndPipNo = toEndPipNo < 0
-            ? 0
-            : toEndPipNo > 25
-                ? 25
-                : toEndPipNo;
-        legalMoves.add(GammonMove(fromPipNo: move.fromPipNo, toPipNo: clampedToEndPipNo, hops: move.hops));
-      }
-    }
-
-    return legalMoves.toList();
+    final rolls = _dice.where((d) => d.available).map((d) => d.roll).toList();
+    return GammonRules.getAllLegalMoves(board, _turnPlayer, rolls);
   }
 
   List<List<GammonDelta>> applyMove({@required GammonMove move}) {
@@ -155,15 +110,19 @@ class GammonState extends ChangeNotifier {
 
   void _disableUnusableDice() {
     // check all the pips for legal moves
-    final allLegalMoves = <GammonMove>{};
-    for (var fromPip = 1; fromPip <= 24; ++fromPip) allLegalMoves.addAll(getLegalMoves(fromPip));
+    final rolls = _dice.where((d) => d.available).map((d) => d.roll).toList();
+    final moves = GammonRules.getAllLegalMoves(board, _turnPlayer, rolls);
 
     // find all of the possible hops
-    final allHops = Set<int>.from(allLegalMoves.flatMap<int>((m) => m.hops.map<int>((h) => h.abs())));
+    final hops = [
+      for (final moveList in moves.values)
+        for (final move in moveList)
+          for (final hop in move.hops) hop.abs()
+    ];
 
     // remove dice that aren't usable
     for (final die in _dice.where((d) => d.available)) {
-      if (!allHops.contains(die.roll)) die.available = false;
+      if (!hops.contains(die.roll)) die.available = false;
     }
   }
 }
@@ -337,7 +296,59 @@ class GammonRules {
     }
   }
 
-  static List<List<GammonDelta>> legalMove(List<List<int>> board, GammonMove move) {
+  // calculate legal moves for all pips
+  static Map<int, List<GammonMove>> getAllLegalMoves(List<List<int>> board, Player player, List<int> rolls) {
+    final legalMovesForPips = <int, List<GammonMove>>{};
+    for (var pipNo = 0; pipNo != board.length; ++pipNo) {
+      final legalMoves = getLegalMoves(board, pipNo, player, rolls).toList();
+      assert(legalMoves.length == legalMoves.distinct().length, 'ensure no duplicate moves');
+      if (legalMoves.isNotEmpty) legalMovesForPips[pipNo] = legalMoves;
+    }
+
+    return legalMovesForPips;
+  }
+
+  static List<GammonMove> getLegalMoves(
+    List<List<int>> board,
+    int fromStartPipNo,
+    Player player,
+    List<int> rolls,
+  ) {
+    // are there pieces on this pip?
+    final fromPip = board[fromStartPipNo];
+    if (fromPip.isEmpty) return [];
+
+    // do the pieces belong to the current player?
+    if (!fromPip.any((p) => GammonRules.playerFor(p) == player)) return [];
+
+    // check all components of the _dice for legal moves, taking into account doubles
+    // need to uniqify the numbers for trotter
+    final stringRolls = [for (var i = 0; i != rolls.length; ++i) '${rolls[i]}${String.fromCharCode(97 + i)}'];
+
+    // use a set to avoid dups generated from doubles
+    final legalMoves = <GammonMove>{};
+
+    final comps = Compounds(stringRolls);
+    final sign = GammonRules.signFor(player);
+    for (final comp in comps().where((comp) => comp.isNotEmpty)) {
+      // check if all of the moves along the way are legal for this compound to be legal
+      final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
+      final toEndPipNo = fromStartPipNo + hops.sum();
+      final move = GammonMove(fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
+      if (GammonRules.checkLegalMove(board, move).isNotEmpty) {
+        final clampedToEndPipNo = toEndPipNo < 0
+            ? 0
+            : toEndPipNo > 25
+                ? 25
+                : toEndPipNo;
+        legalMoves.add(GammonMove(fromPipNo: move.fromPipNo, toPipNo: clampedToEndPipNo, hops: move.hops));
+      }
+    }
+
+    return legalMoves.toList();
+  }
+
+  static List<List<GammonDelta>> checkLegalMove(List<List<int>> board, GammonMove move) {
     // temp board state while checking each hop of the move
     final tempBoard = List<List<int>>.generate(board.length, (i) => List.from(board[i]));
     return applyMove(tempBoard, move);
