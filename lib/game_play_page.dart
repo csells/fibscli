@@ -273,11 +273,14 @@ class _GameViewState extends State<GameView> {
       if (_legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
     } else {
       // if there is a pip to move from selected, attempt to move to this piece
-      _move(pipNo);
+      if (!_move(pipNo)) {
+        // if the move failed, check if it's got legal moves and highlight it
+        if (_legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
+      }
     }
   }
 
-  void _move(int toEndPipNo) {
+  bool _move(int toEndPipNo) {
     // find the first set of hops that move from the current pip to the desired pip
     final hops =
         _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo].hops(fromPipNo: _fromPipNo, toPipNo: toEndPipNo);
@@ -295,6 +298,7 @@ class _GameViewState extends State<GameView> {
     }
 
     _reset();
+    return hops != null;
   }
 
   void _reset() {

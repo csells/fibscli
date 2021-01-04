@@ -36,7 +36,6 @@ Now running fibscli will use a websocket on port 8080 of the localhost to connec
 # UI TODO
 - test the GammonState + GammonRules
   - implement the forced moves rule (instead of just removing moves that aren't available as you go)
-- when fromPipNo selected and clicking on another pip w/ legal moves, set that to fromPipNo
 - detect end game
 - first move (different colored dice)
 - move a hit piece *after* it's been hit
