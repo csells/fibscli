@@ -57,26 +57,20 @@ class GammonState extends ChangeNotifier {
     final legalMovesForPips = <int, List<GammonMove>>{};
     for (var pipNo = 0; pipNo != _board.length; ++pipNo) {
       final legalMoves = getLegalMoves(pipNo).toList();
+      assert(legalMoves.length == legalMoves.distinct().length, 'ensure no duplicate moves');
       if (legalMoves.isNotEmpty) legalMovesForPips[pipNo] = legalMoves;
-    }
-
-    // ensure no duplicates
-    if (kDebugMode) {
-      for (var i = 0; i != board.length; ++i) {
-        assert(board[i].length == board[i].distinct().length);
-      }
     }
 
     return legalMovesForPips;
   }
 
-  Iterable<GammonMove> getLegalMoves(int fromStartPipNo) sync* {
+  List<GammonMove> getLegalMoves(int fromStartPipNo) {
     // are there pieces on this pip?
     final fromPip = _board[fromStartPipNo];
-    if (fromPip.isEmpty) return;
+    if (fromPip.isEmpty) return [];
 
     // do the pieces belong to the current player?
-    if (!fromPip.any((p) => GammonRules.playerFor(p) == _turnPlayer)) return;
+    if (!fromPip.any((p) => GammonRules.playerFor(p) == _turnPlayer)) return [];
 
     // check all components of the _dice for legal moves, taking into account doubles
     // need to uniqify the numbers for trotter
@@ -84,6 +78,9 @@ class GammonState extends ChangeNotifier {
     final stringRolls = [
       for (var i = 0; i != availableDice.length; ++i) '${availableDice[i].roll}${String.fromCharCode(97 + i)}'
     ];
+
+    // use a set to avoid dups generated from doubles
+    final legalMoves = <GammonMove>{};
 
     final comps = Compounds(stringRolls);
     final sign = GammonRules.signFor(_turnPlayer);
@@ -98,9 +95,11 @@ class GammonState extends ChangeNotifier {
             : toEndPipNo > 25
                 ? 25
                 : toEndPipNo;
-        yield GammonMove(fromPipNo: move.fromPipNo, toPipNo: clampedToEndPipNo, hops: move.hops);
+        legalMoves.add(GammonMove(fromPipNo: move.fromPipNo, toPipNo: clampedToEndPipNo, hops: move.hops));
       }
     }
+
+    return legalMoves.toList();
   }
 
   List<List<GammonDelta>> applyMove({@required GammonMove move}) {
@@ -196,9 +195,9 @@ class GammonDelta {
 }
 
 extension GammonMoves on Iterable<GammonMove> {
-  // TODO: make this singleOrNullWhere
-  List<int> hops({int fromPipNo, int toPipNo}) =>
-      this.firstOrNullWhere((m) => m.fromPipNo == fromPipNo && m.toPipNo == toPipNo)?.hops;
+  List<int> hops({int fromPipNo, int toPipNo}) {
+    return firstOrNullWhere((m) => m.fromPipNo == fromPipNo && m.toPipNo == toPipNo)?.hops;
+  }
 
   bool hasHops({int fromPipNo, int toPipNo}) => hops(fromPipNo: fromPipNo, toPipNo: toPipNo) != null;
 }

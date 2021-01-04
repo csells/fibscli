@@ -34,9 +34,8 @@ Now running fibscli will use a websocket on port 8080 of the localhost to connec
 - play backgammon
 
 # UI TODO
-- prefer moves w/ hits when picking from multiple moves
-- remove dups from generated legal moves for doubles (test: open + double 4s)
 - shouldn't allow any other moves while dice are on the bar
+- prefer moves w/ hits when picking from multiple moves
 - move a hit piece *after* it's been hit
 - draw moving pieces on top of other pieces
 - don't show the label while it's moving
