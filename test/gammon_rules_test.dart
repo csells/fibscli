@@ -421,8 +421,7 @@ void main() {
     expect(deltasForHops, isEmpty);
   });
 
-
-  test('ensure no illegal moves available w/ one on the bar', () {
+    test('illegal hit w/ one on the bar', () {
     final lines = fb.linesFromString('''
 +13-14-15-16-17-18-+BAR+19-20-21-22-23-24-+OFF+
 | X           O    |   | O              X |   |
@@ -432,15 +431,40 @@ void main() {
 | X                |   | O                |   |
 |                  |   |                  |   |
 | O                |   |                  |   |
-| O                |   | X                |   |
+| O                |   |                  |   |
 | O           X    |   | X                |   |
-| O           X    |   | X              O |   |
-| O           X    | X | X              O |   |
+| O           X    |   | X                |   |
+| O           X  X | X | X  O           O |   |
 +12-11-10--9--8--7-+---+-6--5--4--3--2--1-+---+
 ''');
 
     final board = fb.boardFromLines(lines);
-    final moves = GammonRules.getAllLegalMoves(board, Player.one, [4]);
+    final move = GammonMove(fromPipNo: 7, toPipNo: 5);
+    final deltasForHops = GammonRules.checkLegalMove(board, move);
+    expect(deltasForHops, isEmpty);
+  });
+
+
+
+  test('illegal moves available w/ one on the bar', () {
+    final lines = fb.linesFromString('''
++13-14-15-16-17-18-+BAR+19-20-21-22-23-24-+OFF+
+| X           O    |   | O              X |   |
+| X           O    |   | O              X |   |
+| X           O    |   | O                |   |
+| X                |   | O                |   |
+| X                |   | O                |   |
+|                  |   |                  |   |
+| O                |   |                  |   |
+| O                |   |                  |   |
+| O           X    |   | X                |   |
+| O           X    |   | X                |   |
+| O           X  X | X | X  O           O |   |
++12-11-10--9--8--7-+---+-6--5--4--3--2--1-+---+
+''');
+
+    final board = fb.boardFromLines(lines);
+    final moves = GammonRules.getAllLegalMoves(board, Player.one, [4, 2]);
     expect(moves, hasLength(1));
   });
 }

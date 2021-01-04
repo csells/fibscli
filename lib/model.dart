@@ -365,6 +365,9 @@ class GammonRules {
     if (toPipNo == offPipNo) return false;
     if (toPipNo == barPipNo) return false;
 
+    final hasBarPieces = board[barPipNo].any((pid) => playerFor(pid) == player);
+    if (hasBarPieces && fromPipNo != barPipNo) return false;
+
     if (!board[fromPipNo].any((p) => playerFor(p) == player)) return false;
     if (board[toPipNo].isEmpty) return true;
     if (playerFor(board[toPipNo][0]) == player) return true;
@@ -393,6 +396,9 @@ class GammonRules {
     if (fromPipNo == offPipNo) return false;
     if (toPipNo == offPipNo) return false;
     if (toPipNo == barPipNo) return false;
+
+    final hasBarPieces = board[barPipNo].any((pid) => playerFor(pid) == player);
+    if (hasBarPieces && fromPipNo != barPipNo) return false;
 
     if (!board[fromPipNo].any((p) => playerFor(p) == player)) return false;
     if (board[toPipNo].length != 1) return false;
