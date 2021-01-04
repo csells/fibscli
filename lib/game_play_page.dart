@@ -264,27 +264,18 @@ class _GameViewState extends State<GameView> {
 
   List<int> get _pipNosToHighlight => _fromPipNo != null ? [_fromPipNo] : _legalMovesForPips.keys.toList();
 
-  void _tapPiece(int pipNo) {
+  void _tapPiece(int pipNo) => _tapPip(pipNo);
+  void _tapOff(Player player) => _move(GammonRules.offPipNoFor(player));
+
+  void _tapPip(int pipNo) {
     if (_fromPipNo == null) {
-      // if there's no pip to move from selected, select one
-      setState(() => _fromPipNo = pipNo);
+      // if there's no pip to move from selected and it has legal moves, select it
+      if (_legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
     } else {
       // if there is a pip to move from selected, attempt to move to this piece
       _move(pipNo);
     }
   }
-
-  // // calculate legal moves
-  // assert(_legalMovesForPips.isEmpty);
-  // final legalMoves = _game.getLegalMoves(pipNo).toList();
-  // if (legalMoves.isEmpty) return;
-
-  // setState(() {
-  //   _legalMovesForPips.addAll(legalMoves);
-  // });
-
-  void _tapOff(Player player) => _move(GammonRules.offPipNoFor(player));
-  void _tapPip(int toPipNo) => _move(toPipNo);
 
   void _move(int toEndPipNo) {
     // find the first set of hops that move from the current pip to the desired pip
