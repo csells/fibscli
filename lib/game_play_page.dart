@@ -10,6 +10,7 @@ import 'package:fibscli/tinystate.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart' as ul;
 
 class GamePlayPage extends StatefulWidget {
   @override
@@ -47,6 +48,16 @@ class _GamePlayPageState extends State<GamePlayPage> {
           title: Text(App.title),
           actions: [
             IconButton(
+              tooltip: 'provide feedback',
+              icon: Icon(Icons.feedback),
+              onPressed: _tapFeedback,
+            ),
+            IconButton(
+              tooltip: 'backgammon help',
+              icon: Icon(Icons.help),
+              onPressed: _tapHelp,
+            ),
+            IconButton(
               tooltip: 'reverse board',
               icon: Icon(Icons.sync),
               onPressed: _tapReverse,
@@ -75,6 +86,8 @@ class _GamePlayPageState extends State<GamePlayPage> {
   void _tapNewGame() => _controller.newGame();
   void _tapReverse() => _controller.reversed = !_controller.reversed;
   void _tapUndo() => _controller.undo();
+  void _tapFeedback() => ul.launch('https://github.com/csells/fibscli/issues');
+  void _tapHelp() => ul.launch('https://www.bkgm.com/rules.html');
 }
 
 class GameViewController extends ChangeNotifier {
