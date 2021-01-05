@@ -64,7 +64,7 @@ class GammonState extends ChangeNotifier {
     _moveNo = 1;
   }
 
-  void nextTurn() {
+  void commitTurn() {
     if (_gameOver) throw Exception('game over');
 
     _turnPlayer = GammonRules.otherPlayer(_turnPlayer);
@@ -73,7 +73,7 @@ class GammonState extends ChangeNotifier {
     ++_moveNo; // can't be undone, so not capturing it
   }
 
-  void undo() {
+  void undoTurn() {
     if (_gameOver) throw Exception('game over');
 
     _setState(
@@ -86,7 +86,7 @@ class GammonState extends ChangeNotifier {
   }
 
   Map<int, List<GammonMove>> getAllLegalMoves() {
-    if (_gameOver) throw Exception('game over');
+    if (_gameOver) return {};
 
     final rolls = _dice.where((d) => d.available).map((d) => d.roll).toList();
     return GammonRules.getAllLegalMoves(board, _turnPlayer, rolls);
@@ -226,7 +226,8 @@ class GammonMove {
     assert(this.hops.all((h) => h.abs() >= 1 && h.abs() <= 6), 'all hops are die rolls');
     assert(this.hops.all((h) => h.sign == this.hops[0].sign), 'all hops must go in the same direction');
     assert(this.hops[0].sign == (toPipNo - fromPipNo).sign, 'movement must be the same direction as hops');
-    assert(this.fromPipNo + this.hops.sum() == this.toPipNo, 'hops must total the distance between the two pips');
+    assert(this.hops.sum().abs() >= (this.toPipNo - this.fromPipNo).abs(),
+        'hops must total the distance between the two pips (or greater, if bearing off)');
   }
 
   GammonPlayer get player => GammonRules.playerFor(hops[0]);

@@ -100,7 +100,7 @@ class PieceLayout {
           // if there's more than 5, the last one gets a label w/ the total number of pieces in the stack
           final label = pieceCount > 5 && (h + 1) == pieceCount ? pieceCount.toString() : '';
           final dy = _offset.dy * min(4, h);
-          final highlight = highlightedPiecePip && (h + 1) == min(pieceCount, 5);
+          final highlight = highlightedPiecePip && h == pieceCount - 1;
           final pieceID = pip[h];
 
           if (pipNo >= 1 && pipNo <= 6) {

@@ -34,22 +34,14 @@ Now running fibscli will use a websocket on port 8080 of the localhost to connec
 - play backgammon
 
 # UI TODO
-- test the GammonState + GammonRules
-  - implement the forced moves rule (instead of just removing moves that aren't available as you go)
-- detect end game
+- clicking on an off piece should work
 - allow users to provide feedback
-- move a hit piece *after* it's been hit
 - publish to github.io
+- implement the forced moves rule (instead of just removing moves that aren't available as you go)
+- move a hit piece *after* it's been hit
 - draw moving pieces on top of other pieces
 - don't show the label while it's moving
+- don't flip a piece to it's edge while it's moving
 - prefer moves w/ hits when picking from multiple moves
 - show end game stats (# of doubles/player, total of dice rolls/player)
-
-# Legal turns algorithm
-find composits of all pieces on all pips + bar (up to number of dice) for the player, e.g. white: [1, 1, 12, 12, 12, 12, 12, ...]
-  e.g. piece composit == [1, 1] (no doubles),  [1, 1, 12, 12] (doubles)
-find composits of all dice
-  e.g. dice composit == [4, 5] (no doubles), [4, 4, 4, 4] (doubles)
-zip each piece composit with composit of all dice
-  e.g. [1-4, 1-5] (no doubles), [1-4, 1-4, 12-4, 12-4] (doubles)
-the rest TBD...
+- auto bearoff (greedy)

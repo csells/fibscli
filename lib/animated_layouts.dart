@@ -67,7 +67,6 @@ class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderSt
 class PieceLayoutTween extends Tween<PieceLayout> {
   PieceLayoutTween({PieceLayout begin, PieceLayout end}) : super(begin: begin, end: end) {
     // these things shouldn't change...
-    assert(begin.edge == end.edge);
     assert(begin.highlight == end.highlight);
     assert(begin.pieceID == end.pieceID);
 
@@ -77,6 +76,7 @@ class PieceLayoutTween extends Tween<PieceLayout> {
 
     // label could change...
     // assert(begin.label == end.label);
+    // assert(begin.edge == end.edge);
   }
 
   @override

@@ -60,7 +60,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
         ),
         floatingActionButton: FloatingActionButton(
           tooltip: 'undo turn',
-          onPressed: _tapUndo,
+          onPressed: _controller.canUndo ? _tapUndo : null,
           child: Icon(Icons.undo),
         ),
         body: FutureBuilder2<SharedPreferences>(
@@ -78,13 +78,20 @@ class _GamePlayPageState extends State<GamePlayPage> {
 }
 
 class GameViewController extends ChangeNotifier {
-  void Function() _onNewGame;
+  bool _reversed = false;
+  var _canUndo = true;
   void Function() _onUndo;
-  bool _reversed;
+  void Function() _onNewGame;
 
   bool get reversed => _reversed;
   set reversed(bool reversed) {
     _reversed = reversed;
+    notifyListeners();
+  }
+
+  bool get canUndo => _canUndo;
+  set canUndo(bool canUndo) {
+    _canUndo = canUndo;
     notifyListeners();
   }
 
@@ -104,7 +111,7 @@ class GameView extends StatefulWidget {
 }
 
 class _GameViewState extends State<GameView> {
-  var _game = GammonState();
+  GammonState _game;
   var _legalMovesForPips = <int, List<GammonMove>>{};
   int _fromPipNo;
   final _pieceLayouts = <int, List<PieceLayout>>{};
@@ -114,19 +121,83 @@ class _GameViewState extends State<GameView> {
     super.initState();
 
     widget.controller.onUndo = () {
-      _game.undo();
+      assert(!_game.gameOver);
+      _game.undoTurn();
       _reset();
     };
 
     widget.controller.onNewGame = () async {
-      final ok = _game.gameOver ? true : await QuitGameDialog.show(context); // can return null
-      if (ok == true) {
-        setState(() => _game = GammonState());
-        _reset();
-      }
+      final ok = _game.gameOver ? true : await QuitGameDialog.show(context); // result can return null
+      if (ok == true) _newGame();
     };
 
+    _newGame();
+  }
+
+  @override
+  void dispose() {
+    if (_game != null) _game.removeListener(_gameChanged);
+    super.dispose();
+  }
+
+  void _newGame() {
+    if (_game != null) _game.removeListener(_gameChanged);
+
+    // TODO: testing
+    _game = GammonState();
+    // final board = <List<int>>[
+    //   // player1 off, player2 bar
+    //   [-15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2], // 0: 14x player1
+
+    //   // player1 home board
+    //   [1, 2], // 1: 2x player2
+    //   [-1], // 2: 1x player1
+    //   [], // 3:
+    //   [], // 4:
+    //   [], // 5:
+    //   [], // 6:
+
+    //   // player1 outer board
+    //   [], // 7:
+    //   [], // 8:
+    //   [], // 9:
+    //   [], // 10:
+    //   [], // 11:
+    //   [3, 4, 5, 6, 7], // 12: 5x player2
+
+    //   // player2 outer board
+    //   [], // 13:
+    //   [], // 14:
+    //   [], // 15:
+    //   [], // 16:
+    //   [8, 9, 10], // 17: 3x player2
+    //   [], // 18:
+
+    //   // player2 home board
+    //   [11, 12, 13, 14, 15], // 19: 5x player2
+    //   [], // 20:
+    //   [], // 21:
+    //   [], // 22:
+    //   [], // 23:
+    //   [], // 24:
+
+    //   // player1 off, player2 bar
+    //   [], // 25:
+    // ];
+    // final dice = [DieState(1), DieState(2)];
+    // _game = GammonState.from(board: board, dice: dice, turnPlayer: GammonPlayer.one);
+
+    _game.addListener(_gameChanged);
     _reset();
+  }
+
+  void _gameChanged() async {
+    if (!_game.gameOver) return;
+
+    _game.removeListener(_gameChanged);
+    widget.controller.canUndo = false;
+    final ok = await NewGameDialog.show(context, _game.turnPlayer); // result can be null
+    if (ok == true) _newGame();
   }
 
   @override
@@ -144,138 +215,141 @@ class _GameViewState extends State<GameView> {
                 transform: Matrix4.rotationZ(controller.reversed ? pi : 0),
                 transformAlignment: Alignment.center,
                 child: FittedBox(
-                  child: Stack(
-                    children: [
-                      // frame
-                      Container(
-                        width: 574,
-                        height: 420,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.black, width: 5),
-                          color: Colors.grey[300],
-                        ),
-                      ),
-
-                      // outer board
-                      Positioned.fromRect(
-                        rect: Rect.fromLTWH(20, 20, 216, 380),
-                        child: GestureDetector(
-                          onTap: _tapBoard,
-                          child: Container(
-                            decoration:
-                                BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                  child: IgnorePointer(
+                    ignoring: _game.gameOver,
+                    child: Stack(
+                      children: [
+                        // frame
+                        Container(
+                          width: 574,
+                          height: 420,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.black, width: 5),
+                            color: Colors.grey[300],
                           ),
                         ),
-                      ),
 
-                      // home board
-                      Positioned.fromRect(
-                        rect: Rect.fromLTWH(284, 20, 216, 380),
-                        child: GestureDetector(
-                          onTap: _tapBoard,
-                          child: Container(
-                            decoration:
-                                BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
-                          ),
-                        ),
-                      ),
-
-                      // pips and labels
-                      for (final layout in PipLayout.layouts) ...[
+                        // outer board
                         Positioned.fromRect(
-                          rect: layout.rect,
+                          rect: Rect.fromLTWH(20, 20, 216, 380),
                           child: GestureDetector(
-                            onTap: () => _tapPip(layout.pipNo),
-                            child: PipTriangle(
-                              pip: layout.pipNo,
-                              highlight: _highlightPip(layout.pipNo),
+                            onTap: _tapBoard,
+                            child: Container(
+                              decoration:
+                                  BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
                             ),
                           ),
                         ),
+
+                        // home board
                         Positioned.fromRect(
-                          rect: layout.labelRect,
-                          child: PipLabel(layout: layout, reversed: controller.reversed),
-                        ),
-                      ],
-
-                      // player1 off
-                      Positioned.fromRect(
-                        rect: Rect.fromLTWH(520, 216, 32, 183),
-                        child: GestureDetector(
-                          onTap: () => _tapOff(GammonPlayer.one),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.green[900],
-                              border: Border.all(
-                                  color: _highlightOff(GammonPlayer.one) ? Colors.yellow : Colors.black, width: 2),
+                          rect: Rect.fromLTWH(284, 20, 216, 380),
+                          child: GestureDetector(
+                            onTap: _tapBoard,
+                            child: Container(
+                              decoration:
+                                  BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
                             ),
                           ),
                         ),
-                      ),
 
-                      // player2 off
-                      Positioned.fromRect(
-                        rect: Rect.fromLTWH(520, 20, 32, 183),
-                        child: GestureDetector(
-                          onTap: () => _tapOff(GammonPlayer.two),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.green[900],
-                              border: Border.all(
-                                  color: _highlightOff(GammonPlayer.two) ? Colors.yellow : Colors.black, width: 2),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)), // outer board shading
-                      InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)), // home board shading
-                      InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)), // player1 home shading
-                      InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)), // player2 home shading
-
-                      // doubling cube: undoubled
-                      // Positioned.fromRect(
-                      //   rect: Rect.fromLTWH(238, 186, 44, 44),
-                      //   child: DoublingCubeView(),
-                      // ),
-
-                      // pieces
-                      for (final layout in PieceLayout.getLayouts(game.board, _pipNosToHighlight))
-                        _pieceLayouts.containsKey(layout.pieceID)
-                            ? AnimatedLayouts(
-                                layouts: _pieceLayouts.remove(layout.pieceID),
-                                child: GestureDetector(
-                                  onTap: () => _tapPiece(
-                                      layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
-                                  child: PieceView(layout: layout),
-                                ),
-                              )
-                            : Positioned.fromRect(
-                                rect: layout.rect,
-                                child: GestureDetector(
-                                  onTap: () => _tapPiece(
-                                      layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
-                                  child: PieceView(layout: layout),
-                                ),
+                        // pips and labels
+                        for (final layout in PipLayout.layouts) ...[
+                          Positioned.fromRect(
+                            rect: layout.rect,
+                            child: GestureDetector(
+                              onTap: () => _tapPip(layout.pipNo),
+                              child: PipTriangle(
+                                pip: layout.pipNo,
+                                highlight: _highlightPip(layout.pipNo),
                               ),
+                            ),
+                          ),
+                          Positioned.fromRect(
+                            rect: layout.labelRect,
+                            child: PipLabel(layout: layout, reversed: controller.reversed),
+                          ),
+                        ],
 
-                      // dice
-                      for (final layout in DieLayout.getLayouts(game))
+                        // player1 off
                         Positioned.fromRect(
-                          rect: layout.rect,
-                          child: DieView(
-                            layout: layout,
-                            onTap: _tapDice,
+                          rect: Rect.fromLTWH(520, 216, 32, 183),
+                          child: GestureDetector(
+                            onTap: () => _tapOff(GammonPlayer.one),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.green[900],
+                                border: Border.all(
+                                    color: _highlightOff(GammonPlayer.one) ? Colors.yellow : Colors.black, width: 2),
+                              ),
+                            ),
                           ),
                         ),
 
-                      // pip counts
-                      for (final layout in PipCountLayout.getLayouts(game))
+                        // player2 off
                         Positioned.fromRect(
-                          rect: layout.rect,
-                          child: PipCountView(layout: layout, reversed: controller.reversed),
+                          rect: Rect.fromLTWH(520, 20, 32, 183),
+                          child: GestureDetector(
+                            onTap: () => _tapOff(GammonPlayer.two),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.green[900],
+                                border: Border.all(
+                                    color: _highlightOff(GammonPlayer.two) ? Colors.yellow : Colors.black, width: 2),
+                              ),
+                            ),
+                          ),
                         ),
-                    ],
+
+                        InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)), // outer board shading
+                        InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)), // home board shading
+                        InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)), // player1 home shading
+                        InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)), // player2 home shading
+
+                        // doubling cube: undoubled
+                        // Positioned.fromRect(
+                        //   rect: Rect.fromLTWH(238, 186, 44, 44),
+                        //   child: DoublingCubeView(),
+                        // ),
+
+                        // pieces
+                        for (final layout in PieceLayout.getLayouts(game.board, _pipNosToHighlight))
+                          _pieceLayouts.containsKey(layout.pieceID)
+                              ? AnimatedLayouts(
+                                  layouts: _pieceLayouts.remove(layout.pieceID),
+                                  child: GestureDetector(
+                                    onTap: () => _tapPiece(
+                                        layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
+                                    child: PieceView(layout: layout),
+                                  ),
+                                )
+                              : Positioned.fromRect(
+                                  rect: layout.rect,
+                                  child: GestureDetector(
+                                    onTap: () => _tapPiece(
+                                        layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
+                                    child: PieceView(layout: layout),
+                                  ),
+                                ),
+
+                        // dice
+                        for (final layout in DieLayout.getLayouts(game))
+                          Positioned.fromRect(
+                            rect: layout.rect,
+                            child: DieView(
+                              layout: layout,
+                              onTap: _tapDice,
+                            ),
+                          ),
+
+                        // pip counts
+                        for (final layout in PipCountLayout.getLayouts(game))
+                          Positioned.fromRect(
+                            rect: layout.rect,
+                            child: PipCountView(layout: layout, reversed: controller.reversed),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -294,10 +368,13 @@ class _GameViewState extends State<GameView> {
       // if there's no pip to move from selected and it has legal moves, select it
       if (_legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
     } else {
+      final _oldFromPipNo = _fromPipNo;
+
       // if there is a pip to move from selected, attempt to move to this piece
       if (!_move(pipNo)) {
-        // if the move failed, check if it's got legal moves and highlight it
-        if (_legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
+        // if the move failed, check if it's got legal moves and highlight it,
+        // unless it's the same out pip, then toggle it on/off
+        if (_oldFromPipNo != pipNo && _legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
       }
     }
   }
@@ -333,7 +410,7 @@ class _GameViewState extends State<GameView> {
   void _tapDice() {
     // can't go to the next turn until there are no more available dice
     if (_game.dice.every((d) => !d.available)) {
-      _game.nextTurn();
+      _game.commitTurn();
       _reset();
     }
   }
