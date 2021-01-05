@@ -14,16 +14,19 @@ class GammonState extends ChangeNotifier {
 
   final _dice = <DieState>[]; // dice rolls and whether they're still available
   Player _turnPlayer;
+  int _moveNo;
   GammonState _undoState; // state for implementing undo
 
   GammonState() {
-    _setState(board: GammonRules.initialBoard(), dice: <DieState>[], turnPlayer: Player.two);
+    _setState(board: GammonRules.initialBoard(), dice: <DieState>[], turnPlayer: null, moveNo: null);
+    _firstTurn();
   }
 
   void _setState({
     @required List<List<int>> board,
     @required List<DieState> dice,
     @required Player turnPlayer,
+    @required int moveNo,
   }) {
     for (var i = 0; i < board.length; ++i) _board[i] = List.from(board[i]);
 
@@ -34,21 +37,41 @@ class GammonState extends ChangeNotifier {
   }
 
   GammonState.from(GammonState state) {
-    _setState(board: state._board, dice: state._dice, turnPlayer: state._turnPlayer);
+    _setState(board: state._board, dice: state._dice, turnPlayer: state._turnPlayer, moveNo: state._moveNo);
   }
 
   List<List<int>> get board => List.unmodifiable(_board);
   List<DieState> get dice => List.unmodifiable(_dice);
   Player get turnPlayer => _turnPlayer;
 
+  void _firstTurn() {
+    assert(_dice.isEmpty);
+    assert(_turnPlayer == null);
+    assert(_moveNo == null);
+
+    do {
+      _rollDice(disableUnusableDice: false); // all dice initally usable
+    } while (_dice[0].roll == _dice[1].roll);
+
+    _turnPlayer = _dice[0].roll > _dice[1].roll ? Player.one : Player.two;
+    _undoState = GammonState.from(this);
+    _moveNo = 1;
+  }
+
   void nextTurn() {
     _turnPlayer = GammonRules.otherPlayer(_turnPlayer);
-    _rollDice();
     _undoState = GammonState.from(this);
+    ++_moveNo;
+    _rollDice(); // and notify listeners
   }
 
   void undo() {
-    _setState(board: _undoState._board, dice: _undoState._dice, turnPlayer: _undoState._turnPlayer);
+    _setState(
+      board: _undoState._board,
+      dice: _undoState._dice,
+      turnPlayer: _undoState._turnPlayer,
+      moveNo: _undoState._moveNo,
+    );
     notifyListeners();
   }
 
@@ -68,6 +91,8 @@ class GammonState extends ChangeNotifier {
 
     return deltas;
   }
+
+  int get moveNo => _moveNo;
 
   int pipCount({@required int sign}) {
     var pipCount = 0;
@@ -92,7 +117,7 @@ class GammonState extends ChangeNotifier {
     _disableUnusableDice();
   }
 
-  void _rollDice() {
+  void _rollDice({bool disableUnusableDice = true}) {
     final roll1 = _rand.nextInt(6) + 1;
     final roll2 = _rand.nextInt(6) + 1;
     final rolls = [
@@ -103,7 +128,7 @@ class GammonState extends ChangeNotifier {
 
     _dice.clear();
     _dice.addAll([for (var roll in rolls) DieState(roll)]);
-    _disableUnusableDice();
+    if (disableUnusableDice) _disableUnusableDice();
 
     notifyListeners();
   }

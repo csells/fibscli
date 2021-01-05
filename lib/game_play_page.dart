@@ -103,7 +103,6 @@ class _GameViewState extends State<GameView> {
   void initState() {
     super.initState();
 
-    _game.nextTurn();
     _reset();
     widget.controller.onUndo = () {
       _reset();

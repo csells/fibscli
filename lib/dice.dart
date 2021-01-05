@@ -91,14 +91,21 @@ class DieLayout {
     final dice = game.dice;
     assert(dice.length == 2 || dice.length == 4);
 
+    Player diePlayer(int moveNo, List<DieState> dice, int index, Player turnPlayer) {
+      if (moveNo != 1) return turnPlayer;
+      final maxDieIndex = dice[0].roll > dice[1].roll ? 0 : 1;
+      return index == maxDieIndex ? turnPlayer : GammonRules.otherPlayer(turnPlayer);
+    }
+
     final dx = dice.length == 2 ? 42 : 0;
     for (var i = 0; i != dice.length; ++i) {
       final die = dice[i];
+      final player = diePlayer(game.moveNo, dice, i, game.turnPlayer);
       yield DieLayout(
         left: dx + 312 + 42.0 * i,
         top: 194,
         die: die,
-        player: game.turnPlayer,
+        player: player,
         spots: _spotses[die.roll - 1],
       );
     }
