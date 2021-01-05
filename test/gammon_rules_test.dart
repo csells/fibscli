@@ -496,7 +496,7 @@ void main() {
     expect(game.dice[0] != game.dice[1], isTrue);
   });
 
-  test('ending the game', () {
+  test('ending the game (player1)', () {
     final board = <List<int>>[
       // player1 off, player2 bar
       [-15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2], // 0: 14x player1
@@ -553,6 +553,67 @@ void main() {
     expect(game.gameOver, isFalse);
 
     final deltas = game.applyMove(move: moves[2][0]);
+    expect(deltas.isNotEmpty, isTrue);
+    expect(game.gameOver, isTrue);
+  });
+
+  test('ending the game (player2)', () {
+    List<List<int>> board = <List<int>>[
+      // player1 off, player2 bar
+      [], // 0:
+
+      // player1 home board
+      [], // 1: 2x player2
+      [], // 2:
+      [], // 3:
+      [], // 4:
+      [], // 5:
+      [-15, -14, -13, -12, -11], // 6: 5x player1
+
+      // player1 outer board
+      [], // 7:
+      [-10, -9, -8], // 8: 3x player1
+      [], // 9:
+      [], // 10:
+      [], // 11:
+      [], // 12:
+
+      // player2 outer board
+      [-7, -6, -5, -4, -3], // 13: 5x player1
+      [], // 14:
+      [], // 15:
+      [], // 16:
+      [], // 17:
+      [], // 18:
+
+      // player2 home board
+      [], // 19:
+      [], // 20:
+      [], // 21:
+      [], // 22:
+      [1], // 23: 1x player2
+      [-2, -1], // 24: 2x player1
+
+      // player1 off, player2 bar
+      [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], // 25: 14x player2
+    ];
+
+    fb.checkBoard(board);
+
+    final dice = [DieState(1), DieState(2)];
+    final game = GammonState.from(board: board, dice: dice, turnPlayer: GammonPlayer.two);
+    final moves = game.getAllLegalMoves();
+
+    expect(moves, hasLength(1));
+    expect(moves.containsKey(23), isTrue);
+    expect(moves[23], hasLength(1));
+    expect(moves[23][0].fromPipNo, 23);
+    expect(moves[23][0].toPipNo, 25);
+    expect(moves[23][0].hops, hasLength(1));
+    expect(moves[23][0].hops[0], 2);
+    expect(game.gameOver, isFalse);
+
+    final deltas = game.applyMove(move: moves[23][0]);
     expect(deltas.isNotEmpty, isTrue);
     expect(game.gameOver, isTrue);
   });

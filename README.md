@@ -35,9 +35,10 @@ Now running fibscli will use a websocket on port 8080 of the localhost to connec
 
 # UI TODO
 - clicking on an off piece should work
+- log remaining bugs (and remove TODOs from this README)
 - allow users to provide feedback
 - publish to github.io
-- implement the forced moves rule (instead of just removing moves that aren't available as you go)
+- implement the forced moves rules (according to https://www.bkgm.com/rules.html)
 - move a hit piece *after* it's been hit
 - draw moving pieces on top of other pieces
 - don't show the label while it's moving
@@ -45,3 +46,4 @@ Now running fibscli will use a websocket on port 8080 of the localhost to connec
 - prefer moves w/ hits when picking from multiple moves
 - show end game stats (# of doubles/player, total of dice rolls/player)
 - auto bearoff (greedy)
+- support doubling

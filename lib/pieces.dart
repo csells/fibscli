@@ -128,27 +128,29 @@ class PieceLayout {
 
     // draw the pieces on the bar
     for (final player in GammonPlayer.values) {
-      final bar = GammonRules.barPipNoFor(player);
-      final highlightedPiecePip = pipNosToHighlight.contains(bar);
-      final pieces = board[bar].where((p) => GammonRules.playerFor(p) == player).toList();
+      final barPipNo = GammonRules.barPipNoFor(player);
+      final highlightedPiecePip = pipNosToHighlight.contains(barPipNo);
+      final pieces = board[barPipNo].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];
         final label = (i + 1) == pieceCount && pieceCount > 3 ? pieceCount.toString() : '';
         final top = pieceID.sign == -1 ? 254.0 + _offset.dy * min(i, 2) : 138.0 - _offset.dy * min(i, 2);
         final highlight = highlightedPiecePip && i == 0;
-        yield PieceLayout(pipNo: 0, pieceID: pieceID, offset: Offset(246, top), label: label, highlight: highlight);
+        yield PieceLayout(
+            pipNo: barPipNo, pieceID: pieceID, offset: Offset(246, top), label: label, highlight: highlight);
       }
     }
 
-    // draw the pieces in their homes
+    // draw the pieces born off
     for (final player in GammonPlayer.values) {
-      final pieces = board[GammonRules.offPipNoFor(player)].where((p) => GammonRules.playerFor(p) == player).toList();
+      final offPipNo = GammonRules.offPipNoFor(player);
+      final pieces = board[offPipNo].where((p) => GammonRules.playerFor(p) == player).toList();
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];
         final top = pieceID.sign == -1 ? 386.0 - (_edgeSize.height + 1) * i : 22.0 + (_edgeSize.height + 1) * i;
-        yield PieceLayout(pipNo: 0, pieceID: pieceID, offset: Offset(520, top), label: '', edge: true);
+        yield PieceLayout(pipNo: offPipNo, pieceID: pieceID, offset: Offset(520, top), label: '', edge: true);
       }
     }
   }

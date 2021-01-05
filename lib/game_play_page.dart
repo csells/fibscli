@@ -143,50 +143,7 @@ class _GameViewState extends State<GameView> {
   void _newGame() {
     if (_game != null) _game.removeListener(_gameChanged);
 
-    // TODO: testing
     _game = GammonState();
-    // final board = <List<int>>[
-    //   // player1 off, player2 bar
-    //   [-15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2], // 0: 14x player1
-
-    //   // player1 home board
-    //   [1, 2], // 1: 2x player2
-    //   [-1], // 2: 1x player1
-    //   [], // 3:
-    //   [], // 4:
-    //   [], // 5:
-    //   [], // 6:
-
-    //   // player1 outer board
-    //   [], // 7:
-    //   [], // 8:
-    //   [], // 9:
-    //   [], // 10:
-    //   [], // 11:
-    //   [3, 4, 5, 6, 7], // 12: 5x player2
-
-    //   // player2 outer board
-    //   [], // 13:
-    //   [], // 14:
-    //   [], // 15:
-    //   [], // 16:
-    //   [8, 9, 10], // 17: 3x player2
-    //   [], // 18:
-
-    //   // player2 home board
-    //   [11, 12, 13, 14, 15], // 19: 5x player2
-    //   [], // 20:
-    //   [], // 21:
-    //   [], // 22:
-    //   [], // 23:
-    //   [], // 24:
-
-    //   // player1 off, player2 bar
-    //   [], // 25:
-    // ];
-    // final dice = [DieState(1), DieState(2)];
-    // _game = GammonState.from(board: board, dice: dice, turnPlayer: GammonPlayer.one);
-
     _game.addListener(_gameChanged);
     _reset();
   }
@@ -318,16 +275,14 @@ class _GameViewState extends State<GameView> {
                               ? AnimatedLayouts(
                                   layouts: _pieceLayouts.remove(layout.pieceID),
                                   child: GestureDetector(
-                                    onTap: () => _tapPiece(
-                                        layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
+                                    onTap: () => _tapPiece(layout.pipNo),
                                     child: PieceView(layout: layout),
                                   ),
                                 )
                               : Positioned.fromRect(
                                   rect: layout.rect,
                                   child: GestureDetector(
-                                    onTap: () => _tapPiece(
-                                        layout.pipNo == 0 ? GammonRules.barPipNoFor(_game.turnPlayer) : layout.pipNo),
+                                    onTap: () => _tapPiece(layout.pipNo),
                                     child: PieceView(layout: layout),
                                   ),
                                 ),
@@ -364,6 +319,8 @@ class _GameViewState extends State<GameView> {
   void _tapOff(GammonPlayer player) => _move(GammonRules.offPipNoFor(player));
 
   void _tapPip(int pipNo) {
+    print('_tapPip($pipNo)');
+
     if (_fromPipNo == null) {
       // if there's no pip to move from selected and it has legal moves, select it
       if (_legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
