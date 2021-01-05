@@ -216,12 +216,12 @@ class _GameViewState extends State<GameView> {
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(520, 216, 32, 183),
                         child: GestureDetector(
-                          onTap: () => _tapOff(Player.one),
+                          onTap: () => _tapOff(GammonPlayer.one),
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
                               border:
-                                  Border.all(color: _highlightOff(Player.one) ? Colors.yellow : Colors.black, width: 2),
+                                  Border.all(color: _highlightOff(GammonPlayer.one) ? Colors.yellow : Colors.black, width: 2),
                             ),
                           ),
                         ),
@@ -231,12 +231,12 @@ class _GameViewState extends State<GameView> {
                       Positioned.fromRect(
                         rect: Rect.fromLTWH(520, 20, 32, 183),
                         child: GestureDetector(
-                          onTap: () => _tapOff(Player.two),
+                          onTap: () => _tapOff(GammonPlayer.two),
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
                               border:
-                                  Border.all(color: _highlightOff(Player.two) ? Colors.yellow : Colors.black, width: 2),
+                                  Border.all(color: _highlightOff(GammonPlayer.two) ? Colors.yellow : Colors.black, width: 2),
                             ),
                           ),
                         ),
@@ -301,7 +301,7 @@ class _GameViewState extends State<GameView> {
   List<int> get _pipNosToHighlight => _fromPipNo != null ? [_fromPipNo] : _legalMovesForPips.keys.toList();
 
   void _tapPiece(int pipNo) => _tapPip(pipNo);
-  void _tapOff(Player player) => _move(GammonRules.offPipNoFor(player));
+  void _tapOff(GammonPlayer player) => _move(GammonRules.offPipNoFor(player));
 
   void _tapPip(int pipNo) {
     if (_fromPipNo == null) {
@@ -352,7 +352,7 @@ class _GameViewState extends State<GameView> {
     }
   }
 
-  bool _highlightOff(Player player) {
+  bool _highlightOff(GammonPlayer player) {
     final offPipNo = GammonRules.offPipNoFor(player);
     final legalMoves = _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo];
     return legalMoves != null && legalMoves.any((m) => m.toPipNo == offPipNo);

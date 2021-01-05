@@ -1,3 +1,4 @@
+import 'package:fibscli/dice.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fibscli/model.dart';
 import 'package:fibsboard/fibsboard.dart' as fb;
@@ -462,7 +463,7 @@ void main() {
 ''');
 
     final board = fb.boardFromLines(lines);
-    final moves = GammonRules.getAllLegalMoves(board, Player.one, [4, 2]);
+    final moves = GammonRules.getAllLegalMoves(board, GammonPlayer.one, [4, 2]);
     expect(moves, hasLength(1));
   });
 
@@ -493,5 +494,66 @@ void main() {
 
     expect(game.dice.length, 2);
     expect(game.dice[0] != game.dice[1], isTrue);
+  });
+
+  test('ending the game', () {
+    List<List<int>> board = <List<int>>[
+      // player1 off, player2 bar
+      [-15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2], // 0: 14x player1
+
+      // player1 home board
+      [1, 2], // 1: 2x player2
+      [-1], // 2: 1x player1
+      [], // 3:
+      [], // 4:
+      [], // 5:
+      [], // 6:
+
+      // player1 outer board
+      [], // 7:
+      [], // 8:
+      [], // 9:
+      [], // 10:
+      [], // 11:
+      [3, 4, 5, 6, 7], // 12: 5x player2
+
+      // player2 outer board
+      [], // 13:
+      [], // 14:
+      [], // 15:
+      [], // 16:
+      [8, 9, 10], // 17: 3x player2
+      [], // 18:
+
+      // player2 home board
+      [11, 12, 13, 14, 15], // 19: 5x player2
+      [], // 20:
+      [], // 21:
+      [], // 22:
+      [], // 23:
+      [], // 24:
+
+      // player1 off, player2 bar
+      [], // 25:
+    ];
+
+    fb.checkBoard(board);
+
+    final dice = [DieState(1), DieState(2)];
+    final game = GammonState.from(board: board, dice: dice, turnPlayer: GammonPlayer.one);
+    final moves = game.getAllLegalMoves();
+
+    expect(moves, hasLength(1));
+    expect(moves.containsKey(2), isTrue);
+    expect(moves[2], hasLength(1));
+    expect(moves[2][0].fromPipNo, 2);
+    expect(moves[2][0].toPipNo, 0);
+    expect(moves[2][0].hops, hasLength(1));
+    expect(moves[2][0].hops[0], -2);
+    expect(game.gameOver, isFalse);
+
+    final deltas = game.applyMove(move: moves[2][0]);
+    expect(deltas.isNotEmpty, isTrue);
+    expect(game.gameOver, isTrue);
   });
 }

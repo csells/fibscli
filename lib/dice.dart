@@ -20,8 +20,8 @@ class DieView extends StatelessWidget {
   final void Function() _onTap;
   DieView({@required this.layout, void Function() onTap})
       : _onTap = onTap == null ? _noop : onTap,
-        _playerColor = layout.player == Player.one ? Colors.black : Colors.white,
-        _otherColor = layout.player == Player.one ? Colors.white : Colors.black,
+        _playerColor = layout.player == GammonPlayer.one ? Colors.black : Colors.white,
+        _otherColor = layout.player == GammonPlayer.one ? Colors.white : Colors.black,
         _gradeColors = _dieColors[layout.player.index];
 
   static void _noop() {}
@@ -70,7 +70,7 @@ class DieLayout {
   ];
 
   final DieState die;
-  final Player player;
+  final GammonPlayer player;
   final double left;
   final double top;
   final List<Offset> spots;
@@ -91,7 +91,7 @@ class DieLayout {
     final dice = game.dice;
     assert(dice.length == 2 || dice.length == 4);
 
-    Player diePlayer(int moveNo, List<DieState> dice, int index, Player turnPlayer) {
+    GammonPlayer diePlayer(int moveNo, List<DieState> dice, int index, GammonPlayer turnPlayer) {
       if (moveNo != 1) return turnPlayer;
       final maxDieIndex = dice[0].roll > dice[1].roll ? 0 : 1;
       return index == maxDieIndex ? turnPlayer : GammonRules.otherPlayer(turnPlayer);
