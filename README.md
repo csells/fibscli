@@ -37,7 +37,7 @@ Now running fibscli will use a websocket on port 8080 of the localhost to connec
 - test the GammonState + GammonRules
   - implement the forced moves rule (instead of just removing moves that aren't available as you go)
 - detect end game
-- show pip count
+- allow users to provide feedback
 - move a hit piece *after* it's been hit
 - publish to github.io
 - draw moving pieces on top of other pieces

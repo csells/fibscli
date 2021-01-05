@@ -68,9 +68,9 @@ class GammonState extends ChangeNotifier {
     if (_gameOver) throw Exception('game over');
 
     _turnPlayer = GammonRules.otherPlayer(_turnPlayer);
+    _rollDice(); // roll dice before capturing updo state
     _undoState = GammonState.from(board: _board, dice: dice, turnPlayer: _turnPlayer);
-    ++_moveNo;
-    _rollDice(); // and notify listeners
+    ++_moveNo; // can't be undone, so not capturing it
   }
 
   void undo() {

@@ -113,20 +113,20 @@ class _GameViewState extends State<GameView> {
   void initState() {
     super.initState();
 
-    _reset();
-
     widget.controller.onUndo = () {
-      _reset();
       _game.undo();
+      _reset();
     };
 
     widget.controller.onNewGame = () async {
-      final ok = await QuitGameDialog.show(context);
+      final ok = _game.gameOver ? true : await QuitGameDialog.show(context); // can return null
       if (ok == true) {
         setState(() => _game = GammonState());
         _reset();
       }
     };
+
+    _reset();
   }
 
   @override
@@ -451,4 +451,34 @@ class QuitGameDialog extends StatelessWidget {
 
   static Future<bool> show(BuildContext context) =>
       showDialog<bool>(context: context, builder: (context) => QuitGameDialog());
+}
+
+class NewGameDialog extends StatelessWidget {
+  final GammonPlayer winner;
+  const NewGameDialog(this.winner);
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('Player ${winner == GammonPlayer.one ? 1 : 2} wins!'),
+        content: Text('Would you like to play another game?'),
+        actions: [
+          OutlineButton(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text('No, Thanks'),
+            ),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          ElevatedButton(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text('Yes, Please!'),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      );
+
+  static Future<bool> show(BuildContext context, GammonPlayer winner) =>
+      showDialog<bool>(context: context, builder: (context) => NewGameDialog(winner));
 }
