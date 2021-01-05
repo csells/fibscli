@@ -421,7 +421,7 @@ void main() {
     expect(deltasForHops, isEmpty);
   });
 
-    test('illegal hit w/ one on the bar', () {
+  test('illegal hit w/ one on the bar', () {
     final lines = fb.linesFromString('''
 +13-14-15-16-17-18-+BAR+19-20-21-22-23-24-+OFF+
 | X           O    |   | O              X |   |
@@ -444,8 +444,6 @@ void main() {
     expect(deltasForHops, isEmpty);
   });
 
-
-
   test('illegal moves available w/ one on the bar', () {
     final lines = fb.linesFromString('''
 +13-14-15-16-17-18-+BAR+19-20-21-22-23-24-+OFF+
@@ -466,5 +464,34 @@ void main() {
     final board = fb.boardFromLines(lines);
     final moves = GammonRules.getAllLegalMoves(board, Player.one, [4, 2]);
     expect(moves, hasLength(1));
+  });
+
+  test('starting the game', () {
+    final lines = fb.linesFromString('''
++13-14-15-16-17-18-+BAR+19-20-21-22-23-24-+OFF+
+| X           O    |   | O              X |   |
+| X           O    |   | O              X |   |
+| X           O    |   | O                |   |
+| X                |   | O                |   |
+| X                |   | O                |   |
+|                  |   |                  |   |
+| O                |   | X                |   |
+| O                |   | X                |   |
+| O           X    |   | X                |   |
+| O           X    |   | X              O |   |
+| O           X    |   | X              O |   |
++12-11-10--9--8--7-+---+-6--5--4--3--2--1-+---+
+''');
+
+    final board = fb.boardFromLines(lines);
+    final game = GammonState();
+
+    for (var i = 0; i != board.length; ++i) {
+      expect(game.board[i], hasLength(board[i].length));
+      if (game.board[i].isNotEmpty) expect(GammonRules.playerFor(game.board[i][0]), GammonRules.playerFor(board[i][0]));
+    }
+
+    expect(game.dice.length, 2);
+    expect(game.dice[0] != game.dice[1], isTrue);
   });
 }
