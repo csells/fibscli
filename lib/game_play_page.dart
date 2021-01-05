@@ -49,8 +49,13 @@ class _GamePlayPageState extends State<GamePlayPage> {
             IconButton(
               tooltip: 'reverse board',
               icon: Icon(Icons.sync),
-              onPressed: _tapSync,
-            )
+              onPressed: _tapReverse,
+            ),
+            IconButton(
+              tooltip: 'new game',
+              icon: Icon(Icons.fiber_new),
+              onPressed: _tapNewGame,
+            ),
           ],
         ),
         floatingActionButton: FloatingActionButton(
@@ -67,11 +72,13 @@ class _GamePlayPageState extends State<GamePlayPage> {
         ),
       );
 
-  void _tapSync() => _controller.reversed = !_controller.reversed;
+  void _tapNewGame() => _controller.newGame();
+  void _tapReverse() => _controller.reversed = !_controller.reversed;
   void _tapUndo() => _controller.undo();
 }
 
 class GameViewController extends ChangeNotifier {
+  void Function() _onNewGame;
   void Function() _onUndo;
   bool _reversed;
 
@@ -83,6 +90,9 @@ class GameViewController extends ChangeNotifier {
 
   set onUndo(void Function() onUndo) => _onUndo = onUndo;
   void undo() => _onUndo();
+
+  set onNewGame(void Function() onNewGame) => _onNewGame = onNewGame;
+  void newGame() => _onNewGame();
 }
 
 class GameView extends StatefulWidget {
@@ -94,7 +104,7 @@ class GameView extends StatefulWidget {
 }
 
 class _GameViewState extends State<GameView> {
-  final _game = GammonState();
+  var _game = GammonState();
   var _legalMovesForPips = <int, List<GammonMove>>{};
   int _fromPipNo;
   final _pieceLayouts = <int, List<PieceLayout>>{};
@@ -104,9 +114,32 @@ class _GameViewState extends State<GameView> {
     super.initState();
 
     _reset();
+
     widget.controller.onUndo = () {
       _reset();
       _game.undo();
+    };
+
+    widget.controller.onNewGame = () async {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Game Already In Progress'),
+          content: Text('OK to quit current game?'),
+          actions: [
+            OutlineButton(
+              child: Text('Cancel'),
+              onPressed: () => Navigator.pop(context, false),
+            ),
+            ElevatedButton(
+              child: Text('OK'),
+              onPressed: () => Navigator.pop(context, true),
+            ),
+          ],
+        ),
+      );
+
+      if (ok == true) setState(() => _game = GammonState());
     };
   }
 
