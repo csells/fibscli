@@ -34,10 +34,9 @@ Now running fibscli will use a websocket on port 8080 of the localhost to connec
 - play backgammon
 
 # UI TODO
-- clicking on an off piece should work
-- log remaining bugs (and remove TODOs from this README)
 - allow users to provide feedback
 - publish to github.io
+- log remaining bugs (and remove TODOs from this README)
 - implement the forced moves rules (according to https://www.bkgm.com/rules.html)
 - move a hit piece *after* it's been hit
 - draw moving pieces on top of other pieces

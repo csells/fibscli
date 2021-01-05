@@ -144,6 +144,7 @@ class _GameViewState extends State<GameView> {
     if (_game != null) _game.removeListener(_gameChanged);
 
     _game = GammonState();
+    widget.controller.canUndo = true;
     _game.addListener(_gameChanged);
     _reset();
   }
@@ -319,8 +320,6 @@ class _GameViewState extends State<GameView> {
   void _tapOff(GammonPlayer player) => _move(GammonRules.offPipNoFor(player));
 
   void _tapPip(int pipNo) {
-    print('_tapPip($pipNo)');
-
     if (_fromPipNo == null) {
       // if there's no pip to move from selected and it has legal moves, select it
       if (_legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
