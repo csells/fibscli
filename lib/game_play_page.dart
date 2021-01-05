@@ -42,6 +42,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        backgroundColor: Colors.green,
         appBar: AppBar(
           title: Text(App.title),
           actions: [
@@ -131,7 +132,10 @@ class _GameViewState extends State<GameView> {
                       Container(
                         width: 574,
                         height: 420,
-                        decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 5)),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black, width: 5),
+                          color: Colors.grey[300],
+                        ),
                       ),
 
                       // outer board
