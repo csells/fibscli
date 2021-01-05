@@ -121,25 +121,11 @@ class _GameViewState extends State<GameView> {
     };
 
     widget.controller.onNewGame = () async {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Game Already In Progress'),
-          content: Text('OK to quit current game?'),
-          actions: [
-            OutlineButton(
-              child: Text('Cancel'),
-              onPressed: () => Navigator.pop(context, false),
-            ),
-            ElevatedButton(
-              child: Text('OK'),
-              onPressed: () => Navigator.pop(context, true),
-            ),
-          ],
-        ),
-      );
-
-      if (ok == true) setState(() => _game = GammonState());
+      final ok = await QuitGameDialog.show(context);
+      if (ok == true) {
+        setState(() => _game = GammonState());
+        _reset();
+      }
     };
   }
 
@@ -220,8 +206,8 @@ class _GameViewState extends State<GameView> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
-                              border:
-                                  Border.all(color: _highlightOff(GammonPlayer.one) ? Colors.yellow : Colors.black, width: 2),
+                              border: Border.all(
+                                  color: _highlightOff(GammonPlayer.one) ? Colors.yellow : Colors.black, width: 2),
                             ),
                           ),
                         ),
@@ -235,8 +221,8 @@ class _GameViewState extends State<GameView> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green[900],
-                              border:
-                                  Border.all(color: _highlightOff(GammonPlayer.two) ? Colors.yellow : Colors.black, width: 2),
+                              border: Border.all(
+                                  color: _highlightOff(GammonPlayer.two) ? Colors.yellow : Colors.black, width: 2),
                             ),
                           ),
                         ),
@@ -438,4 +424,31 @@ class InnerShadingRect extends StatelessWidget {
           ],
         ),
       );
+}
+
+class QuitGameDialog extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('Game Already In Progress'),
+        content: Text('OK to quit current game?'),
+        actions: [
+          OutlineButton(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text('Keep Playing'),
+            ),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          ElevatedButton(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text('Quit Game'),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      );
+
+  static Future<bool> show(BuildContext context) =>
+      showDialog<bool>(context: context, builder: (context) => QuitGameDialog());
 }
