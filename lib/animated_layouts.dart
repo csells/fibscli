@@ -30,8 +30,8 @@ class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderSt
         (widget.layouts[i - 1].offset - widget.layouts[i].offset).distance
     ].sum();
     final animatable = _animatableFor(widget.layouts);
-    _controller = AnimationController(vsync: this, duration: Duration(milliseconds: (distance * 1.5).floor()));
-    _animation = animatable.animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
+    _controller = AnimationController(vsync: this, duration: Duration(milliseconds: (distance * 3).floor()));
+    _animation = animatable.animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     _controller.forward();
   }
 
