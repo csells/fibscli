@@ -349,18 +349,6 @@ class _GameViewState extends State<GameView> {
     }
   }
 
-  // remove each animated piece from the list of pieces to animate
-  void _endPieceAnimation(int pieceID) {
-    final removed = _pieceLayouts.remove(pieceID);
-    assert(removed != null);
-
-    // the last piece has been animated, so draw the final state of the board w/ labels, on edge, etc.
-    if (_pieceLayouts.isEmpty) {
-      print('endAnimation');
-      setState(() {});
-    }
-  }
-
   bool _move(int toEndPipNo) {
     // find the first set of hops that move from the current pip to the desired pip
     final hops =
@@ -395,6 +383,10 @@ class _GameViewState extends State<GameView> {
       _game.commitTurn();
       _reset();
     }
+  }
+
+  void _tapBoard() {
+    _reset();
   }
 
   bool _highlightOff(GammonPlayer player) {
@@ -443,8 +435,13 @@ class _GameViewState extends State<GameView> {
     return pieceLayouts;
   }
 
-  void _tapBoard() {
-    _reset();
+  // remove each animated piece from the list of pieces to animate
+  void _endPieceAnimation(int pieceID) {
+    final removed = _pieceLayouts.remove(pieceID);
+    assert(removed != null);
+
+    // the last piece has been animated, so draw the final state of the board w/ labels, on edge, etc.
+    if (_pieceLayouts.isEmpty) setState(() {});
   }
 }
 
