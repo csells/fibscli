@@ -46,6 +46,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
         backgroundColor: Colors.green,
         appBar: AppBar(
           title: Text(App.title),
+          elevation: 0,
           actions: [
             IconButton(
               tooltip: 'provide feedback',
