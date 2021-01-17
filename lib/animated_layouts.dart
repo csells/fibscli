@@ -2,22 +2,27 @@ import 'package:fibscli/pieces.dart';
 import 'package:flutter/widgets.dart';
 import 'package:dartx/dartx.dart';
 
-class AnimatedLayouts extends StatefulWidget {
+class AnimatedPiece extends StatefulWidget {
   final List<PieceLayout> layouts;
   final Widget child;
+  final void Function() onEnd;
 
-  AnimatedLayouts({
+  AnimatedPiece.fromLayouts({
     @required this.layouts,
     @required this.child,
+    this.onEnd = _noop,
   })  : assert(layouts != null),
         assert(layouts.length > 1),
-        assert(child != null);
+        assert(child != null),
+        assert(onEnd != null);
 
   @override
-  _AnimatedLayoutsState createState() => _AnimatedLayoutsState();
+  _AnimatedPieceState createState() => _AnimatedPieceState();
+
+  static void _noop() {}
 }
 
-class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderStateMixin {
+class _AnimatedPieceState extends State<AnimatedPiece> with TickerProviderStateMixin {
   AnimationController _controller;
   Animation<PieceLayout> _animation;
 
@@ -31,8 +36,8 @@ class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderSt
     ].sum();
     final animatable = _animatableFor(widget.layouts);
     _controller = AnimationController(vsync: this, duration: Duration(milliseconds: (distance * 3).floor()));
-    _animation = animatable.animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    _controller.forward();
+    _animation = animatable.animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+    _controller.forward().then((_) => widget.onEnd());
   }
 
   static Animatable<PieceLayout> _animatableFor(List<PieceLayout> layouts) => TweenSequence(
@@ -42,10 +47,11 @@ class _AnimatedLayoutsState extends State<AnimatedLayouts> with TickerProviderSt
               tween: PieceLayoutTween(begin: layouts[i - 1], end: layouts[i]),
               weight: (layouts[i - 1].offset - layouts[i].offset).distance + 1,
             ),
-            TweenSequenceItem(
-              tween: ConstantTween(layouts[i]),
-              weight: 100,
-            ),
+            if (i != layouts.length - 1)
+              TweenSequenceItem(
+                tween: ConstantTween(layouts[i]),
+                weight: 100,
+              ),
           ],
         ],
       );

@@ -75,6 +75,7 @@ class PieceLayout {
 
   Size get size => edge ? _edgeSize : _pieceSize;
   Rect get rect => offset & size;
+  PieceLayout get animated => PieceLayout(pieceID: pieceID, offset: offset, label: '', pipNo: pipNo);
 
   @override
   String toString() => 'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect, highlight=$highlight)';

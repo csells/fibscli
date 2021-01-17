@@ -286,11 +286,12 @@ class _GameViewState extends State<GameView> {
                         // pieces
                         for (final layout in PieceLayout.getLayouts(game.board, _pipNosToHighlight))
                           _pieceLayouts.containsKey(layout.pieceID)
-                              ? AnimatedLayouts(
-                                  layouts: _pieceLayouts.remove(layout.pieceID),
+                              ? AnimatedPiece.fromLayouts(
+                                  layouts: _pieceLayouts[layout.pieceID],
+                                  onEnd: () => _endPieceAnimation(layout.pieceID),
                                   child: GestureDetector(
                                     onTap: () => _tapPiece(layout.pipNo),
-                                    child: PieceView(layout: layout),
+                                    child: PieceView(layout: layout.animated),
                                   ),
                                 )
                               : Positioned.fromRect(
@@ -345,6 +346,18 @@ class _GameViewState extends State<GameView> {
         // unless it's the same out pip, then toggle it on/off
         if (_oldFromPipNo != pipNo && _legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
       }
+    }
+  }
+
+  // remove each animated piece from the list of pieces to animate
+  void _endPieceAnimation(int pieceID) {
+    final removed = _pieceLayouts.remove(pieceID);
+    assert(removed != null);
+
+    // the last piece has been animated, so draw the final state of the board w/ labels, on edge, etc.
+    if (_pieceLayouts.isEmpty) {
+      print('endAnimation');
+      setState(() {});
     }
   }
 
