@@ -406,6 +406,10 @@ class _GameViewState extends State<GameView> {
     List<List<int>> initialBoard,
     List<List<GammonDelta>> deltasForHops,
   ) {
+    // find the main piece that's moving (not the pieces moving to the bar)
+    final mainPieceID = deltasForHops[0][0].pieceID;
+    if (kDebugMode) for (final deltasForHop in deltasForHops) assert(deltasForHop[0].pieceID == mainPieceID);
+
     // copy the initial board; it'll change as we apply deltas
     final board = List<List<int>>.generate(initialBoard.length, (i) => List<int>.from(initialBoard[i]));
 
