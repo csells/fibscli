@@ -12,12 +12,12 @@ dependencies:
   fibscli_lib:
     path: ../fibscli_lib
   cupertino_icons: ^1.0.1+1
-  dartx: ^0.5.0
-  shared_preferences: ^0.5.12
-  syncfusion_flutter_datagrid: ^18.3.35-beta
-  trotter: ^1.2.0
-  url_launcher: ^5.7.10
-  web_socket_channel: ^1.1.0
+  dartx: ^1.2.0
+  shared_preferences: ^2.2.1
+  syncfusion_flutter_datagrid: ^23.1.36
+  trotter: ^2.0.0
+  url_launcher: ^6.1.11
+  web_socket_channel: ^2.4.0
 
 dev_dependencies:
   flutter_test:
