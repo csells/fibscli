@@ -87,8 +87,9 @@ class _GamePlayPageState extends State<GamePlayPage> {
   void _tapNewGame() => _controller.newGame();
   void _tapReverse() => _controller.reversed = !_controller.reversed;
   void _tapUndo() => _controller.undo();
-  void _tapFeedback() => ul.launch('https://github.com/csells/fibscli/issues');
-  void _tapHelp() => ul.launch('https://www.bkgm.com/rules.html');
+  void _tapFeedback() =>
+      ul.launchUrl(Uri.parse('https://github.com/csells/fibscli/issues'));
+  void _tapHelp() => ul.launchUrl(Uri.parse('https://www.bkgm.com/rules.html'));
 }
 
 class GameViewController extends ChangeNotifier {
@@ -118,7 +119,8 @@ class GameViewController extends ChangeNotifier {
 
 class GameView extends StatefulWidget {
   final GameViewController controller;
-  GameView({GameViewController controller}) : controller = controller ?? GameViewController();
+  GameView({GameViewController controller})
+      : controller = controller ?? GameViewController();
 
   @override
   _GameViewState createState() => _GameViewState();
@@ -141,7 +143,9 @@ class _GameViewState extends State<GameView> {
     };
 
     widget.controller.onNewGame = () async {
-      final ok = _game.gameOver ? true : await QuitGameDialog.show(context); // result can return null
+      final ok = _game.gameOver
+          ? true
+          : await QuitGameDialog.show(context); // result can return null
       if (ok == true) _newGame();
     };
 
@@ -168,7 +172,8 @@ class _GameViewState extends State<GameView> {
 
     _game.removeListener(_gameChanged);
     widget.controller.canUndo = false;
-    final ok = await NewGameDialog.show(context, _game.turnPlayer); // result can be null
+    final ok = await NewGameDialog.show(
+        context, _game.turnPlayer); // result can be null
     if (ok == true) _newGame();
   }
 
@@ -207,8 +212,9 @@ class _GameViewState extends State<GameView> {
                           child: GestureDetector(
                             onTap: _tapBoard,
                             child: Container(
-                              decoration:
-                                  BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                              decoration: BoxDecoration(
+                                  color: Colors.green[900],
+                                  border: Border.all(color: Colors.black)),
                             ),
                           ),
                         ),
@@ -219,8 +225,9 @@ class _GameViewState extends State<GameView> {
                           child: GestureDetector(
                             onTap: _tapBoard,
                             child: Container(
-                              decoration:
-                                  BoxDecoration(color: Colors.green[900], border: Border.all(color: Colors.black)),
+                              decoration: BoxDecoration(
+                                  color: Colors.green[900],
+                                  border: Border.all(color: Colors.black)),
                             ),
                           ),
                         ),
@@ -239,7 +246,8 @@ class _GameViewState extends State<GameView> {
                           ),
                           Positioned.fromRect(
                             rect: layout.labelRect,
-                            child: PipLabel(layout: layout, reversed: controller.reversed),
+                            child: PipLabel(
+                                layout: layout, reversed: controller.reversed),
                           ),
                         ],
 
@@ -252,7 +260,10 @@ class _GameViewState extends State<GameView> {
                               decoration: BoxDecoration(
                                 color: Colors.green[900],
                                 border: Border.all(
-                                    color: _highlightOff(GammonPlayer.one) ? Colors.yellow : Colors.black, width: 2),
+                                    color: _highlightOff(GammonPlayer.one)
+                                        ? Colors.yellow
+                                        : Colors.black,
+                                    width: 2),
                               ),
                             ),
                           ),
@@ -267,16 +278,27 @@ class _GameViewState extends State<GameView> {
                               decoration: BoxDecoration(
                                 color: Colors.green[900],
                                 border: Border.all(
-                                    color: _highlightOff(GammonPlayer.two) ? Colors.yellow : Colors.black, width: 2),
+                                    color: _highlightOff(GammonPlayer.two)
+                                        ? Colors.yellow
+                                        : Colors.black,
+                                    width: 2),
                               ),
                             ),
                           ),
                         ),
 
-                        InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)), // outer board shading
-                        InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)), // home board shading
-                        InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)), // player1 home shading
-                        InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)), // player2 home shading
+                        InnerShadingRect(
+                            rect: Rect.fromLTWH(
+                                20, 20, 216, 380)), // outer board shading
+                        InnerShadingRect(
+                            rect: Rect.fromLTWH(
+                                284, 20, 216, 380)), // home board shading
+                        InnerShadingRect(
+                            rect: Rect.fromLTWH(
+                                520, 216, 32, 183)), // player1 home shading
+                        InnerShadingRect(
+                            rect: Rect.fromLTWH(
+                                520, 20, 32, 183)), // player2 home shading
 
                         // doubling cube: undoubled
                         // Positioned.fromRect(
@@ -285,11 +307,13 @@ class _GameViewState extends State<GameView> {
                         // ),
 
                         // pieces
-                        for (final layout in PieceLayout.getLayouts(game.board, _pipNosToHighlight))
+                        for (final layout in PieceLayout.getLayouts(
+                            game.board, _pipNosToHighlight))
                           _pieceLayouts.containsKey(layout.pieceID)
                               ? AnimatedPiece.fromLayouts(
                                   layouts: _pieceLayouts[layout.pieceID],
-                                  onEnd: () => _endPieceAnimation(layout.pieceID),
+                                  onEnd: () =>
+                                      _endPieceAnimation(layout.pieceID),
                                   child: GestureDetector(
                                     onTap: () => _tapPiece(layout.pipNo),
                                     child: PieceView(layout: layout.animated),
@@ -317,7 +341,8 @@ class _GameViewState extends State<GameView> {
                         for (final layout in PipCountLayout.getLayouts(game))
                           Positioned.fromRect(
                             rect: layout.rect,
-                            child: PipCountView(layout: layout, reversed: controller.reversed),
+                            child: PipCountView(
+                                layout: layout, reversed: controller.reversed),
                           ),
                       ],
                     ),
@@ -329,7 +354,8 @@ class _GameViewState extends State<GameView> {
         ),
       );
 
-  List<int> get _pipNosToHighlight => _fromPipNo != null ? [_fromPipNo] : _legalMovesForPips.keys.toList();
+  List<int> get _pipNosToHighlight =>
+      _fromPipNo != null ? [_fromPipNo] : _legalMovesForPips.keys.toList();
 
   void _tapPiece(int pipNo) => _tapPip(pipNo);
   void _tapOff(GammonPlayer player) => _move(GammonRules.offPipNoFor(player));
@@ -345,20 +371,25 @@ class _GameViewState extends State<GameView> {
       if (!_move(pipNo)) {
         // if the move failed, check if it's got legal moves and highlight it,
         // unless it's the same out pip, then toggle it on/off
-        if (_oldFromPipNo != pipNo && _legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
+        if (_oldFromPipNo != pipNo && _legalMovesForPips[pipNo] != null)
+          setState(() => _fromPipNo = pipNo);
       }
     }
   }
 
   bool _move(int toEndPipNo) {
     // find the first set of hops that move from the current pip to the desired pip
-    final hops =
-        _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo].hops(fromPipNo: _fromPipNo, toPipNo: toEndPipNo);
+    final hops = _fromPipNo == null
+        ? null
+        : _legalMovesForPips[_fromPipNo]
+            .hops(fromPipNo: _fromPipNo, toPipNo: toEndPipNo);
 
     // if this is a legal move, do the move
     if (hops != null) {
-      final initialBoard = List<List<int>>.generate(_game.board.length, (i) => List<int>.from(_game.board[i]));
-      final move = GammonMove(fromPipNo: _fromPipNo, toPipNo: toEndPipNo, hops: hops);
+      final initialBoard = List<List<int>>.generate(
+          _game.board.length, (i) => List<int>.from(_game.board[i]));
+      final move =
+          GammonMove(fromPipNo: _fromPipNo, toPipNo: toEndPipNo, hops: hops);
       final deltasForHops = _game.applyMove(move: move);
 
       // convert game states for each hop into a sequence of layouts for each affected piece
@@ -392,13 +423,16 @@ class _GameViewState extends State<GameView> {
 
   bool _highlightOff(GammonPlayer player) {
     final offPipNo = GammonRules.offPipNoFor(player);
-    final legalMoves = _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo];
+    final legalMoves =
+        _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo];
     return legalMoves != null && legalMoves.any((m) => m.toPipNo == offPipNo);
   }
 
   bool _highlightPip(int pipNo) {
-    final legalMoves = _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo];
-    final result = legalMoves != null && legalMoves.hasHops(fromPipNo: _fromPipNo, toPipNo: pipNo);
+    final legalMoves =
+        _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo];
+    final result = legalMoves != null &&
+        legalMoves.hasHops(fromPipNo: _fromPipNo, toPipNo: pipNo);
     return result;
   }
 
@@ -408,10 +442,13 @@ class _GameViewState extends State<GameView> {
   ) {
     // find the main piece that's moving (not the pieces moving to the bar)
     final mainPieceID = deltasForHops[0][0].pieceID;
-    if (kDebugMode) for (final deltasForHop in deltasForHops) assert(deltasForHop[0].pieceID == mainPieceID);
+    if (kDebugMode)
+      for (final deltasForHop in deltasForHops)
+        assert(deltasForHop[0].pieceID == mainPieceID);
 
     // copy the initial board; it'll change as we apply deltas
-    final board = List<List<int>>.generate(initialBoard.length, (i) => List<int>.from(initialBoard[i]));
+    final board = List<List<int>>.generate(
+        initialBoard.length, (i) => List<int>.from(initialBoard[i]));
 
     // find the set of pieces that are affected by this move
     final pieceIDs = [
@@ -493,7 +530,7 @@ class QuitGameDialog extends StatelessWidget {
         title: Text('Game Already In Progress'),
         content: Text('OK to quit current game?'),
         actions: [
-          OutlineButton(
+          OutlinedButton(
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text('Keep Playing'),
@@ -510,8 +547,8 @@ class QuitGameDialog extends StatelessWidget {
         ],
       );
 
-  static Future<bool> show(BuildContext context) =>
-      showDialog<bool>(context: context, builder: (context) => QuitGameDialog());
+  static Future<bool> show(BuildContext context) => showDialog<bool>(
+      context: context, builder: (context) => QuitGameDialog());
 }
 
 class NewGameDialog extends StatelessWidget {
@@ -523,7 +560,7 @@ class NewGameDialog extends StatelessWidget {
         title: Text('Player ${winner == GammonPlayer.one ? 1 : 2} wins!'),
         content: Text('Would you like to play another game?'),
         actions: [
-          OutlineButton(
+          OutlinedButton(
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text('No, Thanks'),
@@ -541,5 +578,6 @@ class NewGameDialog extends StatelessWidget {
       );
 
   static Future<bool> show(BuildContext context, GammonPlayer winner) =>
-      showDialog<bool>(context: context, builder: (context) => NewGameDialog(winner));
+      showDialog<bool>(
+          context: context, builder: (context) => NewGameDialog(winner));
 }

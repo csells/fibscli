@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:dartx/dartx.dart';
 
 class ChangeNotifierBuilder<T extends ChangeNotifier> extends AnimatedBuilder {

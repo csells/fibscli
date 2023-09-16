@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:fibscli/dice.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:trotter/trotter.dart';
 import 'package:dartx/dartx.dart';
 
