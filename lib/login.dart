@@ -1,27 +1,34 @@
-import 'package:fibscli/main.dart';
+import 'dart:async';
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'main.dart';
+
 class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
   @override
   _LoginPageState createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  TextEditingController _userController = TextEditingController();
-  TextEditingController _passController = TextEditingController();
+  final TextEditingController _userController = TextEditingController();
+  final TextEditingController _passController = TextEditingController();
   bool? _shouldAutologin = false;
 
   @override
   void initState() {
     super.initState();
-    if (App.prefs.value == null)
+    if (App.prefs.value == null) {
       App.prefs.addListener(_autologin);
-    else
-      _autologin();
+    } else {
+      unawaited(_autologin());
+    }
   }
 
-  void _autologin() async {
+  Future<void> _autologin() async {
     App.prefs.removeListener(_autologin);
 
     final prefs = App.prefs.value!;
@@ -36,25 +43,27 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<bool> _login(String user, String pass) async {
-    print('_login($user)');
+    dev.log('_login($user)');
 
     try {
       await App.fibs.login(user: user, pass: pass);
       return true;
-    } catch (ex) {
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Unable to login to FIBS'),
-          content: Text(ex.toString()),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('OK'),
-            )
-          ],
-        ),
-      );
+    } on Exception catch (ex) {
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Unable to login to FIBS'),
+            content: Text(ex.toString()),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              )
+            ],
+          ),
+        );
+      }
 
       return false;
     }
@@ -62,21 +71,21 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(App.title)),
+        appBar: AppBar(title: const Text(App.title)),
         body: ValueListenableBuilder<SharedPreferences?>(
           valueListenable: App.prefs,
           builder: (context, prefs, child) => prefs == null
-              ? CircularProgressIndicator()
+              ? const CircularProgressIndicator()
               : SizedBox.expand(
                   child: Form(
                     child: Align(
                       alignment: Alignment.center,
                       child: Center(
-                        child: Container(
+                        child: SizedBox(
                           width: 500,
                           child: Column(
                             children: [
-                              SizedBox(height: 20),
+                              const SizedBox(height: 20),
                               Text(
                                 'FIBS Login',
                                 style: TextStyle(
@@ -84,19 +93,20 @@ class _LoginPageState extends State<LoginPage> {
                                     fontWeight: FontWeight.w500,
                                     fontSize: 36),
                               ),
-                              SizedBox(height: 20),
+                              const SizedBox(height: 20),
                               TextField(
                                 controller: _userController,
-                                decoration: InputDecoration(labelText: 'user'),
+                                decoration:
+                                    const InputDecoration(labelText: 'user'),
                               ),
-                              SizedBox(height: 20),
+                              const SizedBox(height: 20),
                               TextField(
                                 obscureText: true,
                                 controller: _passController,
-                                decoration:
-                                    InputDecoration(labelText: 'password'),
+                                decoration: const InputDecoration(
+                                    labelText: 'password'),
                               ),
-                              SizedBox(height: 20),
+                              const SizedBox(height: 20),
                               Row(
                                 children: [
                                   Checkbox(
@@ -104,21 +114,21 @@ class _LoginPageState extends State<LoginPage> {
                                     onChanged: (checked) => setState(
                                         () => _shouldAutologin = checked),
                                   ),
-                                  Text('Remember user name and password'),
+                                  const Text('Remember user name and password'),
                                 ],
                               ),
-                              SizedBox(height: 20),
+                              const SizedBox(height: 20),
                               ElevatedButton(
-                                child: Text('Login'),
+                                child: const Text('Login'),
                                 onPressed: () async {
                                   final user = _userController.text;
                                   final pass = _passController.text;
                                   if (user.isEmpty || pass.isEmpty) return;
                                   if (await _login(user, pass)) {
-                                    prefs.setBool(
+                                    await prefs.setBool(
                                         'autologin', _shouldAutologin!);
-                                    prefs.setString('user', user);
-                                    prefs.setString('pass', pass);
+                                    await prefs.setString('user', user);
+                                    await prefs.setString('pass', pass);
                                   }
                                 },
                               ),

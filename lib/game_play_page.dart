@@ -1,18 +1,23 @@
+import 'dart:async';
 import 'dart:math';
-import 'package:fibscli/animated_layouts.dart';
-import 'package:fibscli/dice.dart';
-import 'package:fibscli/main.dart';
-import 'package:fibscli/model.dart';
-import 'package:fibscli/pieces.dart';
-import 'package:fibscli/pip_count.dart';
-import 'package:fibscli/pips.dart';
-import 'package:fibscli/tinystate.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
 
+import 'animated_layouts.dart';
+import 'dice.dart';
+import 'main.dart';
+import 'model.dart';
+import 'pieces.dart';
+import 'pip_count.dart';
+import 'pips.dart';
+import 'tinystate.dart';
+
 class GamePlayPage extends StatefulWidget {
+  const GamePlayPage({super.key});
+
   @override
   _GamePlayPageState createState() => _GamePlayPageState();
 }
@@ -25,6 +30,8 @@ class _GamePlayPageState extends State<GamePlayPage> {
   @override
   void initState() {
     super.initState();
+
+    // ignore: discarded_futures
     _prefsFuture.then((prefs) {
       _prefs = prefs;
       _controller.addListener(_savePrefs);
@@ -32,7 +39,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
   }
 
   void _savePrefs() {
-    _prefs.setBool('reversed', _controller.reversed);
+    unawaited(_prefs.setBool('reversed', _controller.reversed));
   }
 
   @override
@@ -45,27 +52,27 @@ class _GamePlayPageState extends State<GamePlayPage> {
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: Colors.green,
         appBar: AppBar(
-          title: Text(App.title),
+          title: const Text(App.title),
           elevation: 0,
           actions: [
             IconButton(
               tooltip: 'provide feedback',
-              icon: Icon(Icons.feedback),
+              icon: const Icon(Icons.feedback),
               onPressed: _tapFeedback,
             ),
             IconButton(
               tooltip: 'backgammon help',
-              icon: Icon(Icons.help),
+              icon: const Icon(Icons.help),
               onPressed: _tapHelp,
             ),
             IconButton(
               tooltip: 'reverse board',
-              icon: Icon(Icons.sync),
+              icon: const Icon(Icons.sync),
               onPressed: _tapReverse,
             ),
             IconButton(
               tooltip: 'new game',
-              icon: Icon(Icons.fiber_new),
+              icon: const Icon(Icons.fiber_new),
               onPressed: _tapNewGame,
             ),
           ],
@@ -73,7 +80,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
         floatingActionButton: FloatingActionButton(
           tooltip: 'undo turn',
           onPressed: _controller.canUndo ? _tapUndo : null,
-          child: Icon(Icons.undo),
+          child: const Icon(Icons.undo),
         ),
         body: FutureBuilder2<SharedPreferences>(
           future: _prefsFuture,
@@ -87,9 +94,12 @@ class _GamePlayPageState extends State<GamePlayPage> {
   void _tapNewGame() => _controller.newGame();
   void _tapReverse() => _controller.reversed = !_controller.reversed;
   void _tapUndo() => _controller.undo();
-  void _tapFeedback() =>
-      ul.launchUrl(Uri.parse('https://github.com/csells/fibscli/issues'));
-  void _tapHelp() => ul.launchUrl(Uri.parse('https://www.bkgm.com/rules.html'));
+  void _tapFeedback() => unawaited(
+        ul.launchUrl(Uri.parse('https://github.com/csells/fibscli/issues')),
+      );
+  void _tapHelp() => unawaited(
+        ul.launchUrl(Uri.parse('https://www.bkgm.com/rules.html')),
+      );
 }
 
 class GameViewController extends ChangeNotifier {
@@ -110,17 +120,19 @@ class GameViewController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ignore: avoid_setters_without_getters
   set onUndo(void Function() onUndo) => _onUndo = onUndo;
   void undo() => _onUndo();
 
+  // ignore: avoid_setters_without_getters
   set onNewGame(void Function() onNewGame) => _onNewGame = onNewGame;
   void newGame() => _onNewGame();
 }
 
 class GameView extends StatefulWidget {
-  final GameViewController controller;
-  GameView({GameViewController? controller})
+  GameView({super.key, GameViewController? controller})
       : controller = controller ?? GameViewController();
+  final GameViewController controller;
 
   @override
   _GameViewState createState() => _GameViewState();
@@ -146,7 +158,7 @@ class _GameViewState extends State<GameView> {
       final ok = _game!.gameOver
           ? true
           : await QuitGameDialog.show(context); // result can return null
-      if (ok == true) _newGame();
+      if (ok ?? false) _newGame();
     };
 
     _newGame();
@@ -167,28 +179,26 @@ class _GameViewState extends State<GameView> {
     _reset();
   }
 
-  void _gameChanged() async {
+  Future<void> _gameChanged() async {
     if (!_game!.gameOver) return;
 
     _game!.removeListener(_gameChanged);
     widget.controller.canUndo = false;
     final ok = await NewGameDialog.show(
         context, _game!.turnPlayer); // result can be null
-    if (ok == true) _newGame();
+    if (ok ?? false) _newGame();
   }
 
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<GammonState?>(
         notifier: _game,
-        builder: (context, game, child) => Container(
-          width: double.infinity,
-          height: double.infinity,
+        builder: (context, game, child) => SizedBox.expand(
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(8),
             child: ChangeNotifierBuilder<GameViewController>(
               notifier: widget.controller,
               builder: (context, controller, child) => AnimatedContainer(
-                duration: Duration(milliseconds: 500),
+                duration: const Duration(milliseconds: 500),
                 transform: Matrix4.rotationZ(controller.reversed ? pi : 0),
                 transformAlignment: Alignment.center,
                 child: FittedBox(
@@ -208,7 +218,7 @@ class _GameViewState extends State<GameView> {
 
                         // outer board
                         Positioned.fromRect(
-                          rect: Rect.fromLTWH(20, 20, 216, 380),
+                          rect: const Rect.fromLTWH(20, 20, 216, 380),
                           child: GestureDetector(
                             onTap: _tapBoard,
                             child: Container(
@@ -221,7 +231,7 @@ class _GameViewState extends State<GameView> {
 
                         // home board
                         Positioned.fromRect(
-                          rect: Rect.fromLTWH(284, 20, 216, 380),
+                          rect: const Rect.fromLTWH(284, 20, 216, 380),
                           child: GestureDetector(
                             onTap: _tapBoard,
                             child: Container(
@@ -253,7 +263,7 @@ class _GameViewState extends State<GameView> {
 
                         // player1 off
                         Positioned.fromRect(
-                          rect: Rect.fromLTWH(520, 216, 32, 183),
+                          rect: const Rect.fromLTWH(520, 216, 32, 183),
                           child: GestureDetector(
                             onTap: () => _tapOff(GammonPlayer.one),
                             child: Container(
@@ -271,7 +281,7 @@ class _GameViewState extends State<GameView> {
 
                         // player2 off
                         Positioned.fromRect(
-                          rect: Rect.fromLTWH(520, 20, 32, 183),
+                          rect: const Rect.fromLTWH(520, 20, 32, 183),
                           child: GestureDetector(
                             onTap: () => _tapOff(GammonPlayer.two),
                             child: Container(
@@ -287,16 +297,16 @@ class _GameViewState extends State<GameView> {
                           ),
                         ),
 
-                        InnerShadingRect(
+                        const InnerShadingRect(
                             rect: Rect.fromLTWH(
                                 20, 20, 216, 380)), // outer board shading
-                        InnerShadingRect(
+                        const InnerShadingRect(
                             rect: Rect.fromLTWH(
                                 284, 20, 216, 380)), // home board shading
-                        InnerShadingRect(
+                        const InnerShadingRect(
                             rect: Rect.fromLTWH(
                                 520, 216, 32, 183)), // player1 home shading
-                        InnerShadingRect(
+                        const InnerShadingRect(
                             rect: Rect.fromLTWH(
                                 520, 20, 32, 183)), // player2 home shading
 
@@ -362,23 +372,26 @@ class _GameViewState extends State<GameView> {
 
   void _tapPip(int pipNo) {
     if (_fromPipNo == null) {
-      // if there's no pip to move from selected and it has legal moves, select it
+      // if there's no pip to move from selected and it has legal moves,
+      // select it
       if (_legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
     } else {
-      final _oldFromPipNo = _fromPipNo;
+      final oldFromPipNo = _fromPipNo;
 
       // if there is a pip to move from selected, attempt to move to this piece
       if (!_move(pipNo)) {
         // if the move failed, check if it's got legal moves and highlight it,
         // unless it's the same out pip, then toggle it on/off
-        if (_oldFromPipNo != pipNo && _legalMovesForPips[pipNo] != null)
+        if (oldFromPipNo != pipNo && _legalMovesForPips[pipNo] != null) {
           setState(() => _fromPipNo = pipNo);
+        }
       }
     }
   }
 
   bool _move(int toEndPipNo) {
-    // find the first set of hops that move from the current pip to the desired pip
+    // find the first set of hops that move from the current pip to
+    // the desired pip
     final hops = _fromPipNo == null
         ? null
         : _legalMovesForPips[_fromPipNo]
@@ -392,7 +405,8 @@ class _GameViewState extends State<GameView> {
           GammonMove(fromPipNo: _fromPipNo!, toPipNo: toEndPipNo, hops: hops);
       final deltasForHops = _game!.applyMove(move: move);
 
-      // convert game states for each hop into a sequence of layouts for each affected piece
+      // convert game states for each hop into a sequence of layouts for
+      // each affected piece
       assert(deltasForHops.length == hops.length);
       assert(_pieceLayouts.isEmpty);
       _pieceLayouts.addAll(_pieceLayoutsFor(initialBoard, deltasForHops));
@@ -442,9 +456,11 @@ class _GameViewState extends State<GameView> {
   ) {
     // find the main piece that's moving (not the pieces moving to the bar)
     final mainPieceID = deltasForHops[0][0].pieceID;
-    if (kDebugMode)
-      for (final deltasForHop in deltasForHops)
+    if (kDebugMode) {
+      for (final deltasForHop in deltasForHops) {
         assert(deltasForHop[0].pieceID == mainPieceID);
+      }
+    }
 
     // copy the initial board; it'll change as we apply deltas
     final board = List<List<int>>.generate(
@@ -458,7 +474,9 @@ class _GameViewState extends State<GameView> {
 
     // initialize the list of layouts that each piece travels
     final pieceLayouts = <int?, List<PieceLayout>>{};
-    for (final pieceID in pieceIDs) pieceLayouts[pieceID] = [];
+    for (final pieceID in pieceIDs) {
+      pieceLayouts[pieceID] = [];
+    }
 
     // get layout for each piece at each hop (most won't move)
     // start with an empty delta to handle initial board state
@@ -487,11 +505,11 @@ class _GameViewState extends State<GameView> {
 }
 
 class InnerShadingRect extends StatelessWidget {
-  final Rect rect;
   const InnerShadingRect({
-    Key? key,
     required this.rect,
-  }) : super(key: key);
+    super.key,
+  });
+  final Rect rect;
 
   @override
   Widget build(BuildContext context) => Positioned.fromRect(
@@ -524,21 +542,23 @@ class InnerShadingRect extends StatelessWidget {
 }
 
 class QuitGameDialog extends StatelessWidget {
+  const QuitGameDialog({super.key});
+
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: Text('Game Already In Progress'),
-        content: Text('OK to quit current game?'),
+        title: const Text('Game Already In Progress'),
+        content: const Text('OK to quit current game?'),
         actions: [
           OutlinedButton(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
+            child: const Padding(
+              padding: EdgeInsets.all(8),
               child: Text('Keep Playing'),
             ),
             onPressed: () => Navigator.pop(context, false),
           ),
           ElevatedButton(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
+            child: const Padding(
+              padding: EdgeInsets.all(8),
               child: Text('Quit Game'),
             ),
             onPressed: () => Navigator.pop(context, true),
@@ -547,28 +567,28 @@ class QuitGameDialog extends StatelessWidget {
       );
 
   static Future<bool?> show(BuildContext context) => showDialog<bool>(
-      context: context, builder: (context) => QuitGameDialog());
+      context: context, builder: (context) => const QuitGameDialog());
 }
 
 class NewGameDialog extends StatelessWidget {
+  const NewGameDialog(this.winner, {super.key});
   final GammonPlayer? winner;
-  const NewGameDialog(this.winner);
 
   @override
   Widget build(BuildContext context) => AlertDialog(
         title: Text('Player ${winner == GammonPlayer.one ? 1 : 2} wins!'),
-        content: Text('Would you like to play another game?'),
+        content: const Text('Would you like to play another game?'),
         actions: [
           OutlinedButton(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
+            child: const Padding(
+              padding: EdgeInsets.all(8),
               child: Text('No, Thanks'),
             ),
             onPressed: () => Navigator.pop(context, false),
           ),
           ElevatedButton(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
+            child: const Padding(
+              padding: EdgeInsets.all(8),
               child: Text('Yes, Please!'),
             ),
             onPressed: () => Navigator.pop(context, true),

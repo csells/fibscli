@@ -1,6 +1,8 @@
+import 'dart:developer' as dev;
+
+import 'package:dartx/dartx.dart';
 import 'package:fibscli/model.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:dartx/dartx.dart';
 
 void main() {
   test('GammonMove.hash', () {
@@ -32,6 +34,6 @@ void main() {
 
     final rg2 = [gm, gm];
     expect(rg2.distinct(), hasLength(1));
-    print(rg2.distinct());
+    dev.log(rg2.distinct().toString());
   });
 }
