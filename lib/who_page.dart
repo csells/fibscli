@@ -86,6 +86,7 @@ class _WhoPageState extends State<WhoPage> {
                           child: Container(
                             child: Text('TODO'),
                           ),
+                          // TODO
                           // SfDataGrid(
                           //   source: _source,
                           //   columnWidthMode: ColumnWidthMode.fill,
@@ -112,10 +113,10 @@ class _WhoPageState extends State<WhoPage> {
                       ],
                     ),
                   ),
+                  // if (_showMessages) MessagesView(whoInfos: App.fibs.whoInfos),
                 ],
               ),
             ),
-            // if (_showMessages) MessagesView(whoInfos: App.fibs.whoInfos),
           ],
         ),
       );
@@ -213,7 +214,7 @@ class _WhoPageState extends State<WhoPage> {
 }
 
 class SendComandDialog extends StatefulWidget {
-  static Future<String> getCommand(BuildContext context) async =>
+  static Future<String?> getCommand(BuildContext context) async =>
       await showDialog<String>(
         context: context,
         builder: (context) => Dialog(child: SendComandDialog()),
@@ -224,7 +225,7 @@ class SendComandDialog extends StatefulWidget {
 }
 
 class _SendComandDialogState extends State<SendComandDialog> {
-  TextEditingController _controller;
+  TextEditingController? _controller;
 
   @override
   initState() {
@@ -246,7 +247,7 @@ class _SendComandDialogState extends State<SendComandDialog> {
                 child: Text('Cancel')),
             SizedBox(width: 8),
             ElevatedButton(
-                onPressed: () => Navigator.pop(context, _controller.text),
+                onPressed: () => Navigator.pop(context, _controller!.text),
                 child: Text('Send')),
           ],
         ),

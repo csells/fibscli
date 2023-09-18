@@ -10,7 +10,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   TextEditingController _userController = TextEditingController();
   TextEditingController _passController = TextEditingController();
-  var _shouldAutologin = false;
+  bool? _shouldAutologin = false;
 
   @override
   void initState() {
@@ -24,7 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   void _autologin() async {
     App.prefs.removeListener(_autologin);
 
-    final prefs = App.prefs.value;
+    final prefs = App.prefs.value!;
     final autologin = prefs.getBool('autologin') ?? false;
     if (!autologin) return;
 
@@ -63,7 +63,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(App.title)),
-        body: ValueListenableBuilder<SharedPreferences>(
+        body: ValueListenableBuilder<SharedPreferences?>(
           valueListenable: App.prefs,
           builder: (context, prefs, child) => prefs == null
               ? CircularProgressIndicator()
@@ -80,7 +80,9 @@ class _LoginPageState extends State<LoginPage> {
                               Text(
                                 'FIBS Login',
                                 style: TextStyle(
-                                    color: Theme.of(context).primaryColor, fontWeight: FontWeight.w500, fontSize: 36),
+                                    color: Theme.of(context).primaryColor,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 36),
                               ),
                               SizedBox(height: 20),
                               TextField(
@@ -91,14 +93,16 @@ class _LoginPageState extends State<LoginPage> {
                               TextField(
                                 obscureText: true,
                                 controller: _passController,
-                                decoration: InputDecoration(labelText: 'password'),
+                                decoration:
+                                    InputDecoration(labelText: 'password'),
                               ),
                               SizedBox(height: 20),
                               Row(
                                 children: [
                                   Checkbox(
                                     value: _shouldAutologin,
-                                    onChanged: (checked) => setState(() => _shouldAutologin = checked),
+                                    onChanged: (checked) => setState(
+                                        () => _shouldAutologin = checked),
                                   ),
                                   Text('Remember user name and password'),
                                 ],
@@ -111,7 +115,8 @@ class _LoginPageState extends State<LoginPage> {
                                   final pass = _passController.text;
                                   if (user.isEmpty || pass.isEmpty) return;
                                   if (await _login(user, pass)) {
-                                    prefs.setBool('autologin', _shouldAutologin);
+                                    prefs.setBool(
+                                        'autologin', _shouldAutologin!);
                                     prefs.setString('user', user);
                                     prefs.setString('pass', pass);
                                   }

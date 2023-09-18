@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:dartx/dartx.dart';
 
-class ChangeNotifierBuilder<T extends ChangeNotifier> extends AnimatedBuilder {
+class ChangeNotifierBuilder<T extends ChangeNotifier?> extends AnimatedBuilder {
   ChangeNotifierBuilder({
-    Key key,
-    @required T notifier,
-    @required Widget Function(BuildContext context, T listenable, Widget child) builder,
-    Widget child,
+    Key? key,
+    required T notifier,
+    required Widget Function(BuildContext context, T listenable, Widget? child) builder,
+    Widget? child,
   }) : super(
             key: key,
-            animation: notifier,
+            animation: notifier!,
             child: child,
             builder: (context, child) => builder(context, notifier, child));
 }
 
 class NotifierList<T> extends Iterable<T> with ChangeNotifier {
   final List<T> _items;
-  NotifierList([List<T> items]) : _items = items ?? <T>[];
+  NotifierList([List<T>? items]) : _items = items ?? <T>[];
 
   T operator [](int i) => _items[i];
   void operator []=(int i, T value) => _items[i] = value;
@@ -68,28 +68,27 @@ class NotifierList<T> extends Iterable<T> with ChangeNotifier {
 
 class FutureBuilder2<T> extends StatelessWidget {
   final Future<T> future;
-  final T initialData;
-  final Widget Function(BuildContext context) pending;
-  final Widget Function(BuildContext context, Object error) error;
-  final Widget Function(BuildContext context, T data) data;
+  final T? initialData;
+  final Widget Function(BuildContext context)? pending;
+  final Widget Function(BuildContext context, Object? error)? error;
+  final Widget Function(BuildContext context, T? data) data;
 
   FutureBuilder2({
-    Key key,
-    @required this.future,
+    Key? key,
+    required this.future,
     this.initialData,
     this.pending,
     this.error,
-    @required this.data,
-  })  : assert(data != null),
-        super(key: key);
+    required this.data,
+  })  : super(key: key);
 
   @override
   Widget build(BuildContext context) => FutureBuilder<T>(
       future: future,
       initialData: initialData,
       builder: (context, snapshot) {
-        if (snapshot.hasError) return error != null ? error(context, snapshot.error) : Text(snapshot.error.toString());
+        if (snapshot.hasError) return error != null ? error!(context, snapshot.error) : Text(snapshot.error.toString());
         if (snapshot.hasData) return data(context, snapshot.data);
-        return pending != null ? pending(context) : Center(child: CircularProgressIndicator());
+        return pending != null ? pending!(context) : Center(child: CircularProgressIndicator());
       });
 }

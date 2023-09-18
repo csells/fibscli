@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class PipLabel extends StatelessWidget {
   final bool reversed;
   final PipLayout layout;
-  const PipLabel({@required this.layout, this.reversed = false});
+  const PipLabel({required this.layout, this.reversed = false});
 
   @override
   Widget build(BuildContext context) {
@@ -25,14 +25,14 @@ class PipTriangle extends StatelessWidget {
   final int pip;
   final bool highlight;
   final PipPainter painter;
-  PipTriangle({@required this.pip, @required this.highlight}) : painter = PipPainter(pip, PipClipper(pip), highlight);
+  PipTriangle({required this.pip, required this.highlight}) : painter = PipPainter(pip, PipClipper(pip), highlight);
 
   @override
   Widget build(BuildContext context) => ClipPath(clipper: painter.clipper, child: CustomPaint(painter: painter));
 }
 
 class PipLayout {
-  static List<PipLayout> _layouts;
+  static List<PipLayout>? _layouts;
   static final double width = 34;
   static final double height = 150;
   static final double labelHeight = 15;
@@ -42,16 +42,16 @@ class PipLayout {
   final double top;
   final double labelDy;
   PipLayout({
-    @required this.pipNo,
-    @required this.left,
-    @required this.top,
-    @required this.labelDy,
+    required this.pipNo,
+    required this.left,
+    required this.top,
+    required this.labelDy,
   });
 
   Rect get rect => Rect.fromLTWH(left, top, width, height);
   Rect get labelRect => Rect.fromLTWH(left, top + labelDy, width, labelHeight);
 
-  static List<PipLayout> get layouts {
+  static List<PipLayout>? get layouts {
     if (_layouts == null) {
       final layouts = <PipLayout>[];
       for (var j = 0; j != 4; j++)
@@ -94,7 +94,7 @@ class PipPainter extends CustomPainter {
   static final _darkColor = Colors.grey;
 
   final PipClipper clipper;
-  final Color _color;
+  final Color? _color;
   final bool highlight;
   PipPainter(int pip, this.clipper, this.highlight) : _color = pip.isOdd ? _lightColor : _darkColor;
 
@@ -103,7 +103,7 @@ class PipPainter extends CustomPainter {
     // draw the pip
     final path = clipper.getClip(size);
     final paint = Paint();
-    paint.color = _color;
+    paint.color = _color!;
     canvas.drawPath(path, paint);
 
     // highlight or outline the pip

@@ -11,7 +11,7 @@ void main() => runApp(App());
 class App extends StatefulWidget {
   static const title = 'Backgammon';
   static final fibs = FibsState();
-  static final prefs = ValueNotifier<SharedPreferences>(null);
+  static final prefs = ValueNotifier<SharedPreferences?>(null);
 
   @override
   _AppState createState() => _AppState();
@@ -27,7 +27,9 @@ class _AppState extends State<App> {
   @override
   Widget build(BuildContext context) => MaterialApp(
         title: App.title,
-        theme: ThemeData(primarySwatch: Colors.green, visualDensity: VisualDensity.adaptivePlatformDensity),
+        theme: ThemeData(
+            primarySwatch: Colors.green,
+            visualDensity: VisualDensity.adaptivePlatformDensity),
         debugShowCheckedModeBanner: false,
         home: ChangeNotifierBuilder<FibsState>(
           notifier: App.fibs,

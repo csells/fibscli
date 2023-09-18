@@ -12,20 +12,23 @@ class GammonState extends ChangeNotifier {
   final _board = List<List<int>>.filled(26, List<int>.empty());
 
   final _dice = <DieState>[]; // dice rolls and whether they're still available
-  GammonPlayer _turnPlayer;
-  GammonState _undoState; // state for implementing undo
+  GammonPlayer? _turnPlayer;
+  late GammonState _undoState; // state for implementing undo
   var _moveNo = 1;
   var _gameOver = false;
 
   GammonState() {
-    _setState(board: GammonRules.initialBoard(), dice: <DieState>[], turnPlayer: null);
+    _setState(
+        board: GammonRules.initialBoard(),
+        dice: <DieState>[],
+        turnPlayer: null);
     _firstTurn();
   }
 
   void _setState({
-    @required List<List<int>> board,
-    @required List<DieState> dice,
-    @required GammonPlayer turnPlayer,
+    required List<List<int>> board,
+    required List<DieState> dice,
+    required GammonPlayer? turnPlayer,
   }) {
     for (var i = 0; i < board.length; ++i) _board[i] = List.from(board[i]);
 
@@ -36,16 +39,16 @@ class GammonState extends ChangeNotifier {
   }
 
   GammonState.from({
-    @required List<List<int>> board,
-    @required List<DieState> dice,
-    @required GammonPlayer turnPlayer,
+    required List<List<int>> board,
+    required List<DieState> dice,
+    required GammonPlayer? turnPlayer,
   }) {
     _setState(board: board, dice: dice, turnPlayer: turnPlayer);
   }
 
   List<List<int>> get board => List.unmodifiable(_board);
   List<DieState> get dice => List.unmodifiable(_dice);
-  GammonPlayer get turnPlayer => _turnPlayer;
+  GammonPlayer? get turnPlayer => _turnPlayer;
   bool get gameOver => _gameOver;
 
   void _firstTurn() {
@@ -58,8 +61,10 @@ class GammonState extends ChangeNotifier {
       _rollDice(disableUnusableDice: false); // all dice initally usable
     } while (_dice[0].roll == _dice[1].roll);
 
-    _turnPlayer = _dice[0].roll > _dice[1].roll ? GammonPlayer.one : GammonPlayer.two;
-    _undoState = GammonState.from(board: _board, dice: dice, turnPlayer: _turnPlayer);
+    _turnPlayer =
+        _dice[0].roll > _dice[1].roll ? GammonPlayer.one : GammonPlayer.two;
+    _undoState =
+        GammonState.from(board: _board, dice: dice, turnPlayer: _turnPlayer);
     _moveNo = 1;
   }
 
@@ -68,7 +73,8 @@ class GammonState extends ChangeNotifier {
 
     _turnPlayer = GammonRules.otherPlayer(_turnPlayer);
     _rollDice(); // roll dice before capturing updo state
-    _undoState = GammonState.from(board: _board, dice: dice, turnPlayer: _turnPlayer);
+    _undoState =
+        GammonState.from(board: _board, dice: dice, turnPlayer: _turnPlayer);
     ++_moveNo; // can't be undone, so not capturing it
   }
 
@@ -91,10 +97,9 @@ class GammonState extends ChangeNotifier {
     return GammonRules.getAllLegalMoves(board, _turnPlayer, rolls);
   }
 
-  List<List<GammonDelta>> applyMove({@required GammonMove move}) {
+  List<List<GammonDelta>> applyMove({required GammonMove move}) {
     if (_gameOver) throw Exception('game over');
 
-    assert(move != null);
     final deltas = GammonRules.applyMove(board, move);
 
     if (deltas.isNotEmpty) {
@@ -103,7 +108,8 @@ class GammonState extends ChangeNotifier {
 
       // check for game over
       final offPipNo = GammonRules.offPipNoFor(_turnPlayer);
-      final offPips = _board[offPipNo].sumBy((pid) => GammonRules.playerFor(pid) == _turnPlayer ? 1 : 0);
+      final offPips = _board[offPipNo]
+          .sumBy((pid) => GammonRules.playerFor(pid) == _turnPlayer ? 1 : 0);
       if (offPips == 15) _gameOver = true;
 
       notifyListeners();
@@ -114,7 +120,7 @@ class GammonState extends ChangeNotifier {
 
   int get moveNo => _moveNo;
 
-  int pipCount({@required int sign}) {
+  int pipCount({required int sign}) {
     var pipCount = 0;
 
     // pips left on the board
@@ -181,10 +187,14 @@ enum GammonDeltaKind {
 
 class GammonDelta {
   final GammonDeltaKind kind;
-  final int pieceID;
+  final int? pieceID;
   final int fromPipNo;
   final int toPipNo;
-  GammonDelta({@required @required this.kind, this.pieceID, @required this.fromPipNo, @required this.toPipNo});
+  GammonDelta(
+      {@required required this.kind,
+      this.pieceID,
+      required this.fromPipNo,
+      required this.toPipNo});
 
   @override
   String toString() => '$kind: $pieceID, $fromPipNo=>$toPipNo';
@@ -192,18 +202,27 @@ class GammonDelta {
   @override
   bool operator ==(Object o) =>
       (identical(this, o)) ||
-      o is GammonDelta && o.kind == kind && o.pieceID == pieceID && o.fromPipNo == fromPipNo && o.toPipNo == toPipNo;
+      o is GammonDelta &&
+          o.kind == kind &&
+          o.pieceID == pieceID &&
+          o.fromPipNo == fromPipNo &&
+          o.toPipNo == toPipNo;
 
   @override
-  int get hashCode => kind.index ^ pieceID ^ fromPipNo.hashCode ^ toPipNo.hashCode;
+  int get hashCode =>
+      kind.index ^ pieceID! ^ fromPipNo.hashCode ^ toPipNo.hashCode;
 }
 
-extension GammonMoves on Iterable<GammonMove> {
-  List<int> hops({int fromPipNo, int toPipNo}) {
-    return firstOrNullWhere((m) => m.fromPipNo == fromPipNo && m.toPipNo == toPipNo)?.hops;
+extension GammonMoves on Iterable<GammonMove>? {
+  List<int>? hops({int? fromPipNo, int? toPipNo}) {
+    return this!
+        .firstOrNullWhere(
+            (m) => m.fromPipNo == fromPipNo && m.toPipNo == toPipNo)
+        ?.hops;
   }
 
-  bool hasHops({int fromPipNo, int toPipNo}) => hops(fromPipNo: fromPipNo, toPipNo: toPipNo) != null;
+  bool hasHops({int? fromPipNo, int? toPipNo}) =>
+      hops(fromPipNo: fromPipNo, toPipNo: toPipNo) != null;
 }
 
 enum GammonPlayer { one, two }
@@ -212,7 +231,8 @@ class GammonMove {
   final int fromPipNo;
   final int toPipNo;
   final hops = <int>[];
-  GammonMove({@required this.fromPipNo, @required this.toPipNo, List<int> hops}) {
+  GammonMove(
+      {required this.fromPipNo, required this.toPipNo, List<int>? hops}) {
     assert(this.hops.isEmpty);
 
     if (hops == null) {
@@ -222,9 +242,12 @@ class GammonMove {
       this.hops.addAll(hops);
     }
 
-    assert(this.hops.all((h) => h.abs() >= 1 && h.abs() <= 6), 'all hops are die rolls');
-    assert(this.hops.all((h) => h.sign == this.hops[0].sign), 'all hops must go in the same direction');
-    assert(this.hops[0].sign == (toPipNo - fromPipNo).sign, 'movement must be the same direction as hops');
+    assert(this.hops.all((h) => h.abs() >= 1 && h.abs() <= 6),
+        'all hops are die rolls');
+    assert(this.hops.all((h) => h.sign == this.hops[0].sign),
+        'all hops must go in the same direction');
+    assert(this.hops[0].sign == (toPipNo - fromPipNo).sign,
+        'movement must be the same direction as hops');
     assert(this.hops.sum().abs() >= (this.toPipNo - this.fromPipNo).abs(),
         'hops must total the distance between the two pips (or greater, if bearing off)');
   }
@@ -232,12 +255,16 @@ class GammonMove {
   GammonPlayer get player => GammonRules.playerFor(hops[0]);
 
   @override
-  String toString() => 'GammonMove(player: $player, fromPipNo: $fromPipNo, toPipNo: $toPipNo, hops: $hops)';
+  String toString() =>
+      'GammonMove(player: $player, fromPipNo: $fromPipNo, toPipNo: $toPipNo, hops: $hops)';
 
   @override
   bool operator ==(Object o) =>
       (identical(this, o)) ||
-      o is GammonMove && o.fromPipNo == fromPipNo && o.toPipNo == toPipNo && listEquals(o.hops, hops);
+      o is GammonMove &&
+          o.fromPipNo == fromPipNo &&
+          o.toPipNo == toPipNo &&
+          listEquals(o.hops, hops);
 
   @override
   int get hashCode {
@@ -288,14 +315,19 @@ class GammonRules {
         [], // 25:
       ];
 
-  static GammonPlayer playerFor(int pieceID) => pieceID < 0 ? GammonPlayer.one : GammonPlayer.two;
-  static int signFor(GammonPlayer player) => player == GammonPlayer.one ? -1 : 1;
-  static int offPipNoFor(GammonPlayer player) => player == GammonPlayer.one ? 0 : 25;
-  static int barPipNoFor(GammonPlayer player) => player == GammonPlayer.one ? 25 : 0;
-  static GammonPlayer otherPlayer(GammonPlayer player) =>
+  static GammonPlayer playerFor(int pieceID) =>
+      pieceID < 0 ? GammonPlayer.one : GammonPlayer.two;
+  static int signFor(GammonPlayer? player) =>
+      player == GammonPlayer.one ? -1 : 1;
+  static int offPipNoFor(GammonPlayer? player) =>
+      player == GammonPlayer.one ? 0 : 25;
+  static int barPipNoFor(GammonPlayer player) =>
+      player == GammonPlayer.one ? 25 : 0;
+  static GammonPlayer otherPlayer(GammonPlayer? player) =>
       player == GammonPlayer.one ? GammonPlayer.two : GammonPlayer.one;
 
-  static List<List<GammonDelta>> applyMove(List<List<int>> board, GammonMove move) {
+  static List<List<GammonDelta>> applyMove(
+      List<List<int>> board, GammonMove move) {
     assert(move.hops.length >= 1 && move.hops.length <= 4);
     assert(move.hops.length <= 2 || move.hops.all((h) => h == move.hops[0]),
         'if there are more than two hops, they must be from doubles');
@@ -303,7 +335,8 @@ class GammonRules {
     // track each hop
     final deltas = <List<GammonDelta>>[];
     for (final hop in move.hops) {
-      final fromPipNo = deltas.isEmpty ? move.fromPipNo : deltas.last[0].toPipNo;
+      final fromPipNo =
+          deltas.isEmpty ? move.fromPipNo : deltas.last[0].toPipNo;
       final toPipNo = fromPipNo + hop;
 
       // check each hop
@@ -311,8 +344,10 @@ class GammonRules {
         deltas.add([GammonRules.move(board, move.player, fromPipNo, toPipNo)]);
       } else if (GammonRules.canHit(board, move.player, fromPipNo, toPipNo)) {
         deltas.add(GammonRules.hit(board, move.player, fromPipNo, toPipNo));
-      } else if (GammonRules.canBearOff(board, move.player, fromPipNo, toPipNo)) {
-        deltas.add([GammonRules.bearOff(board, move.player, fromPipNo, toPipNo)]);
+      } else if (GammonRules.canBearOff(
+          board, move.player, fromPipNo, toPipNo)) {
+        deltas
+            .add([GammonRules.bearOff(board, move.player, fromPipNo, toPipNo)]);
       } else {
         // only a legal move if each hop is legal
         deltas.clear();
@@ -323,13 +358,18 @@ class GammonRules {
     return deltas;
   }
 
-  static void applyDeltasForHop(List<List<int>> board, List<GammonDelta> deltasForHop) {
+  static void applyDeltasForHop(
+      List<List<int>> board, List<GammonDelta> deltasForHop) {
     if (deltasForHop.isEmpty) return;
 
-    assert(deltasForHop.length == 1 || deltasForHop.length == 2, 'only doing a single hop');
-    assert([GammonDeltaKind.bearoff, GammonDeltaKind.hit, GammonDeltaKind.move].contains(deltasForHop[0].kind));
-    assert(deltasForHop.length == 1 || deltasForHop[1].pieceID != deltasForHop[0].pieceID);
-    assert(deltasForHop.length == 1 || deltasForHop[1].kind == GammonDeltaKind.bar);
+    assert(deltasForHop.length == 1 || deltasForHop.length == 2,
+        'only doing a single hop');
+    assert([GammonDeltaKind.bearoff, GammonDeltaKind.hit, GammonDeltaKind.move]
+        .contains(deltasForHop[0].kind));
+    assert(deltasForHop.length == 1 ||
+        deltasForHop[1].pieceID != deltasForHop[0].pieceID);
+    assert(deltasForHop.length == 1 ||
+        deltasForHop[1].kind == GammonDeltaKind.bar);
 
     // apply the delta by recreating the move
     final delta = deltasForHop[0];
@@ -339,16 +379,19 @@ class GammonRules {
     // check that the deltas we get back match the deltas we were sent
     assert(deltas.length == 1);
     for (var i = 0; i != deltas[0].length; ++i) {
-      assert(deltas[0][i] == deltasForHop[i], 'must get back the same delta that was sent in');
+      assert(deltas[0][i] == deltasForHop[i],
+          'must get back the same delta that was sent in');
     }
   }
 
   // calculate legal moves for all pips
-  static Map<int, List<GammonMove>> getAllLegalMoves(List<List<int>> board, GammonPlayer player, List<int> rolls) {
+  static Map<int, List<GammonMove>> getAllLegalMoves(
+      List<List<int>> board, GammonPlayer? player, List<int> rolls) {
     final legalMovesForPips = <int, List<GammonMove>>{};
     for (var pipNo = 0; pipNo != board.length; ++pipNo) {
       final legalMoves = getLegalMoves(board, pipNo, player, rolls).toList();
-      assert(legalMoves.length == legalMoves.distinct().length, 'ensure no duplicate moves');
+      assert(legalMoves.length == legalMoves.distinct().length,
+          'ensure no duplicate moves');
       if (legalMoves.isNotEmpty) legalMovesForPips[pipNo] = legalMoves;
     }
 
@@ -358,7 +401,7 @@ class GammonRules {
   static List<GammonMove> getLegalMoves(
     List<List<int>> board,
     int fromStartPipNo,
-    GammonPlayer player,
+    GammonPlayer? player,
     List<int> rolls,
   ) {
     // are there pieces on this pip?
@@ -370,7 +413,10 @@ class GammonRules {
 
     // check all components of the _dice for legal moves, taking into account doubles
     // need to uniqify the numbers for trotter
-    final stringRolls = [for (var i = 0; i != rolls.length; ++i) '${rolls[i]}${String.fromCharCode(97 + i)}'];
+    final stringRolls = [
+      for (var i = 0; i != rolls.length; ++i)
+        '${rolls[i]}${String.fromCharCode(97 + i)}'
+    ];
 
     // use a set to avoid dups generated from doubles
     final legalMoves = <GammonMove>{};
@@ -381,28 +427,35 @@ class GammonRules {
       // check if all of the moves along the way are legal for this compound to be legal
       final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
       final toEndPipNo = fromStartPipNo + hops.sum();
-      final move = GammonMove(fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
+      final move = GammonMove(
+          fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
       if (GammonRules.checkLegalMove(board, move).isNotEmpty) {
         final clampedToEndPipNo = toEndPipNo < 0
             ? 0
             : toEndPipNo > 25
                 ? 25
                 : toEndPipNo;
-        legalMoves.add(GammonMove(fromPipNo: move.fromPipNo, toPipNo: clampedToEndPipNo, hops: move.hops));
+        legalMoves.add(GammonMove(
+            fromPipNo: move.fromPipNo,
+            toPipNo: clampedToEndPipNo,
+            hops: move.hops));
       }
     }
 
     return legalMoves.toList();
   }
 
-  static List<List<GammonDelta>> checkLegalMove(List<List<int>> board, GammonMove move) {
+  static List<List<GammonDelta>> checkLegalMove(
+      List<List<int>> board, GammonMove move) {
     // temp board state while checking each hop of the move
-    final tempBoard = List<List<int>>.generate(board.length, (i) => List.from(board[i]));
+    final tempBoard =
+        List<List<int>>.generate(board.length, (i) => List.from(board[i]));
     return applyMove(tempBoard, move);
   }
 
   // can the piece can be moved without hitting?
-  static bool canMove(GammonPlayer player, int fromPipNo, int toPipNo, List<List<int>> board) {
+  static bool canMove(
+      GammonPlayer player, int fromPipNo, int toPipNo, List<List<int>> board) {
     if (fromPipNo < 0 || fromPipNo > 25) return false;
     if (toPipNo < 0 || toPipNo > 25) return false;
 
@@ -422,7 +475,8 @@ class GammonRules {
   }
 
   // move the piece without hitting
-  static GammonDelta move(List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
+  static GammonDelta move(
+      List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
     assert(canMove(player, fromPipNo, toPipNo, board));
     final fromPieces = board[fromPipNo];
     final index = fromPieces.lastIndexWhere((p) => playerFor(p) == player);
@@ -430,11 +484,16 @@ class GammonRules {
     final toPieces = board[toPipNo];
     toPieces.add(id);
 
-    return GammonDelta(kind: GammonDeltaKind.move, pieceID: id, fromPipNo: fromPipNo, toPipNo: toPipNo);
+    return GammonDelta(
+        kind: GammonDeltaKind.move,
+        pieceID: id,
+        fromPipNo: fromPipNo,
+        toPipNo: toPipNo);
   }
 
   // can the piece can be hit?
-  static bool canHit(List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
+  static bool canHit(
+      List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
     if (fromPipNo < 0 || fromPipNo > 25) return false;
     if (toPipNo < 0 || toPipNo > 25) return false;
 
@@ -454,7 +513,8 @@ class GammonRules {
   }
 
   // hit a lone piece
-  static List<GammonDelta> hit(List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
+  static List<GammonDelta> hit(
+      List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
     assert(canHit(board, player, fromPipNo, toPipNo));
     final fromPieces = board[fromPipNo];
     final fromIndex = fromPieces.lastIndexWhere((p) => playerFor(p) == player);
@@ -467,8 +527,16 @@ class GammonRules {
     board[barPipNo].add(toId);
 
     return [
-      GammonDelta(kind: GammonDeltaKind.hit, pieceID: fromId, fromPipNo: fromPipNo, toPipNo: toPipNo), // hitter
-      GammonDelta(kind: GammonDeltaKind.bar, pieceID: toId, fromPipNo: toPipNo, toPipNo: barPipNo), // hittee
+      GammonDelta(
+          kind: GammonDeltaKind.hit,
+          pieceID: fromId,
+          fromPipNo: fromPipNo,
+          toPipNo: toPipNo), // hitter
+      GammonDelta(
+          kind: GammonDeltaKind.bar,
+          pieceID: toId,
+          fromPipNo: toPipNo,
+          toPipNo: barPipNo), // hittee
     ];
   }
 
@@ -476,7 +544,8 @@ class GammonRules {
   static final _playerNonHomeBoardPipNos = [7.rangeTo(24), 1.rangeTo(18)];
 
   // can bear the piece off?
-  static bool canBearOff(List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
+  static bool canBearOff(
+      List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
     if (fromPipNo < 0 || fromPipNo > 25) return false;
     if (toPipNo > 0 && toPipNo < 25) return false;
 
@@ -489,20 +558,24 @@ class GammonRules {
 
     // can't bear off if not all of the pieces are in the home board
     final otherPipNos = _playerNonHomeBoardPipNos[player.index];
-    for (final pipNo in otherPipNos) if (board[pipNo].any((p) => playerFor(p) == player)) return false;
+    for (final pipNo in otherPipNos)
+      if (board[pipNo].any((p) => playerFor(p) == player)) return false;
 
     // can bear off if moving exactly to the offPipNo
     if (toPipNo == offPipNo) return true;
 
     // check if it's a forced bear off, i.e. no pieces on pips > fromPipNo
-    final greaterHomeBoardPipNos = _playerHomeBoardPipNos[player.index]
-        .where((pipNo) => player == GammonPlayer.one ? pipNo > fromPipNo : pipNo < fromPipNo);
-    for (final pipNo in greaterHomeBoardPipNos) if (board[pipNo].any((p) => playerFor(p) == player)) return false;
+    final greaterHomeBoardPipNos = _playerHomeBoardPipNos[player.index].where(
+        (pipNo) =>
+            player == GammonPlayer.one ? pipNo > fromPipNo : pipNo < fromPipNo);
+    for (final pipNo in greaterHomeBoardPipNos)
+      if (board[pipNo].any((p) => playerFor(p) == player)) return false;
     return true;
   }
 
   // bear off the piece
-  static GammonDelta bearOff(List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
+  static GammonDelta bearOff(
+      List<List<int>> board, GammonPlayer player, int fromPipNo, int toPipNo) {
     assert(canBearOff(board, player, fromPipNo, toPipNo));
 
     final fromPieces = board[fromPipNo];
@@ -512,6 +585,10 @@ class GammonRules {
     final offPieces = board[offPipNo];
     offPieces.add(id);
 
-    return GammonDelta(kind: GammonDeltaKind.bearoff, pieceID: id, fromPipNo: fromPipNo, toPipNo: offPipNo);
+    return GammonDelta(
+        kind: GammonDeltaKind.bearoff,
+        pieceID: id,
+        fromPipNo: fromPipNo,
+        toPipNo: offPipNo);
   }
 }
