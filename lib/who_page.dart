@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 //import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 
-import 'package:fibscli/fibs_state.dart';
-import 'package:fibscli/main.dart';
-import 'package:fibscli/tinystate.dart';
+import 'fibs_state.dart';
+import 'main.dart';
+import 'tinystate.dart';
 
 class WhoPage extends StatefulWidget {
+  const WhoPage({super.key});
+
   @override
   _WhoPageState createState() => _WhoPageState();
 }
@@ -18,20 +22,22 @@ class _WhoPageState extends State<WhoPage> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: Text(App.title),
+          title: const Text(App.title),
           actions: [
             IconButton(
               onPressed: () => setState(() => _showMessages = !_showMessages),
-              icon: Icon(Icons.message),
+              icon: const Icon(Icons.message),
               tooltip: _showMessages ? 'hide messages' : 'show messages',
             ),
             IconButton(
-              onPressed: App.fibs.connected ? () => _tapSend(context) : null,
-              icon: Icon(Icons.send),
+              onPressed: App.fibs.connected
+                  ? () => unawaited(_tapSend(context))
+                  : null,
+              icon: const Icon(Icons.send),
               tooltip: 'send command',
             ),
             OutlinedButton(
-                onPressed: () => App.fibs.logout(), child: Text('Logout')),
+                onPressed: App.fibs.logout, child: const Text('Logout')),
           ],
         ),
         body: Row(
@@ -45,7 +51,7 @@ class _WhoPageState extends State<WhoPage> {
                       children: [
                         Container(
                           alignment: Alignment.center,
-                          padding: EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(10),
                           child: Stack(
                             children: [
                               Align(
@@ -58,11 +64,9 @@ class _WhoPageState extends State<WhoPage> {
                                       fontSize: 36),
                                 ),
                               ),
-                              Align(
+                              const Align(
                                 alignment: Alignment.centerRight,
-                                child: Container(
-                                  child: Text('TODO'),
-                                ),
+                                child: Text('TODO'),
                                 // TODO
                                 // DropdownButton<String>(
                                 //   value: _source.filter,
@@ -82,10 +86,8 @@ class _WhoPageState extends State<WhoPage> {
                             ],
                           ),
                         ),
-                        Expanded(
-                          child: Container(
-                            child: Text('TODO'),
-                          ),
+                        const Expanded(
+                          child: Text('TODO'),
                           // TODO
                           // SfDataGrid(
                           //   source: _source,
@@ -104,7 +106,7 @@ class _WhoPageState extends State<WhoPage> {
                           //         columnName: 'opponent',
                           //         label: Text('opponent')),
                           //     GridColumn(
-                          //         columnName: 'rating', label: Text('rating')),
+                          //       columnName: 'rating', label: Text('rating')),
                           //     GridColumn(
                           //         columnName: 'ready', label: Text('ready')),
                           //   ],
@@ -113,7 +115,8 @@ class _WhoPageState extends State<WhoPage> {
                       ],
                     ),
                   ),
-                  // if (_showMessages) MessagesView(whoInfos: App.fibs.whoInfos),
+                  // if (_showMessages)
+                  //  MessagesView(whoInfos: App.fibs.whoInfos),
                 ],
               ),
             ),
@@ -190,7 +193,8 @@ class _WhoPageState extends State<WhoPage> {
   //               Text('rating'),
   //               Text(who.rating.toStringAsFixed(2))
   //             ]),
-  //             TableRow(children: [Text('ready'), Text(who.ready.toString())]),
+  //             TableRow(children: [Text('ready'),
+  //               Text(who.ready.toString())]),
   //             TableRow(children: [Text('watching'), Text(who.watching)]),
   //           ],
   //         ),
@@ -207,48 +211,51 @@ class _WhoPageState extends State<WhoPage> {
   //   _tapWho(context, who);
   // }
 
-  void _tapSend(BuildContext context) async {
+  Future<void> _tapSend(BuildContext context) async {
     final cmd = await SendComandDialog.getCommand(context);
     if (cmd != null && cmd.isNotEmpty) App.fibs.send(cmd);
   }
 }
 
 class SendComandDialog extends StatefulWidget {
+  const SendComandDialog({super.key});
+
   static Future<String?> getCommand(BuildContext context) async =>
-      await showDialog<String>(
+      showDialog<String>(
         context: context,
-        builder: (context) => Dialog(child: SendComandDialog()),
+        builder: (context) => const Dialog(child: SendComandDialog()),
       );
 
   @override
-  _SendComandDialogState createState() => new _SendComandDialogState();
+  _SendComandDialogState createState() => _SendComandDialogState();
 }
 
 class _SendComandDialogState extends State<SendComandDialog> {
   TextEditingController? _controller;
 
   @override
-  initState() {
+  void initState() {
     super.initState();
     _controller = TextEditingController();
   }
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(8),
         child: Row(
           children: [
             Expanded(
                 child: TextField(
-                    decoration: InputDecoration(hintText: "command to send"),
+                    decoration:
+                        const InputDecoration(hintText: 'command to send'),
                     controller: _controller)),
             OutlinedButton(
                 onPressed: () => Navigator.pop(context, ''),
-                child: Text('Cancel')),
-            SizedBox(width: 8),
+                child: const Text('Cancel')),
+            const SizedBox(width: 8),
             ElevatedButton(
                 onPressed: () => Navigator.pop(context, _controller!.text),
-                child: Text('Send')),
+                child: const Text('Send')),
           ],
         ),
       );
@@ -377,7 +384,8 @@ class _MessagesViewState extends State<MessagesView> {
   @override
   Widget build(BuildContext context) => Container(
         width: 400,
-        decoration: BoxDecoration(border: Border.all(width: 1, color: Color.fromRGBO(0, 0, 0, 0.26))),
+        decoration: BoxDecoration(border: Border.all(width: 1,
+                      color: Color.fromRGBO(0, 0, 0, 0.26))),
         child: Column(
           children: [
             Align(
@@ -386,7 +394,8 @@ class _MessagesViewState extends State<MessagesView> {
                 padding: EdgeInsets.all(10),
                 child: Text(
                   'FIBS Messages',
-                  style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.w500, fontSize: 36),
+                  style: TextStyle(color: Theme.of(context).primaryColor,
+                           fontWeight: FontWeight.w500, fontSize: 36),
                 ),
               ),
             ),
@@ -409,12 +418,14 @@ class _MessagesViewState extends State<MessagesView> {
                 DropdownButton<String>(
                   value: _hears,
                   items: [
-                    for (final item in ['everyone', 'players+watchers', 'watchers'])
+                    for (final item in ['everyone', 'players+watchers',
+                      'watchers'])
                       DropdownMenuItem<String>(value: item, child: Text(item)),
                   ],
                   onChanged: (item) => setState(() => _source.filter = item),
                 ),
-                Expanded(child: TextField(controller: _controller, decoration: InputDecoration(labelText: 'message'))),
+                Expanded(child: TextField(controller: _controller,
+                  decoration: InputDecoration(labelText: 'message'))),
               ],
             ),
           ],

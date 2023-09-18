@@ -1,22 +1,21 @@
-import 'package:flutter/material.dart';
 import 'package:dartx/dartx.dart';
+import 'package:flutter/material.dart';
 
 class ChangeNotifierBuilder<T extends ChangeNotifier?> extends AnimatedBuilder {
   ChangeNotifierBuilder({
-    Key? key,
     required T notifier,
-    required Widget Function(BuildContext context, T listenable, Widget? child) builder,
-    Widget? child,
+    required Widget Function(BuildContext context, T listenable, Widget? child)
+        builder,
+    super.key,
+    super.child,
   }) : super(
-            key: key,
             animation: notifier!,
-            child: child,
             builder: (context, child) => builder(context, notifier, child));
 }
 
 class NotifierList<T> extends Iterable<T> with ChangeNotifier {
-  final List<T> _items;
   NotifierList([List<T>? items]) : _items = items ?? <T>[];
+  final List<T> _items;
 
   T operator [](int i) => _items[i];
   void operator []=(int i, T value) => _items[i] = value;
@@ -63,32 +62,38 @@ class NotifierList<T> extends Iterable<T> with ChangeNotifier {
     notifyListeners();
   }
 
-  Iterable<T> sortedBy(Comparable<T> Function(T element) selector) => _items.sortedBy(selector);
+  Iterable<T> sortedBy(Comparable<T> Function(T element) selector) =>
+      _items.sortedBy(selector);
 }
 
 class FutureBuilder2<T> extends StatelessWidget {
+  const FutureBuilder2({
+    required this.future,
+    required this.data,
+    super.key,
+    this.initialData,
+    this.pending,
+    this.error,
+  });
   final Future<T> future;
   final T? initialData;
   final Widget Function(BuildContext context)? pending;
   final Widget Function(BuildContext context, Object? error)? error;
   final Widget Function(BuildContext context, T? data) data;
 
-  FutureBuilder2({
-    Key? key,
-    required this.future,
-    this.initialData,
-    this.pending,
-    this.error,
-    required this.data,
-  })  : super(key: key);
-
   @override
   Widget build(BuildContext context) => FutureBuilder<T>(
       future: future,
       initialData: initialData,
       builder: (context, snapshot) {
-        if (snapshot.hasError) return error != null ? error!(context, snapshot.error) : Text(snapshot.error.toString());
+        if (snapshot.hasError) {
+          return error != null
+              ? error!(context, snapshot.error)
+              : Text(snapshot.error.toString());
+        }
         if (snapshot.hasData) return data(context, snapshot.data);
-        return pending != null ? pending!(context) : Center(child: CircularProgressIndicator());
+        return pending != null
+            ? pending!(context)
+            : const Center(child: CircularProgressIndicator());
       });
 }

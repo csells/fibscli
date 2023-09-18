@@ -1,14 +1,17 @@
-import 'package:fibscli/fibs_state.dart';
-import 'package:fibscli/game_play_page.dart';
-import 'package:fibscli/tinystate.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:fibscli/login.dart';
-// import 'package:fibscli/who_page.dart';
 
-void main() => runApp(App());
+import 'fibs_state.dart';
+import 'game_play_page.dart';
+import 'tinystate.dart';
+
+void main() => runApp(const App());
 
 class App extends StatefulWidget {
+  const App({super.key});
+
   static const title = 'Backgammon';
   static final fibs = FibsState();
   static final prefs = ValueNotifier<SharedPreferences?>(null);
@@ -21,7 +24,10 @@ class _AppState extends State<App> {
   @override
   void initState() {
     super.initState();
-    SharedPreferences.getInstance().then((prefs) => App.prefs.value = prefs);
+
+    unawaited(
+      SharedPreferences.getInstance().then((prefs) => App.prefs.value = prefs),
+    );
   }
 
   @override
@@ -34,7 +40,7 @@ class _AppState extends State<App> {
         home: ChangeNotifierBuilder<FibsState>(
           notifier: App.fibs,
           builder: (context, state, child) => Navigator(
-            pages: [
+            pages: const [
               // if (!state.loggedIn)
               //   MaterialPage<void>(child: LoginPage())
               // else ...[

@@ -141,7 +141,8 @@
 // ''');
 
 //     final board = fb.boardFromLines(lines);
-//     final move = GammonMove(fromPipNo: 13, toPipNo: 5, hops: [-2, -2, -2, -2]);
+//     final move = GammonMove(fromPipNo: 13,
+//                    toPipNo: 5, hops: [-2, -2, -2, -2]);
 //     final deltasForHops = GammonRules.checkLegalMove(board, move);
 //     expect(deltasForHops, isNotEmpty);
 //     expect(deltasForHops, hasLength(4));
@@ -269,7 +270,8 @@
 // ''');
 
 //     final board = fb.boardFromLines(lines);
-//     final move = GammonMove(fromPipNo: 19, toPipNo: 7, hops: [-3, -3, -3, -3]);
+//     final move = GammonMove(fromPipNo: 19, toPipNo: 7,
+//                    hops: [-3, -3, -3, -3]);
 //     final deltasForHops = GammonRules.checkLegalMove(board, move);
 //     expect(deltasForHops, isEmpty);
 //   });
@@ -464,7 +466,8 @@
 // ''');
 
 //     final board = fb.boardFromLines(lines);
-//     final moves = GammonRules.getAllLegalMoves(board, GammonPlayer.one, [4, 2]);
+//     final moves = GammonRules.getAllLegalMoves(board,
+//                     GammonPlayer.one, [4, 2]);
 //     expect(moves, hasLength(1));
 //   });
 

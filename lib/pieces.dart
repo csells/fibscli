@@ -1,8 +1,13 @@
 import 'dart:math';
-import 'package:fibscli/model.dart';
+
 import 'package:flutter/material.dart';
 
+import 'model.dart';
+
 class PieceView extends StatelessWidget {
+  PieceView({required this.layout, super.key})
+      : _gradeColors = _pieceColors[layout.pieceID.sign == -1 ? 0 : 1],
+        _textColor = layout.pieceID.sign == -1 ? Colors.white : Colors.black;
   static final _pieceColors = [
     [Colors.grey[800]!, Colors.black],
     [Colors.white, Colors.grey[400]!]
@@ -11,9 +16,6 @@ class PieceView extends StatelessWidget {
   final Color _textColor;
   final List<Color> _gradeColors;
   final PieceLayout layout;
-  PieceView({required this.layout})
-      : _gradeColors = _pieceColors[layout.pieceID.sign == -1 ? 0 : 1],
-        _textColor = layout.pieceID.sign == -1 ? Colors.white : Colors.black;
 
   @override
   Widget build(BuildContext context) => layout.edge
@@ -23,7 +25,7 @@ class PieceView extends StatelessWidget {
             border: Border.all(color: Colors.black, width: 1),
           ),
         )
-      : Container(
+      : DecoratedBox(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient:
@@ -36,7 +38,7 @@ class PieceView extends StatelessWidget {
             child: FractionallySizedBox(
               widthFactor: .9,
               child: SizedBox.expand(
-                child: Container(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
@@ -58,17 +60,6 @@ class PieceView extends StatelessWidget {
 }
 
 class PieceLayout {
-  static final _pieceSize = Size(28, 28);
-  static final _offset = Offset(36, 28);
-  static final _edgeSize = Size(32, 11);
-
-  final int pipNo;
-  final int pieceID;
-  final Offset? offset;
-  final String label;
-  final bool highlight;
-  final bool edge;
-
   PieceLayout({
     required this.pipNo,
     required this.pieceID,
@@ -77,6 +68,16 @@ class PieceLayout {
     this.highlight = false,
     this.edge = false,
   });
+  static const _pieceSize = Size(28, 28);
+  static const _offset = Offset(36, 28);
+  static const _edgeSize = Size(32, 11);
+
+  final int pipNo;
+  final int pieceID;
+  final Offset? offset;
+  final String label;
+  final bool highlight;
+  final bool edge;
 
   Size get size => edge ? _edgeSize : _pieceSize;
   Rect get rect => offset! & size;
@@ -85,7 +86,8 @@ class PieceLayout {
 
   @override
   String toString() =>
-      'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect, highlight=$highlight)';
+      'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect, '
+      'highlight=$highlight)';
 
   static Iterable<PieceLayout> getLayouts(List<List<int>> board,
       [List<int?>? pipNosToHighlight]) sync* {
