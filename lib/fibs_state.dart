@@ -30,27 +30,27 @@ class FibsMessage {
 }
 
 class FibsState extends ChangeNotifier {
-  static const _proxy = 'localhost';
-  static const _port = 8080;
+  FibsState() : _conn = FibsConnection('localhost', 8080);
+
   final whoInfos = NotifierList<WhoInfo>();
   final messages = NotifierList<FibsMessage>();
-  FibsConnection _conn;
-  String _user;
+  final FibsConnection _conn;
+  String? _user;
 
-  String get user => _user;
-  bool get connected => _conn != null && _conn.connected;
+  String? get user => _user;
+  bool get connected => _conn.connected;
 
   void _streamItem(CookieMessage cm) {
     print(cm);
 
-    // ignore: missing_enum_constant_in_switch
+    // ignore: non_exhaustive_switch_statement
     switch (cm.cookie) {
       // who
       case FibsCookie.CLIP_WHO_INFO:
         _addWho(WhoInfo.from(cm));
         break;
       case FibsCookie.CLIP_LOGOUT:
-        _removeWho(cm.crumbs['name']);
+        _removeWho(cm.crumbs!['name']!);
         break;
 
       // messages
@@ -59,23 +59,28 @@ class FibsState extends ChangeNotifier {
       case FibsCookie.CLIP_SAYS:
       case FibsCookie.CLIP_SHOUTS:
       case FibsCookie.CLIP_WHISPERS:
-        messages.add(FibsMessage(cm.cookie, cm.crumbs['name'], cm.crumbs['message']));
+        messages.add(FibsMessage(
+          cm.cookie,
+          cm.crumbs!['name']!,
+          cm.crumbs!['message']!,
+        ));
         break;
+
+      default:
+        throw Exception('unhandled cookie: ${cm.cookie}');
     }
   }
 
-  bool get loggedIn => _conn != null && _conn.connected;
+  bool get loggedIn => _conn.connected;
 
-  Future<void> login({@required String user, @required String pass}) async {
+  Future<void> login({required String user, required String pass}) async {
     assert(!loggedIn);
 
-    _conn = FibsConnection(_proxy, _port);
     _conn.stream.listen(_streamItem, onDone: _reset);
-    final cookie =
-        await _conn.login(user, pass).timeout(Duration(seconds: 3), onTimeout: () => FibsCookie.FIBS_Timeout);
+    final cookie = await _conn.login(user, pass).timeout(Duration(seconds: 3),
+        onTimeout: () => FibsCookie.FIBS_Timeout);
     if (cookie != FibsCookie.CLIP_WELCOME) {
       _conn.close();
-      _conn = null;
       throw Exception(cookie == FibsCookie.FIBS_Timeout
           ? 'unable to connect; check your internet connection'
           : 'invalid user name and password');
@@ -87,12 +92,11 @@ class FibsState extends ChangeNotifier {
 
   void logout() async {
     if (loggedIn) _conn.send('bye');
-    App.prefs.value.setBool('autologin', false);
+    App.prefs.value!.setBool('autologin', false);
     _reset();
   }
 
   void _reset() {
-    _conn = null;
     whoInfos.clear();
     messages.clear();
     _user = null;
@@ -113,7 +117,8 @@ class FibsState extends ChangeNotifier {
     }
   }
 
-  void invite(WhoInfo who, int matchLength) => _conn.send('invite ${who.user} $matchLength');
+  void invite(WhoInfo who, int matchLength) =>
+      _conn.send('invite ${who.user} $matchLength');
   void send(String cmd) => _conn.send(cmd);
 }
 
@@ -144,46 +149,36 @@ class WhoInfo {
   final String client;
   final String email;
   WhoInfo({
-    this.user,
-    this.opponent,
-    this.watching,
-    this.ready,
-    this.away,
-    this.rating,
-    this.experience,
-    this.lastActive,
-    this.lastLogin,
-    this.hostname,
-    this.client,
-    this.email,
-  })  : assert(user != null),
-        assert(opponent != null),
-        assert(watching != null),
-        assert(ready != null),
-        assert(away != null),
-        assert(rating != null),
-        assert(experience != null),
-        assert(lastActive != null),
-        assert(lastLogin != null),
-        assert(hostname != null),
-        assert(client != null),
-        assert(email != null);
+    required this.user,
+    required this.opponent,
+    required this.watching,
+    required this.ready,
+    required this.away,
+    required this.rating,
+    required this.experience,
+    required this.lastActive,
+    required this.lastLogin,
+    required this.hostname,
+    required this.client,
+    required this.email,
+  });
 
   factory WhoInfo.from(CookieMessage cm) {
     assert(cm.cookie == FibsCookie.CLIP_WHO_INFO);
     return WhoInfo(
-      user: cm.crumbs['name'],
-      opponent: CookieMonster.parseOptional(cm.crumbs['opponent']) ?? '',
-      watching: CookieMonster.parseOptional(cm.crumbs['watching']) ?? '',
-      ready: CookieMonster.parseBool(cm.crumbs['ready']),
-      away: CookieMonster.parseBool(cm.crumbs['away']),
-      rating: double.parse(cm.crumbs['rating']),
-      experience: int.parse(cm.crumbs['experience']),
-      lastActive: DateTime.now().add(Duration(seconds: int.parse(cm.crumbs['idle']))),
-      lastLogin: CookieMonster.parseTimestamp(cm.crumbs['login']),
-      hostname: cm.crumbs['hostname'] ?? '',
-      client: CookieMonster.parseOptional(cm.crumbs['client']) ?? '',
-      email: CookieMonster.parseOptional(cm.crumbs['email']) ?? '',
+      user: cm.crumbs!['name']!,
+      opponent: CookieMonster.parseOptional(cm.crumbs!['opponent']!) ?? '',
+      watching: CookieMonster.parseOptional(cm.crumbs!['watching']!) ?? '',
+      ready: CookieMonster.parseBool(cm.crumbs!['ready']),
+      away: CookieMonster.parseBool(cm.crumbs!['away']),
+      rating: double.parse(cm.crumbs!['rating']!),
+      experience: int.parse(cm.crumbs!['experience']!),
+      lastActive:
+          DateTime.now().add(Duration(seconds: int.parse(cm.crumbs!['idle']!))),
+      lastLogin: CookieMonster.parseTimestamp(cm.crumbs!['login']!),
+      hostname: cm.crumbs!['hostname'] ?? '',
+      client: CookieMonster.parseOptional(cm.crumbs!['client']!) ?? '',
+      email: CookieMonster.parseOptional(cm.crumbs!['email']!) ?? '',
     );
   }
 }

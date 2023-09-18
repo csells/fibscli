@@ -20,7 +20,7 @@ class GamePlayPage extends StatefulWidget {
 class _GamePlayPageState extends State<GamePlayPage> {
   final _controller = GameViewController();
   final _prefsFuture = SharedPreferences.getInstance();
-  SharedPreferences _prefs;
+  late SharedPreferences _prefs;
 
   @override
   void initState() {
@@ -78,7 +78,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
         body: FutureBuilder2<SharedPreferences>(
           future: _prefsFuture,
           data: (context, prefs) {
-            _controller.reversed = prefs.getBool('reversed') ?? false;
+            _controller.reversed = prefs!.getBool('reversed') ?? false;
             return GameView(controller: _controller);
           },
         ),
@@ -95,8 +95,8 @@ class _GamePlayPageState extends State<GamePlayPage> {
 class GameViewController extends ChangeNotifier {
   bool _reversed = false;
   var _canUndo = true;
-  void Function() _onUndo;
-  void Function() _onNewGame;
+  late void Function() _onUndo;
+  late void Function() _onNewGame;
 
   bool get reversed => _reversed;
   set reversed(bool reversed) {
@@ -119,7 +119,7 @@ class GameViewController extends ChangeNotifier {
 
 class GameView extends StatefulWidget {
   final GameViewController controller;
-  GameView({GameViewController controller})
+  GameView({GameViewController? controller})
       : controller = controller ?? GameViewController();
 
   @override
@@ -127,23 +127,23 @@ class GameView extends StatefulWidget {
 }
 
 class _GameViewState extends State<GameView> {
-  GammonState _game;
+  GammonState? _game;
   var _legalMovesForPips = <int, List<GammonMove>>{};
-  int _fromPipNo;
-  final _pieceLayouts = <int, List<PieceLayout>>{};
+  int? _fromPipNo;
+  final _pieceLayouts = <int?, List<PieceLayout>>{};
 
   @override
   void initState() {
     super.initState();
 
     widget.controller.onUndo = () {
-      assert(!_game.gameOver);
-      _game.undoTurn();
+      assert(!_game!.gameOver);
+      _game!.undoTurn();
       _reset();
     };
 
     widget.controller.onNewGame = () async {
-      final ok = _game.gameOver
+      final ok = _game!.gameOver
           ? true
           : await QuitGameDialog.show(context); // result can return null
       if (ok == true) _newGame();
@@ -154,31 +154,31 @@ class _GameViewState extends State<GameView> {
 
   @override
   void dispose() {
-    if (_game != null) _game.removeListener(_gameChanged);
+    if (_game != null) _game!.removeListener(_gameChanged);
     super.dispose();
   }
 
   void _newGame() {
-    if (_game != null) _game.removeListener(_gameChanged);
+    if (_game != null) _game!.removeListener(_gameChanged);
 
     _game = GammonState();
     widget.controller.canUndo = true;
-    _game.addListener(_gameChanged);
+    _game!.addListener(_gameChanged);
     _reset();
   }
 
   void _gameChanged() async {
-    if (!_game.gameOver) return;
+    if (!_game!.gameOver) return;
 
-    _game.removeListener(_gameChanged);
+    _game!.removeListener(_gameChanged);
     widget.controller.canUndo = false;
     final ok = await NewGameDialog.show(
-        context, _game.turnPlayer); // result can be null
+        context, _game!.turnPlayer); // result can be null
     if (ok == true) _newGame();
   }
 
   @override
-  Widget build(BuildContext context) => ChangeNotifierBuilder<GammonState>(
+  Widget build(BuildContext context) => ChangeNotifierBuilder<GammonState?>(
         notifier: _game,
         builder: (context, game, child) => Container(
           width: double.infinity,
@@ -193,7 +193,7 @@ class _GameViewState extends State<GameView> {
                 transformAlignment: Alignment.center,
                 child: FittedBox(
                   child: IgnorePointer(
-                    ignoring: _game.gameOver,
+                    ignoring: _game!.gameOver,
                     child: Stack(
                       children: [
                         // frame
@@ -233,7 +233,7 @@ class _GameViewState extends State<GameView> {
                         ),
 
                         // pips and labels
-                        for (final layout in PipLayout.layouts) ...[
+                        for (final layout in PipLayout.layouts!) ...[
                           Positioned.fromRect(
                             rect: layout.rect,
                             child: GestureDetector(
@@ -308,10 +308,10 @@ class _GameViewState extends State<GameView> {
 
                         // pieces
                         for (final layout in PieceLayout.getLayouts(
-                            game.board, _pipNosToHighlight))
+                            game!.board, _pipNosToHighlight))
                           _pieceLayouts.containsKey(layout.pieceID)
                               ? AnimatedPiece.fromLayouts(
-                                  layouts: _pieceLayouts[layout.pieceID],
+                                  layouts: _pieceLayouts[layout.pieceID]!,
                                   onEnd: () =>
                                       _endPieceAnimation(layout.pieceID),
                                   child: GestureDetector(
@@ -354,7 +354,7 @@ class _GameViewState extends State<GameView> {
         ),
       );
 
-  List<int> get _pipNosToHighlight =>
+  List<int?> get _pipNosToHighlight =>
       _fromPipNo != null ? [_fromPipNo] : _legalMovesForPips.keys.toList();
 
   void _tapPiece(int pipNo) => _tapPip(pipNo);
@@ -387,10 +387,10 @@ class _GameViewState extends State<GameView> {
     // if this is a legal move, do the move
     if (hops != null) {
       final initialBoard = List<List<int>>.generate(
-          _game.board.length, (i) => List<int>.from(_game.board[i]));
+          _game!.board.length, (i) => List<int>.from(_game!.board[i]));
       final move =
-          GammonMove(fromPipNo: _fromPipNo, toPipNo: toEndPipNo, hops: hops);
-      final deltasForHops = _game.applyMove(move: move);
+          GammonMove(fromPipNo: _fromPipNo!, toPipNo: toEndPipNo, hops: hops);
+      final deltasForHops = _game!.applyMove(move: move);
 
       // convert game states for each hop into a sequence of layouts for each affected piece
       assert(deltasForHops.length == hops.length);
@@ -404,15 +404,15 @@ class _GameViewState extends State<GameView> {
 
   void _reset() {
     setState(() {
-      _legalMovesForPips = _game.getAllLegalMoves();
+      _legalMovesForPips = _game!.getAllLegalMoves();
       _fromPipNo = null;
     });
   }
 
   void _tapDice() {
     // can't go to the next turn until there are no more available dice
-    if (_game.dice.every((d) => !d.available)) {
-      _game.commitTurn();
+    if (_game!.dice.every((d) => !d.available)) {
+      _game!.commitTurn();
       _reset();
     }
   }
@@ -436,7 +436,7 @@ class _GameViewState extends State<GameView> {
     return result;
   }
 
-  static Map<int, List<PieceLayout>> _pieceLayoutsFor(
+  static Map<int?, List<PieceLayout>> _pieceLayoutsFor(
     List<List<int>> initialBoard,
     List<List<GammonDelta>> deltasForHops,
   ) {
@@ -457,7 +457,7 @@ class _GameViewState extends State<GameView> {
     ];
 
     // initialize the list of layouts that each piece travels
-    final pieceLayouts = <int, List<PieceLayout>>{};
+    final pieceLayouts = <int?, List<PieceLayout>>{};
     for (final pieceID in pieceIDs) pieceLayouts[pieceID] = [];
 
     // get layout for each piece at each hop (most won't move)
@@ -470,7 +470,7 @@ class _GameViewState extends State<GameView> {
       for (final pieceID in pieceIDs) {
         // add the layout to this hop for this piece
         final layout = layouts.firstWhere((l) => l.pieceID == pieceID);
-        pieceLayouts[pieceID].add(layout);
+        pieceLayouts[pieceID]!.add(layout);
       }
     }
 
@@ -479,8 +479,7 @@ class _GameViewState extends State<GameView> {
 
   // remove each animated piece from the list of pieces to animate
   void _endPieceAnimation(int pieceID) {
-    final removed = _pieceLayouts.remove(pieceID);
-    assert(removed != null);
+    _pieceLayouts.remove(pieceID)!;
 
     // the last piece has been animated, so draw the final state of the board w/ labels, on edge, etc.
     if (_pieceLayouts.isEmpty) setState(() {});
@@ -490,8 +489,8 @@ class _GameViewState extends State<GameView> {
 class InnerShadingRect extends StatelessWidget {
   final Rect rect;
   const InnerShadingRect({
-    Key key,
-    @required this.rect,
+    Key? key,
+    required this.rect,
   }) : super(key: key);
 
   @override
@@ -547,12 +546,12 @@ class QuitGameDialog extends StatelessWidget {
         ],
       );
 
-  static Future<bool> show(BuildContext context) => showDialog<bool>(
+  static Future<bool?> show(BuildContext context) => showDialog<bool>(
       context: context, builder: (context) => QuitGameDialog());
 }
 
 class NewGameDialog extends StatelessWidget {
-  final GammonPlayer winner;
+  final GammonPlayer? winner;
   const NewGameDialog(this.winner);
 
   @override
@@ -577,7 +576,7 @@ class NewGameDialog extends StatelessWidget {
         ],
       );
 
-  static Future<bool> show(BuildContext context, GammonPlayer winner) =>
+  static Future<bool?> show(BuildContext context, GammonPlayer? winner) =>
       showDialog<bool>(
           context: context, builder: (context) => NewGameDialog(winner));
 }

@@ -8,13 +8,10 @@ class AnimatedPiece extends StatefulWidget {
   final void Function() onEnd;
 
   AnimatedPiece.fromLayouts({
-    @required this.layouts,
-    @required this.child,
+    required this.layouts,
+    required this.child,
     this.onEnd = _noop,
-  })  : assert(layouts != null),
-        assert(layouts.length > 1),
-        assert(child != null),
-        assert(onEnd != null);
+  })  : assert(layouts.length > 1);
 
   @override
   _AnimatedPieceState createState() => _AnimatedPieceState();
@@ -23,16 +20,16 @@ class AnimatedPiece extends StatefulWidget {
 }
 
 class _AnimatedPieceState extends State<AnimatedPiece> with TickerProviderStateMixin {
-  AnimationController _controller;
-  Animation<PieceLayout> _animation;
+  late AnimationController _controller;
+  late Animation<PieceLayout> _animation;
 
   @override
   void initState() {
     super.initState();
 
-    final distance = [
+    final double distance = [
       for (var i = 1; i != widget.layouts.length; ++i)
-        (widget.layouts[i - 1].offset - widget.layouts[i].offset).distance
+        (widget.layouts[i - 1].offset! - widget.layouts[i].offset!).distance
     ].sum();
     final animatable = _animatableFor(widget.layouts);
     _controller = AnimationController(vsync: this, duration: Duration(milliseconds: (distance * 3).floor()));
@@ -45,7 +42,7 @@ class _AnimatedPieceState extends State<AnimatedPiece> with TickerProviderStateM
           for (var i = 1; i != layouts.length; ++i) ...[
             TweenSequenceItem(
               tween: PieceLayoutTween(begin: layouts[i - 1], end: layouts[i]),
-              weight: (layouts[i - 1].offset - layouts[i].offset).distance + 1,
+              weight: (layouts[i - 1].offset! - layouts[i].offset!).distance + 1,
             ),
             if (i != layouts.length - 1)
               TweenSequenceItem(
@@ -65,13 +62,13 @@ class _AnimatedPieceState extends State<AnimatedPiece> with TickerProviderStateM
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
         animation: _controller,
-        builder: (context, child) => Positioned.fromRect(rect: _animation.value.rect, child: child),
+        builder: (context, child) => Positioned.fromRect(rect: _animation.value.rect, child: child!),
         child: widget.child,
       );
 }
 
 class PieceLayoutTween extends Tween<PieceLayout> {
-  PieceLayoutTween({PieceLayout begin, PieceLayout end}) : super(begin: begin, end: end) {
+  PieceLayoutTween({required PieceLayout begin, required PieceLayout end}) : super(begin: begin, end: end) {
     // these things shouldn't change...
     assert(begin.highlight == end.highlight);
     assert(begin.pieceID == end.pieceID);
@@ -88,10 +85,10 @@ class PieceLayoutTween extends Tween<PieceLayout> {
   @override
   PieceLayout lerp(double t) => PieceLayout(
         pipNo: 0, // used?
-        pieceID: begin.pieceID,
-        offset: Offset.lerp(begin.offset, end.offset, t), // only the offset changes
+        pieceID: begin!.pieceID,
+        offset: Offset.lerp(begin!.offset, end!.offset, t), // only the offset changes
         label: '', // used?
-        highlight: begin.highlight,
-        edge: begin.edge,
+        highlight: begin!.highlight,
+        edge: begin!.edge,
       );
 }

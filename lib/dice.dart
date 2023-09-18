@@ -9,8 +9,8 @@ class DieState {
 
 class DieView extends StatelessWidget {
   static final _dieColors = [
-    [Colors.grey[850], Color(0xFF141414)],
-    [Colors.grey[50], Colors.grey[300]]
+    [Colors.grey[850]!, Color(0xFF141414)],
+    [Colors.grey[50]!, Colors.grey[300]!]
   ];
 
   final List<Color> _gradeColors;
@@ -18,11 +18,13 @@ class DieView extends StatelessWidget {
   final Color _otherColor;
   final DieLayout layout;
   final void Function() _onTap;
-  DieView({@required this.layout, void Function() onTap})
+  DieView({required this.layout, void Function()? onTap})
       : _onTap = onTap == null ? _noop : onTap,
-        _playerColor = layout.player == GammonPlayer.one ? Colors.black : Colors.white,
-        _otherColor = layout.player == GammonPlayer.one ? Colors.white : Colors.black,
-        _gradeColors = _dieColors[layout.player.index];
+        _playerColor =
+            layout.player == GammonPlayer.one ? Colors.black : Colors.white,
+        _otherColor =
+            layout.player == GammonPlayer.one ? Colors.white : Colors.black,
+        _gradeColors = _dieColors[layout.player!.index];
 
   static void _noop() {}
 
@@ -36,17 +38,21 @@ class DieView extends StatelessWidget {
               color: _playerColor,
               border: Border.all(color: Colors.black, width: 1),
               borderRadius: BorderRadius.all(Radius.circular(4)),
-              gradient: LinearGradient(begin: Alignment.topLeft, colors: _gradeColors),
+              gradient: LinearGradient(
+                  begin: Alignment.topLeft, colors: _gradeColors),
             ),
             child: FractionallySizedBox(
               child: Container(
-                decoration: BoxDecoration(shape: BoxShape.circle, color: _playerColor),
+                decoration:
+                    BoxDecoration(shape: BoxShape.circle, color: _playerColor),
                 child: Stack(
                   children: [
                     for (final rect in layout.getSpotRects())
                       Positioned.fromRect(
                         rect: rect.shift(Offset(-1, -1)),
-                        child: Container(decoration: BoxDecoration(color: _otherColor, shape: BoxShape.circle)),
+                        child: Container(
+                            decoration: BoxDecoration(
+                                color: _otherColor, shape: BoxShape.circle)),
                       ),
                   ],
                 ),
@@ -65,36 +71,53 @@ class DieLayout {
     [Offset(10, 10), Offset(26, 26)], // 2
     [Offset(10, 10), Offset(18, 18), Offset(26, 26)], // 3
     [Offset(10, 10), Offset(26, 26), Offset(10, 26), Offset(26, 10)], // 4
-    [Offset(10, 10), Offset(26, 26), Offset(10, 26), Offset(26, 10), Offset(18, 18)], // 5
-    [Offset(10, 10), Offset(26, 26), Offset(10, 26), Offset(26, 10), Offset(10, 18), Offset(26, 18)], // 6
+    [
+      Offset(10, 10),
+      Offset(26, 26),
+      Offset(10, 26),
+      Offset(26, 10),
+      Offset(18, 18)
+    ], // 5
+    [
+      Offset(10, 10),
+      Offset(26, 26),
+      Offset(10, 26),
+      Offset(26, 10),
+      Offset(10, 18),
+      Offset(26, 18)
+    ], // 6
   ];
 
   final DieState die;
-  final GammonPlayer player;
+  final GammonPlayer? player;
   final double left;
   final double top;
   final List<Offset> spots;
   DieLayout({
-    @required this.die,
-    @required this.player,
-    @required this.left,
-    @required this.top,
-    @required this.spots,
+    required this.die,
+    required this.player,
+    required this.left,
+    required this.top,
+    required this.spots,
   });
 
   Rect get rect => Rect.fromLTWH(left, top, _dieWidth, _dieHeight);
   Iterable<Rect> getSpotRects() sync* {
-    for (final spot in spots) yield Rect.fromCenter(center: spot, width: 5, height: 5);
+    for (final spot in spots)
+      yield Rect.fromCenter(center: spot, width: 5, height: 5);
   }
 
   static Iterable<DieLayout> getLayouts(GammonState game) sync* {
     final dice = game.dice;
     assert(dice.length == 2 || dice.length == 4);
 
-    GammonPlayer diePlayer(int moveNo, List<DieState> dice, int index, GammonPlayer turnPlayer) {
+    GammonPlayer? diePlayer(
+        int moveNo, List<DieState> dice, int index, GammonPlayer? turnPlayer) {
       if (moveNo != 1) return turnPlayer;
       final maxDieIndex = dice[0].roll > dice[1].roll ? 0 : 1;
-      return index == maxDieIndex ? turnPlayer : GammonRules.otherPlayer(turnPlayer);
+      return index == maxDieIndex
+          ? turnPlayer
+          : GammonRules.otherPlayer(turnPlayer);
     }
 
     final dx = dice.length == 2 ? 42 : 0;

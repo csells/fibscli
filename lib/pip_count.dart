@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class PipCountView extends StatelessWidget {
   final bool reversed;
   final PipCountLayout layout;
-  const PipCountView({@required this.layout, this.reversed = false});
+  const PipCountView({required this.layout, this.reversed = false});
 
   @override
   Widget build(BuildContext context) => Align(
@@ -28,9 +28,9 @@ class PipCountLayout {
   final double left;
   final double top;
   PipCountLayout({
-    @required this.pipCount,
-    @required this.left,
-    @required this.top,
+    required this.pipCount,
+    required this.left,
+    required this.top,
   });
 
   Rect get rect => Rect.fromLTWH(left, top, width, height);
