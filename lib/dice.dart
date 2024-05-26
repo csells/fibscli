@@ -44,9 +44,14 @@ class DieView extends StatelessWidget {
                   begin: Alignment.topLeft, colors: _gradeColors),
             ),
             child: FractionallySizedBox(
+              widthFactor: .925,
+              heightFactor: .925,
               child: DecoratedBox(
-                decoration:
-                    BoxDecoration(shape: BoxShape.circle, color: _playerColor),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _playerColor,
+                  border: const Border(),
+                ),
                 child: Stack(
                   children: [
                     for (final rect in layout.getSpotRects())
@@ -76,30 +81,45 @@ class DieLayout {
   static const _dieWidth = 36.0;
   static const _dieHeight = 36.0;
   static final _spotses = <List<Offset>>[
-    [const Offset(18, 18)], // 1
-    [const Offset(10, 10), const Offset(26, 26)], // 2
-    [const Offset(10, 10), const Offset(18, 18), const Offset(26, 26)], // 3
     [
+      // 1
+      const Offset(18, 18),
+    ],
+    [
+      // 2
+      const Offset(10, 10),
+      const Offset(26, 26),
+    ],
+    [
+      // 3
+      const Offset(10, 10),
+      const Offset(18, 18),
+      const Offset(26, 26),
+    ],
+    [
+      // 4
       const Offset(10, 10),
       const Offset(26, 26),
       const Offset(10, 26),
       const Offset(26, 10)
-    ], // 4
+    ],
     [
+      // 5
       const Offset(10, 10),
       const Offset(26, 26),
       const Offset(10, 26),
       const Offset(26, 10),
       const Offset(18, 18)
-    ], // 5
+    ],
     [
+      // 6
       const Offset(10, 10),
       const Offset(26, 26),
       const Offset(10, 26),
       const Offset(26, 10),
       const Offset(10, 18),
       const Offset(26, 18)
-    ], // 6
+    ],
   ];
 
   final DieState die;
