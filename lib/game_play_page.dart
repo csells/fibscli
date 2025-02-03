@@ -467,7 +467,7 @@ class _GameViewState extends State<GameView> {
         initialBoard.length, (i) => List<int>.from(initialBoard[i]));
 
     // find the set of pieces that are affected by this move
-    final pieceIDs = [
+    final pieceIDs = <int?>[
       for (final deltasForHop in deltasForHops)
         for (final delta in deltasForHop) delta.pieceID
     ];
@@ -480,7 +480,10 @@ class _GameViewState extends State<GameView> {
 
     // get layout for each piece at each hop (most won't move)
     // start with an empty delta to handle initial board state
-    for (final deltasForHop in [<GammonDelta>[], ...deltasForHops]) {
+    for (final deltasForHop in <List<GammonDelta>>[
+      <GammonDelta>[],
+      ...deltasForHops
+    ]) {
       // update the board for the this hop
       GammonRules.applyDeltasForHop(board, deltasForHop);
 
@@ -522,7 +525,7 @@ class InnerShadingRect extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black.withOpacity(.20), Colors.transparent],
+                  colors: [Colors.black.withAlpha(51), Colors.transparent],
                 ),
               ),
             ),
@@ -532,7 +535,7 @@ class InnerShadingRect extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
-                  colors: [Colors.black.withOpacity(.20), Colors.transparent],
+                  colors: [Colors.black.withAlpha(51), Colors.transparent],
                 ),
               ),
             ),

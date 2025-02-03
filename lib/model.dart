@@ -171,7 +171,7 @@ class GammonState extends ChangeNotifier {
     final moves = GammonRules.getAllLegalMoves(board, _turnPlayer, rolls);
 
     // find all of the possible hops
-    final hops = [
+    final hops = <int>[
       for (final moveList in moves.values)
         for (final move in moveList)
           for (final hop in move.hops) hop.abs()
@@ -424,7 +424,7 @@ class GammonRules {
 
     // check all components of the _dice for legal moves, taking into account
     // doubles. need to uniqify the numbers for trotter
-    final stringRolls = [
+    final stringRolls = <String>[
       for (var i = 0; i != rolls.length; ++i)
         '${rolls[i]}${String.fromCharCode(97 + i)}'
     ];
@@ -432,12 +432,14 @@ class GammonRules {
     // use a set to avoid dups generated from doubles
     final legalMoves = <GammonMove>{};
 
-    final comps = Compounds(stringRolls);
+    final comps = Compounds<String>(stringRolls);
     final sign = GammonRules.signFor(player);
     for (final comp in comps().where((comp) => comp.isNotEmpty)) {
       // check if all of the moves along the way are legal for this compound to
       // be legal
-      final hops = [for (final c in comp) int.parse(c.substring(0, 1)) * sign];
+      final hops = <int>[
+        for (final c in comp) int.parse(c.substring(0, 1)) * sign
+      ];
       final toEndPipNo = fromStartPipNo + hops.sum();
       final move = GammonMove(
           fromPipNo: fromStartPipNo, toPipNo: toEndPipNo, hops: hops);
