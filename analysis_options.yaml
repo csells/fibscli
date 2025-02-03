@@ -11,10 +11,12 @@ analyzer:
     # without ignore here, we cause import of all_lint_rules to warn, because
     # some rules conflict; instead, we're explicitly enabling even conflicting
     # rules and are fixing the conflicts in this file
+    document_ignores: ignore
     included_file_warning: ignore
     missing_required_param: error
     missing_return: error
     parameter_assignments: error
+    specify_nonobvious_local_variable_types: ignore
 
 linter:
   rules:

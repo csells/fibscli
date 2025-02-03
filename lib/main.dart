@@ -48,7 +48,7 @@ class _AppState extends State<App> {
               // ]
               MaterialPage<void>(child: GamePlayPage()),
             ],
-            onPopPage: (route, dynamic result) => route.didPop(result),
+            onDidRemovePage: (_) {}, // TODO: needed?
           ),
         ),
       );
