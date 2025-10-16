@@ -40,7 +40,7 @@ jobs:
             jq -r '.[] | select(.tag_name | endswith("-cli")) | .tag_name' | head -1)
           
           # Download CLI tarball
-          curl -fSL -o cline.tar.gz \
+          curl -fSLs -o cline.tar.gz \
             "https://github.com/cline/cline/releases/download/${TAG}/cline-${TAG}-linux-x64.tar.gz"
           
           # Extract
@@ -48,7 +48,6 @@ jobs:
           
           # Make executable
           chmod +x bin/cline bin/cline-host
-          
           
           # Verify
           ./bin/cline version
