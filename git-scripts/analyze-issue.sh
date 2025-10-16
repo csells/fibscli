@@ -14,7 +14,7 @@ PROMPT="${2:-What is the root cause of this issue}"
 ADDRESS="$3"
 
 if [ -z "$ADDRESS" ]; then
-    cline -y "$PROMPT: $ISSUE_URL" --mode act
+    cline -y "$PROMPT: $ISSUE_URL" --mode act -F plain
 else
-    cline -y "$PROMPT: $ISSUE_URL" --mode act --address "$ADDRESS"
+    cline -y "$PROMPT: $ISSUE_URL" --mode act --address "$ADDRESS" -F plain
 fi
