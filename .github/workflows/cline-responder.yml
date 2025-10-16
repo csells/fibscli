@@ -32,7 +32,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
 
       - name: Setup Cline CLI
         if: steps.detect.outputs.hit == 'true'
@@ -42,10 +42,6 @@ jobs:
           
           # Install the latest Cline CLI
           sudo npm install -g cline@nightly
-          
-          # Rebuild native modules for current Node.js version
-          cd /usr/local/lib/node_modules/cline
-          sudo npm rebuild
           
           # Verify
           cline version
