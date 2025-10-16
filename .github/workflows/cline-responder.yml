@@ -30,10 +30,6 @@ jobs:
 
       - name: Setup Cline CLI
         if: steps.detect.outputs.hit == 'true'
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           # Get latest CLI release tag
           TAG=$(curl -s https://api.github.com/repos/cline/cline/releases | \
@@ -52,17 +48,6 @@ jobs:
           # Verify
           ./bin/cline version
 
-      - name: Configure Cline authentication
-        if: steps.detect.outputs.hit == 'true'
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          # Export API keys for Cline to use
-          # Add other provider keys as needed
-          if [ -n "$GEMINI_API_KEY" ]; then
-            export GEMINI_API_KEY
-          fi
-
       - name: Download analyze script
         if: steps.detect.outputs.hit == 'true'
         run: |
@@ -73,12 +58,13 @@ jobs:
         if: steps.detect.outputs.hit == 'true'
         id: analyze
         env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ISSUE_URL: ${{ steps.detect.outputs.issue_url }}
           COMMENT: ${{ steps.detect.outputs.comment_body }}
         run: |
           set -euo pipefail
           
-          RESULT=$(analyze-issue.sh "${ISSUE_URL}" "Analyze this issue. The user asked: ${COMMENT}")
+          RESULT=$(./analyze-issue.sh "${ISSUE_URL}" "Analyze this issue. The user asked: ${COMMENT}")
           
           {
             echo 'result<<EOF'
