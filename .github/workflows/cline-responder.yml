@@ -37,6 +37,18 @@ jobs:
           # Verify
           cline version
 
+      - name: Configure Cline for CI
+        if: steps.detect.outputs.hit == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cline config set \
+            act-mode-api-provider=anthropic \
+            plan-mode-api-provider=anthropic \
+            api-key="$ANTHROPIC_API_KEY" \
+            act-mode-api-model-id=claude-sonnet-4-20250514 \
+            plan-mode-api-model-id=claude-sonnet-4-20250514
+
       - name: Download analyze script
         if: steps.detect.outputs.hit == 'true'
         run: |
