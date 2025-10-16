@@ -72,41 +72,53 @@ jobs:
           cline instance new -v || {
             echo "=== Instance creation failed ==="
             
-            # Dump all log files
+            # Dump all log files from the actual location Cline uses
+            ACTUAL_CLINE_DIR="$HOME/.cline"
+            
             echo "=== Cline Core Logs ==="
-            if [ -d "$CLINE_DIR/logs" ]; then
-              for logfile in "$CLINE_DIR/logs"/cline-core-*.log; do
+            if [ -d "$ACTUAL_CLINE_DIR/logs" ]; then
+              for logfile in "$ACTUAL_CLINE_DIR/logs"/cline-core-*.log; do
                 if [ -f "$logfile" ]; then
                   echo "--- $logfile ---"
                   cat "$logfile"
                 fi
               done
             else
-              echo "No logs directory found"
+              echo "No core logs directory found at $ACTUAL_CLINE_DIR/logs"
             fi
             
             echo "=== Cline Host Logs ==="
-            if [ -d "$CLINE_DIR/logs" ]; then
-              for logfile in "$CLINE_DIR/logs"/cline-host-*.log; do
+            if [ -d "$ACTUAL_CLINE_DIR/logs" ]; then
+              for logfile in "$ACTUAL_CLINE_DIR/logs"/cline-host-*.log; do
                 if [ -f "$logfile" ]; then
                   echo "--- $logfile ---"
                   cat "$logfile"
                 fi
               done
             else
-              echo "No logs directory found"
+              echo "No host logs directory found at $ACTUAL_CLINE_DIR/logs"
             fi
             
-            # Check database
+            # Check database in multiple locations
             echo "=== Database Check ==="
+            echo "Checking in CLINE_DIR ($CLINE_DIR):"
             if [ -f "$CLINE_DIR/x/locks.db" ]; then
-              echo "Database exists at $CLINE_DIR/x/locks.db"
+              echo "  Database exists at $CLINE_DIR/x/locks.db"
               ls -la "$CLINE_DIR/x/locks.db"
             else
-              echo "Database NOT found at $CLINE_DIR/x/locks.db"
-              echo "Contents of CLINE_DIR:"
-              ls -laR "$CLINE_DIR"
+              echo "  Database NOT found"
             fi
+            
+            echo "Checking in actual Cline dir ($ACTUAL_CLINE_DIR):"
+            if [ -f "$ACTUAL_CLINE_DIR/x/locks.db" ]; then
+              echo "  Database exists at $ACTUAL_CLINE_DIR/x/locks.db"
+              ls -la "$ACTUAL_CLINE_DIR/x/locks.db"
+            else
+              echo "  Database NOT found"
+            fi
+            
+            echo "Contents of actual Cline directory:"
+            ls -laR "$ACTUAL_CLINE_DIR" || echo "Directory doesn't exist"
             
             exit 1
           }
