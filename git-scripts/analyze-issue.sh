@@ -10,11 +10,12 @@ if [ -z "$1" ]; then
 fi
 
 ISSUE_URL="$1"
-PROMPT="${2:-What is the root cause of this issue?} Don't write any code; just answer the question."
+PROMPT="${2:-What is the root cause of this issue?}"
 if [ -n "$3" ]; then
     ADDRESS="--address $3"
 fi
 
 cline -y "$PROMPT: $ISSUE_URL" --mode act $ADDRESS -F json | \
     sed -n '/^{/,$p' | \
-    jq 'select(.say == "completion_result") | .text'
+    jq -r 'select(.say == "completion_result") | .text' | \
+    sed 's/\\n/\n/g'
