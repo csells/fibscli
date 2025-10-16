@@ -48,6 +48,9 @@ jobs:
           # Verify
           ./bin/cline version
 
+          # Add CLI to PATH for subsequent steps
+          echo "PATH=$(pwd)/bin:$PATH" >> $GITHUB_ENV
+
       - name: Download analyze script
         if: steps.detect.outputs.hit == 'true'
         run: |
