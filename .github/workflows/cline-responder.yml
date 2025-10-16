@@ -62,7 +62,7 @@ jobs:
       - name: Download analyze script
         if: steps.detect.outputs.hit == 'true'
         run: |
-          curl -L https://raw.githubusercontent.com/csells/fibscli/refs/heads/master/git-scripts/analyze-issue.sh -o analyze-issue.sh
+          curl -H "Cache-Control: no-cache" -L https://raw.githubusercontent.com/csells/fibscli/refs/heads/master/git-scripts/analyze-issue.sh -o analyze-issue.sh
           chmod +x analyze-issue.sh
 
       - name: Run analysis
