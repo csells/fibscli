@@ -32,7 +32,7 @@ jobs:
         if: steps.detect.outputs.hit == 'true'
         run: |
           # Install the latest Cline CLI
-          npm install -g cline@nightly
+          sudo npm install -g cline@nightly
           
           # Verify
           cline version
