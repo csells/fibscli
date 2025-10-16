@@ -10,6 +10,7 @@ permissions:
 jobs:
   respond:
     runs-on: ubuntu-latest
+    environment: cline-actions
     steps:
       - name: Check for @cline mention
         id: detect
