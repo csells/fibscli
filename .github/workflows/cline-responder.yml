@@ -31,25 +31,11 @@ jobs:
       - name: Setup Cline CLI
         if: steps.detect.outputs.hit == 'true'
         run: |
-          # Get latest CLI release tag
-          TAG=$(curl -s https://api.github.com/repos/cline/cline/releases | \
-            jq -r '.[] | select(.tag_name | endswith("-cli")) | .tag_name' | head -1)
-          
-          # Download CLI tarball
-          curl -fSL -o cline.tar.gz \
-            "https://github.com/cline/cline/releases/download/${TAG}/cline-${TAG}-linux-x64.tar.gz"
-          
-          # Extract
-          unzip -n cline.tar.gz 
-          
-          # Make executable
-          chmod +x bin/cline bin/cline-host
+          # Install the latest Cline CLI
+          npm install -g cline@nightly
           
           # Verify
-          ./bin/cline version
-
-          # Add CLI to PATH for subsequent steps
-          echo "PATH=$(pwd)/bin:$PATH" >> $GITHUB_ENV
+          cline version
 
       - name: Download analyze script
         if: steps.detect.outputs.hit == 'true'
