@@ -78,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
           
-          RESULT=$(/tmp/analyze-issue.sh "${ISSUE_URL}" "Analyze this issue. The user asked: ${COMMENT}")
+          RESULT=$(analyze-issue.sh "${ISSUE_URL}" "Analyze this issue. The user asked: ${COMMENT}")
           
           {
             echo 'result<<EOF'
