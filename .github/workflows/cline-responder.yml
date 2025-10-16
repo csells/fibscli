@@ -67,9 +67,10 @@ jobs:
           chmod 700 "$CLINE_DIR"
           echo "Created CLINE_DIR at: $CLINE_DIR"
           
-          # Create instance with verbose output
-          echo "=== Creating Cline instance with verbose output ==="
-          cline instance new -v || {
+          # Create instance and capture output
+          echo "=== Creating Cline instance ==="
+          INSTANCE_OUTPUT=$(cline instance new -v 2>&1) || {
+            echo "$INSTANCE_OUTPUT"
             echo "=== Instance creation failed ==="
             
             # Dump all log files from the actual location Cline uses
@@ -123,9 +124,12 @@ jobs:
             exit 1
           }
           
-          # Get instance address
-          echo "=== Instance created successfully ==="
-          CLINE_ADDRESS=$(cline instance list | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}:[0-9]+' | head -1)
+          # Display output
+          echo "$INSTANCE_OUTPUT"
+          
+          # Parse address from output (format: "  Address: 127.0.0.1:36733")
+          echo "=== Extracting instance address ==="
+          CLINE_ADDRESS=$(echo "$INSTANCE_OUTPUT" | grep "Address:" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}:[0-9]+')
           echo "CLINE_ADDRESS: $CLINE_ADDRESS"
           echo "CLINE_ADDRESS=$CLINE_ADDRESS" >> $GITHUB_ENV
           
