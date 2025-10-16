@@ -31,7 +31,7 @@ jobs:
       - name: Setup Cline CLI
         if: steps.detect.outputs.hit == 'true'
         run: |
-          curl -L https://github.com/cline/cline/releases/latest/download/cline-cli-linux -o /usr/local/bin/cline
+          bash curl -fsSL https://raw.githubusercontent.com/cline/cline/main/scripts/install.sh | bash 
           chmod +x /usr/local/bin/cline
 
       - name: Configure Cline authentication
@@ -52,7 +52,7 @@ jobs:
       - name: Download analyze script
         if: steps.detect.outputs.hit == 'true'
         run: |
-          curl -L https://raw.githubusercontent.com/csells/fibscli/main/git-scripts/analyze-issue.sh -o /tmp/analyze-issue.sh
+          curl -L https://raw.githubusercontent.com/csells/fibscli/refs/heads/master/git-scripts/analyze-issue.sh -o /tmp/analyze-issue.sh
           chmod +x /tmp/analyze-issue.sh
 
       - name: Run analysis
