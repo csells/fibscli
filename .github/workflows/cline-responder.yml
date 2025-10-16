@@ -37,6 +37,9 @@ jobs:
       - name: Setup Cline CLI
         if: steps.detect.outputs.hit == 'true'
         run: |
+          # check node version
+          node --version
+          
           # Install the latest Cline CLI
           sudo npm install -g cline@nightly
           
