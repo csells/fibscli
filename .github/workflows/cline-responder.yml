@@ -30,9 +30,28 @@ jobs:
 
       - name: Setup Cline CLI
         if: steps.detect.outputs.hit == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          bash curl -fsSL https://raw.githubusercontent.com/cline/cline/main/scripts/install.sh | bash 
-          chmod +x /usr/local/bin/cline
+          # Get latest CLI release tag
+          TAG=$(curl -s https://api.github.com/repos/cline/cline/releases | \
+            jq -r '.[] | select(.tag_name | endswith("-cli")) | .tag_name' | head -1)
+          
+          # Download CLI tarball
+          curl -fSL -o cline.tar.gz \
+            "https://github.com/cline/cline/releases/download/${TAG}/cline-${TAG}-linux-x64.tar.gz"
+          
+          # Extract
+          tar -xzf cline.tar.gz
+          
+          # Make executable
+          chmod +x bin/cline bin/cline-host
+          
+          
+          # Verify
+          ./bin/cline version
 
       - name: Configure Cline authentication
         if: steps.detect.outputs.hit == 'true'
@@ -45,15 +64,11 @@ jobs:
             export GEMINI_API_KEY
           fi
 
-      - name: Start Cline instance
-        if: steps.detect.outputs.hit == 'true'
-        run: cline instance new
-
       - name: Download analyze script
         if: steps.detect.outputs.hit == 'true'
         run: |
-          curl -L https://raw.githubusercontent.com/csells/fibscli/refs/heads/master/git-scripts/analyze-issue.sh -o /tmp/analyze-issue.sh
-          chmod +x /tmp/analyze-issue.sh
+          curl -L https://raw.githubusercontent.com/csells/fibscli/refs/heads/master/git-scripts/analyze-issue.sh -o analyze-issue.sh
+          chmod +x analyze-issue.sh
 
       - name: Run analysis
         if: steps.detect.outputs.hit == 'true'
