@@ -89,6 +89,18 @@ class PieceLayout {
       'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect, '
       'highlight=$highlight)';
 
+  // Order layouts so that currently-animating (moving) pieces are drawn last,
+  // i.e. on top of stationary pieces, instead of in pip order (issue #6).
+  static List<PieceLayout> drawOrder(
+      Iterable<PieceLayout> layouts, Set<int?> animatingIDs) {
+    final stationary = <PieceLayout>[];
+    final moving = <PieceLayout>[];
+    for (final layout in layouts) {
+      (animatingIDs.contains(layout.pieceID) ? moving : stationary).add(layout);
+    }
+    return [...stationary, ...moving];
+  }
+
   static Iterable<PieceLayout> getLayouts(List<List<int>> board,
       [List<int?>? pipNosToHighlight]) sync* {
     assert(board.length == 26);
