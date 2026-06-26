@@ -43,27 +43,19 @@ class DieView extends StatelessWidget {
               gradient: LinearGradient(
                   begin: Alignment.topLeft, colors: _gradeColors),
             ),
-            child: FractionallySizedBox(
-              widthFactor: .925,
-              heightFactor: .925,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _playerColor,
-                  border: const Border(),
-                ),
-                child: Stack(
-                  children: [
-                    for (final rect in layout.getSpotRects())
-                      Positioned.fromRect(
-                        rect: rect.shift(const Offset(-1, -1)),
-                        child: Container(
-                            decoration: BoxDecoration(
-                                color: _otherColor, shape: BoxShape.circle)),
-                      ),
-                  ],
-                ),
-              ),
+            // spots sit directly on the die face; previously a solid-colored
+            // inner circle nearly filled the die and read as a "bulge",
+            // especially on the white die against its grey gradient (issue #17)
+            child: Stack(
+              children: [
+                for (final rect in layout.getSpotRects())
+                  Positioned.fromRect(
+                    rect: rect.shift(const Offset(-1, -1)),
+                    child: Container(
+                        decoration: BoxDecoration(
+                            color: _otherColor, shape: BoxShape.circle)),
+                  ),
+              ],
             ),
           ),
         ),
@@ -128,6 +120,8 @@ class DieLayout {
   final double top;
   final List<Offset> spots;
 
+  static List<Offset> spotsFor(int roll) => _spotses[roll - 1];
+
   Rect get rect => Rect.fromLTWH(left, top, _dieWidth, _dieHeight);
   Iterable<Rect> getSpotRects() sync* {
     for (final spot in spots) {
@@ -164,15 +158,40 @@ class DieLayout {
 }
 
 class DoublingCubeView extends StatelessWidget {
-  const DoublingCubeView({super.key});
+  const DoublingCubeView({
+    required this.cube,
+    super.key,
+    this.reversed = false,
+  });
+  final DoublingCube cube;
+  final bool reversed;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.black, width: 2),
-          borderRadius: const BorderRadius.all(Radius.circular(10)),
+  Widget build(BuildContext context) {
+    final faceValue = cube.value;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.black, width: 2),
+        borderRadius: const BorderRadius.all(Radius.circular(10)),
+      ),
+      child: Center(
+        // counter-rotate the number so it reads upright when the whole board is
+        // flipped 180 degrees, the same way the pip labels do
+        child: RotatedBox(
+          quarterTurns: reversed ? 2 : 0,
+          child: FittedBox(
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Text(
+                '$faceValue',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
         ),
-        child: const Center(child: Text('64', textAlign: TextAlign.center)),
-      );
+      ),
+    );
+  }
 }
