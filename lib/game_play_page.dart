@@ -34,6 +34,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
     // ignore: discarded_futures
     _prefsFuture.then((prefs) {
       _prefs = prefs;
+      _controller.reversed = prefs.getBool('reversed') ?? false;
       _controller.addListener(_savePrefs);
     });
   }
@@ -49,51 +50,59 @@ class _GamePlayPageState extends State<GamePlayPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: Colors.green,
-        appBar: AppBar(
-          title: const Text(App.title),
-          elevation: 0,
-          actions: [
-            IconButton(
-              tooltip: 'provide feedback',
-              icon: const Icon(Icons.feedback),
-              onPressed: _tapFeedback,
-            ),
-            IconButton(
-              tooltip: 'backgammon help',
-              icon: const Icon(Icons.help),
-              onPressed: _tapHelp,
-            ),
-            IconButton(
-              tooltip: 'reverse board',
-              icon: const Icon(Icons.sync),
-              onPressed: _tapReverse,
-            ),
-            IconButton(
-              tooltip: 'new game',
-              icon: const Icon(Icons.fiber_new),
-              onPressed: _tapNewGame,
-            ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          tooltip: 'undo turn',
-          onPressed: _controller.canUndo ? _tapUndo : null,
-          child: const Icon(Icons.undo),
-        ),
-        body: FutureBuilder2<SharedPreferences>(
-          future: _prefsFuture,
-          data: (context, prefs) {
-            _controller.reversed = prefs!.getBool('reversed') ?? false;
-            return GameView(controller: _controller);
-          },
+  Widget build(BuildContext context) =>
+      ChangeNotifierBuilder<GameViewController>(
+        notifier: _controller,
+        builder: (context, controller, child) => Scaffold(
+          backgroundColor: Colors.green,
+          appBar: AppBar(
+            title: const Text(App.title),
+            elevation: 0,
+            actions: [
+              if (controller.canAutoBearOff)
+                IconButton(
+                  tooltip: 'auto bear off',
+                  icon: const Icon(Icons.fast_forward),
+                  onPressed: _tapAutoBearOff,
+                ),
+              IconButton(
+                tooltip: 'provide feedback',
+                icon: const Icon(Icons.feedback),
+                onPressed: _tapFeedback,
+              ),
+              IconButton(
+                tooltip: 'backgammon help',
+                icon: const Icon(Icons.help),
+                onPressed: _tapHelp,
+              ),
+              IconButton(
+                tooltip: 'reverse board',
+                icon: const Icon(Icons.sync),
+                onPressed: _tapReverse,
+              ),
+              IconButton(
+                tooltip: 'new game',
+                icon: const Icon(Icons.fiber_new),
+                onPressed: _tapNewGame,
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            tooltip: 'undo turn',
+            onPressed: controller.canUndo ? _tapUndo : null,
+            child: const Icon(Icons.undo),
+          ),
+          body: FutureBuilder2<SharedPreferences>(
+            future: _prefsFuture,
+            data: (context, prefs) => GameView(controller: _controller),
+          ),
         ),
       );
 
   void _tapNewGame() => _controller.newGame();
   void _tapReverse() => _controller.reversed = !_controller.reversed;
   void _tapUndo() => _controller.undo();
+  void _tapAutoBearOff() => _controller.autoBearOff();
   void _tapFeedback() => unawaited(
         ul.launchUrl(Uri.parse('https://github.com/csells/fibscli/issues')),
       );
@@ -105,11 +114,14 @@ class _GamePlayPageState extends State<GamePlayPage> {
 class GameViewController extends ChangeNotifier {
   bool _reversed = false;
   var _canUndo = true;
+  var _canAutoBearOff = false;
   late void Function() _onUndo;
   late void Function() _onNewGame;
+  late void Function() _onAutoBearOff;
 
   bool get reversed => _reversed;
   set reversed(bool reversed) {
+    if (_reversed == reversed) return;
     _reversed = reversed;
     notifyListeners();
   }
@@ -120,6 +132,13 @@ class GameViewController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get canAutoBearOff => _canAutoBearOff;
+  set canAutoBearOff(bool canAutoBearOff) {
+    if (_canAutoBearOff == canAutoBearOff) return;
+    _canAutoBearOff = canAutoBearOff;
+    notifyListeners();
+  }
+
   // ignore: avoid_setters_without_getters
   set onUndo(void Function() onUndo) => _onUndo = onUndo;
   void undo() => _onUndo();
@@ -127,6 +146,11 @@ class GameViewController extends ChangeNotifier {
   // ignore: avoid_setters_without_getters
   set onNewGame(void Function() onNewGame) => _onNewGame = onNewGame;
   void newGame() => _onNewGame();
+
+  // ignore: avoid_setters_without_getters
+  set onAutoBearOff(void Function() onAutoBearOff) =>
+      _onAutoBearOff = onAutoBearOff;
+  void autoBearOff() => _onAutoBearOff();
 }
 
 class GameView extends StatefulWidget {
@@ -159,6 +183,12 @@ class _GameViewState extends State<GameView> {
           ? true
           : await QuitGameDialog.show(context); // result can return null
       if (ok ?? false) _newGame();
+    };
+
+    widget.controller.onAutoBearOff = () {
+      assert(_game!.canAutoBearOff);
+      _game!.autoBearOff();
+      _reset();
     };
 
     _newGame();
@@ -425,6 +455,7 @@ class _GameViewState extends State<GameView> {
       _legalMovesForPips = _game!.getAllLegalMoves();
       _fromPipNo = null;
     });
+    widget.controller.canAutoBearOff = _game!.canAutoBearOff;
   }
 
   void _tapDice() {

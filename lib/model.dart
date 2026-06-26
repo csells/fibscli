@@ -153,6 +153,38 @@ class GammonState extends ChangeNotifier {
 
   int get moveNo => _moveNo;
 
+  // auto bear-off is offered only in a pure race (issue #11)
+  bool get canAutoBearOff => !_gameOver && GammonRules.isRace(board);
+
+  // Play the rest of the game greedily. Only meaningful in a pure race, where
+  // no decision affects the outcome, so the player can skip clicking out every
+  // bear-off. Mutates state directly (no per-move animation).
+  void autoBearOff() {
+    if (_gameOver) return;
+
+    while (!_gameOver) {
+      // play every available die greedily for the current turn
+      while (true) {
+        final available =
+            _dice.where((d) => d.available).map((d) => d.roll).toList();
+        if (available.isEmpty) break;
+
+        GammonMove? chosen;
+        for (final die in available) {
+          chosen = GammonRules.greedyMoveForDie(board, _turnPlayer, die);
+          if (chosen != null) break;
+        }
+        if (chosen == null) break; // no legal move for any remaining die
+
+        final deltas = applyMove(move: chosen);
+        if (deltas.isEmpty) break; // safety: avoid spinning
+      }
+
+      if (_gameOver) break;
+      commitTurn();
+    }
+  }
+
   int pipCount({required int sign}) {
     var pipCount = 0;
 
@@ -422,6 +454,53 @@ class GammonRules {
       assert(deltas[0][i] == deltasForHop[i],
           'must get back the same delta that was sent in');
     }
+  }
+
+  // True when the two players' checkers have passed each other so no further
+  // hits are possible: a pure race. Used to offer auto bear-off (issue #11).
+  static bool isRace(List<List<int>> board) {
+    // any checker on the bar means contact is still possible
+    if (board[0].any((p) => playerFor(p) == GammonPlayer.two)) return false;
+    if (board[25].any((p) => playerFor(p) == GammonPlayer.one)) return false;
+
+    int? p1Max; // highest point player1 occupies (player1's rearmost)
+    int? p2Min; // lowest point player2 occupies (player2's rearmost)
+    for (var pip = 1; pip <= 24; ++pip) {
+      for (final id in board[pip]) {
+        if (playerFor(id) == GammonPlayer.one) {
+          p1Max = p1Max == null ? pip : max(p1Max, pip);
+        } else {
+          p2Min = p2Min == null ? pip : min(p2Min, pip);
+        }
+      }
+    }
+
+    // if either side is entirely off the board, it's trivially a race
+    if (p1Max == null || p2Min == null) return true;
+    return p1Max < p2Min;
+  }
+
+  // Greedy bear-off choice for a single die (issue #11): bear a checker off if
+  // possible, clearing the highest such point; otherwise advance the rearmost
+  // checker. Returns null when the die has no legal play.
+  static GammonMove? greedyMoveForDie(
+      List<List<int>> board, GammonPlayer? player, int die) {
+    final movesByPip = getAllLegalMoves(board, player, [die]);
+    final candidates = <GammonMove>[
+      for (final moves in movesByPip.values) ...moves
+    ];
+    if (candidates.isEmpty) return null;
+
+    // "rearness": how far from home a point is for this player (higher == more
+    // checker work remaining), so the rearmost checker has the largest value.
+    int rearness(int pipNo) => player == GammonPlayer.one ? pipNo : -pipNo;
+
+    final offPipNo = offPipNoFor(player);
+    final bearoffs =
+        candidates.where((m) => m.toPipNo == offPipNo).toList();
+    final pool = bearoffs.isNotEmpty ? bearoffs : candidates;
+    pool.sort((a, b) => rearness(b.fromPipNo).compareTo(rearness(a.fromPipNo)));
+    return pool.first;
   }
 
   static List<List<int>> _copyBoard(List<List<int>> board) =>
