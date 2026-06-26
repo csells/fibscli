@@ -646,9 +646,11 @@ class OddsDialog extends StatelessWidget {
           const SizedBox(height: 12),
           Text(_cubeAdvice(game.recommendedCubeAction, onRollNo)),
           const SizedBox(height: 12),
-          const Text(
-            'Estimated from the pip-count race; not an exact rollout.',
-            style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+          Text(
+            game.hasExactOdds
+                ? 'Exact race calculation (no contact remaining).'
+                : 'Estimated from the pip-count race; not an exact rollout.',
+            style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
           ),
         ],
       ),

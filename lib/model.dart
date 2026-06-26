@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:trotter/trotter.dart';
 
 import 'dice.dart';
+import 'race_eval.dart';
 
 // Per-player tallies shown in the end-game summary (issue #10).
 class GammonStats {
@@ -251,24 +252,35 @@ class GammonState extends ChangeNotifier {
     return pipCount;
   }
 
-  // Estimated win probability for [player], always complementary between the
-  // two players. The on-roll bonus is credited to whoever is actually on roll
-  // (issue #14).
+  // Win probability for [player], always complementary between the two players
+  // (issue #14). In a pure race this is the exact value from the race solver;
+  // with contact it falls back to the pip-count heuristic.
   double winProbabilityFor(GammonPlayer player) {
     final onRollPlayer = _turnPlayer;
     if (onRollPlayer == null) return 0.5;
 
-    final onRollWins = GammonRules.raceWinProbability(
-      myPips: pipCount(sign: GammonRules.signFor(onRollPlayer)),
-      oppPips: pipCount(
-          sign: GammonRules.signFor(GammonRules.otherPlayer(onRollPlayer))),
-    );
+    final onRollWins = RaceEval.winProbabilityOrNull(board, onRollPlayer) ??
+        GammonRules.raceWinProbability(
+          myPips: pipCount(sign: GammonRules.signFor(onRollPlayer)),
+          oppPips: pipCount(
+              sign: GammonRules.signFor(GammonRules.otherPlayer(onRollPlayer))),
+        );
     return player == onRollPlayer ? onRollWins : 1.0 - onRollWins;
   }
 
   // The recommended cube action for the player currently on roll (issue #14).
-  CubeAction get recommendedCubeAction =>
-      GammonRules.cubeAction(winProbabilityFor(_turnPlayer!));
+  // Exact in a pure race; heuristic with contact.
+  CubeAction get recommendedCubeAction {
+    final onRoll = _turnPlayer!;
+    if (cube.value >= DoublingCube.maxValue) return CubeAction.noDouble;
+    return RaceEval.cubeActionOrNull(board, onRoll, cube.owner) ??
+        GammonRules.cubeAction(winProbabilityFor(onRoll));
+  }
+
+  // True when the win chances and cube action are exact (a pure race) rather
+  // than a pip-count estimate, so the UI can label them honestly (issue #14).
+  bool get hasExactOdds => RaceEval.winProbabilityOrNull(board, _turnPlayer ??
+      GammonPlayer.one) != null;
 
   void _useDie(int roll) {
     _dice.firstWhere((d) => d.roll == roll && d.available).available = false;
