@@ -1,12 +1,12 @@
 {
-    "name": "fibscli",
-    "short_name": "fibscli",
+    "name": "Backgammon",
+    "short_name": "Backgammon",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "landscape-primary",
+    "background_color": "#4CAF50",
+    "theme_color": "#4CAF50",
+    "description": "Play backgammon on the web.",
+    "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [
         {
