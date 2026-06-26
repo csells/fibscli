@@ -8,12 +8,14 @@ class AnimatedPiece extends StatefulWidget {
     required this.layouts,
     required this.child,
     this.onEnd = _noop,
+    this.delay = Duration.zero,
     super.key,
   }) : assert(layouts.length > 1);
 
   final List<PieceLayout> layouts;
   final Widget child;
   final void Function() onEnd;
+  final Duration delay;
 
   @override
   _AnimatedPieceState createState() => _AnimatedPieceState();
@@ -38,13 +40,27 @@ class _AnimatedPieceState extends State<AnimatedPiece>
     final animatable = _animatableFor(widget.layouts);
 
     _controller = AnimationController(
-        vsync: this, duration: Duration(milliseconds: (distance * 3).floor()));
+        vsync: this,
+        duration: Duration(
+            milliseconds: (distance * kAnimationMsPerDistance).floor()));
 
     _animation = animatable
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
-    // ignore: discarded_futures
-    _controller.forward().then((_) => widget.onEnd());
+    // a hittee waits for the hitter to arrive before sliding to the bar
+    // (issue #5); during the delay it stays at its first layout
+    void start() {
+      if (!mounted) return;
+      // ignore: discarded_futures
+      _controller.forward().then((_) => widget.onEnd());
+    }
+
+    if (widget.delay == Duration.zero) {
+      start();
+    } else {
+      // ignore: discarded_futures
+      Future<void>.delayed(widget.delay, start);
+    }
   }
 
   static Animatable<PieceLayout> _animatableFor(List<PieceLayout> layouts) =>

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
@@ -178,6 +177,7 @@ class _GameViewState extends State<GameView> {
   var _legalMovesForPips = <int, List<GammonMove>>{};
   int? _fromPipNo;
   final _pieceLayouts = <int?, List<PieceLayout>>{};
+  final _pieceDelays = <int?, Duration>{};
 
   @override
   void initState() {
@@ -371,6 +371,8 @@ class _GameViewState extends State<GameView> {
                           _pieceLayouts.containsKey(layout.pieceID)
                               ? AnimatedPiece.fromLayouts(
                                   layouts: _pieceLayouts[layout.pieceID]!,
+                                  delay: _pieceDelays[layout.pieceID] ??
+                                      Duration.zero,
                                   onEnd: () =>
                                       _endPieceAnimation(layout.pieceID),
                                   child: GestureDetector(
@@ -484,11 +486,13 @@ class _GameViewState extends State<GameView> {
           GammonMove(fromPipNo: _fromPipNo!, toPipNo: toEndPipNo, hops: hops);
       final deltasForHops = _game!.applyMove(move: move);
 
-      // convert game states for each hop into a sequence of layouts for
-      // each affected piece
+      // convert game states for each hop into a sequence of layouts (and hit
+      // delays) for each affected piece
       assert(deltasForHops.length == hops.length);
       assert(_pieceLayouts.isEmpty);
-      _pieceLayouts.addAll(_pieceLayoutsFor(initialBoard, deltasForHops));
+      final anim = MoveAnimation.forMove(initialBoard, deltasForHops);
+      _pieceLayouts.addAll(anim.layouts);
+      _pieceDelays.addAll(anim.delays);
     }
 
     _reset();
@@ -530,59 +534,13 @@ class _GameViewState extends State<GameView> {
     return result;
   }
 
-  static Map<int?, List<PieceLayout>> _pieceLayoutsFor(
-    List<List<int>> initialBoard,
-    List<List<GammonDelta>> deltasForHops,
-  ) {
-    // find the main piece that's moving (not the pieces moving to the bar)
-    final mainPieceID = deltasForHops[0][0].pieceID;
-    if (kDebugMode) {
-      for (final deltasForHop in deltasForHops) {
-        assert(deltasForHop[0].pieceID == mainPieceID);
-      }
-    }
-
-    // copy the initial board; it'll change as we apply deltas
-    final board = List<List<int>>.generate(
-        initialBoard.length, (i) => List<int>.from(initialBoard[i]));
-
-    // find the set of pieces that are affected by this move
-    final pieceIDs = <int?>[
-      for (final deltasForHop in deltasForHops)
-        for (final delta in deltasForHop) delta.pieceID
-    ];
-
-    // initialize the list of layouts that each piece travels
-    final pieceLayouts = <int?, List<PieceLayout>>{};
-    for (final pieceID in pieceIDs) {
-      pieceLayouts[pieceID] = [];
-    }
-
-    // get layout for each piece at each hop (most won't move)
-    // start with an empty delta to handle initial board state
-    for (final deltasForHop in <List<GammonDelta>>[
-      <GammonDelta>[],
-      ...deltasForHops
-    ]) {
-      // update the board for the this hop
-      GammonRules.applyDeltasForHop(board, deltasForHop);
-
-      final layouts = PieceLayout.getLayouts(board);
-      for (final pieceID in pieceIDs) {
-        // add the layout to this hop for this piece
-        final layout = layouts.firstWhere((l) => l.pieceID == pieceID);
-        pieceLayouts[pieceID]!.add(layout);
-      }
-    }
-
-    return pieceLayouts;
-  }
-
   // remove each animated piece from the list of pieces to animate
   void _endPieceAnimation(int pieceID) {
     _pieceLayouts.remove(pieceID)!;
+    _pieceDelays.remove(pieceID);
 
-    // the last piece has been animated, so draw the final state of the board w/ labels, on edge, etc.
+    // the last piece has been animated, so draw the final state of the board
+    // w/ labels, on edge, etc.
     if (_pieceLayouts.isEmpty) setState(() {});
   }
 }
