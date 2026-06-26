@@ -97,7 +97,7 @@ class GammonState extends ChangeNotifier {
     if (_gameOver) return {};
 
     final rolls = _dice.where((d) => d.available).map((d) => d.roll).toList();
-    return GammonRules.getAllLegalMoves(board, _turnPlayer, rolls);
+    return GammonRules.getForcedLegalMoves(board, _turnPlayer, rolls);
   }
 
   List<List<GammonDelta>> applyMove({required GammonMove move}) {
@@ -166,9 +166,10 @@ class GammonState extends ChangeNotifier {
   }
 
   void _disableUnusableDice() {
-    // check all the pips for legal moves
+    // check all the pips for legal moves (forced-move rules applied so that a
+    // die the player is not allowed to play counts as unusable; issue #4)
     final rolls = _dice.where((d) => d.available).map((d) => d.roll).toList();
-    final moves = GammonRules.getAllLegalMoves(board, _turnPlayer, rolls);
+    final moves = GammonRules.getForcedLegalMoves(board, _turnPlayer, rolls);
 
     // find all of the possible hops
     final hops = <int>[
@@ -393,6 +394,97 @@ class GammonRules {
       assert(deltas[0][i] == deltasForHop[i],
           'must get back the same delta that was sent in');
     }
+  }
+
+  static List<List<int>> _copyBoard(List<List<int>> board) =>
+      List<List<int>>.generate(board.length, (i) => List<int>.from(board[i]));
+
+  // The maximum number of dice (single hops) that can be legally played this
+  // turn, considering every move ordering. For non-doubles this is 0, 1, or 2;
+  // for doubles up to 4. Used to enforce the rule that a player must play as
+  // many dice as possible (issue #4).
+  static int maxPlayableDice(
+      List<List<int>> board, GammonPlayer? player, List<int> rolls) {
+    if (rolls.isEmpty) return 0;
+
+    var best = 0;
+    final tried = <int>{};
+    for (final roll in rolls) {
+      if (!tried.add(roll)) continue; // doubles: same value, same result
+      final remaining = List<int>.of(rolls)..remove(roll);
+
+      // every legal single-die play for this roll, from any pip
+      final movesByPip = getAllLegalMoves(board, player, [roll]);
+      for (final moves in movesByPip.values) {
+        for (final move in moves) {
+          final tempBoard = _copyBoard(board);
+          final deltas = applyMove(tempBoard, move);
+          if (deltas.isEmpty) continue;
+          final depth = 1 + maxPlayableDice(tempBoard, player, remaining);
+          if (depth > best) best = depth;
+          if (best == rolls.length) return best; // can't do better
+        }
+      }
+    }
+    return best;
+  }
+
+  static List<int> _rollsAfter(List<int> rolls, Iterable<int> hops) {
+    final remaining = List<int>.of(rolls);
+    for (final hop in hops) {
+      remaining.remove(hop.abs());
+    }
+    return remaining;
+  }
+
+  // Like [getAllLegalMoves], but restricted to the moves a player is actually
+  // allowed to make under the forced-move rules: a player must use as many dice
+  // as possible, and when only one of two different dice can be played, must
+  // play the larger one (issue #4).
+  static Map<int, List<GammonMove>> getForcedLegalMoves(
+      List<List<int>> board, GammonPlayer? player, List<int> rolls) {
+    final maxDice = maxPlayableDice(board, player, rolls);
+    if (maxDice == 0) return {};
+
+    final all = getAllLegalMoves(board, player, rolls);
+    final result = <int, List<GammonMove>>{};
+    for (final entry in all.entries) {
+      final kept = <GammonMove>[];
+      for (final move in entry.value) {
+        final tempBoard = _copyBoard(board);
+        final deltas = applyMove(tempBoard, move);
+        if (deltas.isEmpty) continue;
+        final remaining = _rollsAfter(rolls, move.hops);
+        final reachable =
+            move.hops.length + maxPlayableDice(tempBoard, player, remaining);
+        if (reachable == maxDice) kept.add(move);
+      }
+      if (kept.isNotEmpty) result[entry.key] = kept;
+    }
+
+    // larger-die rule: when only a single die can be played and the two dice
+    // differ, the player must play the larger one.
+    if (maxDice == 1) {
+      final dieValues = {
+        for (final moves in result.values)
+          for (final move in moves) move.hops.first.abs()
+      };
+      if (dieValues.length > 1) {
+        final largest = dieValues.reduce(max);
+        for (final pipNo in result.keys.toList()) {
+          final kept = result[pipNo]!
+              .where((m) => m.hops.first.abs() == largest)
+              .toList();
+          if (kept.isEmpty) {
+            result.remove(pipNo);
+          } else {
+            result[pipNo] = kept;
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   // calculate legal moves for all pips
