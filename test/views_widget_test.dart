@@ -26,6 +26,17 @@ void main() {
       await tester.pumpWidget(_host(DoublingCubeView(cube: DoublingCube())));
       expect(find.text('1'), findsOneWidget);
     });
+
+    testWidgets('counter-rotates its value when the board is reversed',
+        (tester) async {
+      await tester.pumpWidget(
+          _host(DoublingCubeView(cube: DoublingCube(), reversed: true)));
+      final rotated = tester.widget<RotatedBox>(find.descendant(
+        of: find.byType(DoublingCubeView),
+        matching: find.byType(RotatedBox),
+      ));
+      expect(rotated.quarterTurns, 2); // flipped 180 to read upright
+    });
   });
 
   group('DieView (issue #17)', () {

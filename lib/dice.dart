@@ -158,8 +158,13 @@ class DieLayout {
 }
 
 class DoublingCubeView extends StatelessWidget {
-  const DoublingCubeView({required this.cube, super.key});
+  const DoublingCubeView({
+    required this.cube,
+    super.key,
+    this.reversed = false,
+  });
   final DoublingCube cube;
+  final bool reversed;
 
   @override
   Widget build(BuildContext context) {
@@ -171,13 +176,18 @@ class DoublingCubeView extends StatelessWidget {
         borderRadius: const BorderRadius.all(Radius.circular(10)),
       ),
       child: Center(
-        child: FittedBox(
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Text(
-              '$faceValue',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+        // counter-rotate the number so it reads upright when the whole board is
+        // flipped 180 degrees, the same way the pip labels do
+        child: RotatedBox(
+          quarterTurns: reversed ? 2 : 0,
+          child: FittedBox(
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Text(
+                '$faceValue',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ),
