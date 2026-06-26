@@ -185,7 +185,7 @@ class _GameViewState extends State<GameView> {
     _game!.removeListener(_gameChanged);
     widget.controller.canUndo = false;
     final ok = await NewGameDialog.show(
-        context, _game!.turnPlayer); // result can be null
+        context, _game!.turnPlayer, _game!); // result can be null
     if (ok ?? false) _newGame();
   }
 
@@ -578,13 +578,22 @@ class QuitGameDialog extends StatelessWidget {
 }
 
 class NewGameDialog extends StatelessWidget {
-  const NewGameDialog(this.winner, {super.key});
+  const NewGameDialog(this.winner, this.game, {super.key});
   final GammonPlayer? winner;
+  final GammonState game;
 
   @override
   Widget build(BuildContext context) => AlertDialog(
         title: Text('Player ${winner == GammonPlayer.one ? 1 : 2} wins!'),
-        content: const Text('Would you like to play another game?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _StatsTable(game: game),
+            const SizedBox(height: 16),
+            const Text('Would you like to play another game?'),
+          ],
+        ),
         actions: [
           OutlinedButton(
             child: const Padding(
@@ -603,7 +612,58 @@ class NewGameDialog extends StatelessWidget {
         ],
       );
 
-  static Future<bool?> show(BuildContext context, GammonPlayer? winner) =>
+  static Future<bool?> show(
+          BuildContext context, GammonPlayer? winner, GammonState game) =>
       showDialog<bool>(
-          context: context, builder: (context) => NewGameDialog(winner));
+          context: context, builder: (context) => NewGameDialog(winner, game));
+}
+
+// End-of-game stats: rolls, total dice pips, doubles per player (issue #10).
+class _StatsTable extends StatelessWidget {
+  const _StatsTable({required this.game});
+  final GammonState game;
+
+  @override
+  Widget build(BuildContext context) {
+    final p1 = game.statsFor(GammonPlayer.one);
+    final p2 = game.statsFor(GammonPlayer.two);
+    const headerStyle = TextStyle(fontWeight: FontWeight.bold);
+
+    TableRow row(String label, Object a, Object b) => TableRow(
+          children: [
+            Padding(padding: const EdgeInsets.all(4), child: Text(label)),
+            Padding(
+                padding: const EdgeInsets.all(4),
+                child: Text('$a', textAlign: TextAlign.center)),
+            Padding(
+                padding: const EdgeInsets.all(4),
+                child: Text('$b', textAlign: TextAlign.center)),
+          ],
+        );
+
+    return Table(
+      defaultColumnWidth: const IntrinsicColumnWidth(),
+      columnWidths: const {0: FlexColumnWidth()},
+      children: [
+        const TableRow(
+          children: [
+            Padding(padding: EdgeInsets.all(4), child: Text('')),
+            Padding(
+              padding: EdgeInsets.all(4),
+              child: Text('Player 1',
+                  style: headerStyle, textAlign: TextAlign.center),
+            ),
+            Padding(
+              padding: EdgeInsets.all(4),
+              child: Text('Player 2',
+                  style: headerStyle, textAlign: TextAlign.center),
+            ),
+          ],
+        ),
+        row('Rolls', p1.rolls, p2.rolls),
+        row('Total dice', p1.pips, p2.pips),
+        row('Doubles', p1.doubles, p2.doubles),
+      ],
+    );
+  }
 }
