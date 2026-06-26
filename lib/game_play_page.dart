@@ -133,6 +133,7 @@ class GameViewController extends ChangeNotifier {
 
   bool get canUndo => _canUndo;
   set canUndo(bool canUndo) {
+    if (_canUndo == canUndo) return;
     _canUndo = canUndo;
     notifyListeners();
   }
