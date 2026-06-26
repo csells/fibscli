@@ -6,6 +6,22 @@ import 'package:trotter/trotter.dart';
 
 import 'dice.dart';
 
+// Per-player tallies shown in the end-game summary (issue #10).
+class GammonStats {
+  int rolls = 0;
+  int doubles = 0;
+  int pips = 0; // total of all dice rolled
+
+  void record(List<int> diceRolls) {
+    if (diceRolls.isEmpty) return;
+    ++rolls;
+    pips += diceRolls.fold<int>(0, (sum, r) => sum + r);
+    if (diceRolls.length >= 2 && diceRolls.every((r) => r == diceRolls.first)) {
+      ++doubles;
+    }
+  }
+}
+
 class GammonState extends ChangeNotifier {
   GammonState() {
     _setState(
@@ -33,6 +49,12 @@ class GammonState extends ChangeNotifier {
   late GammonState _undoState; // state for implementing undo
   var _moveNo = 1;
   var _gameOver = false;
+  final _stats = <GammonPlayer, GammonStats>{
+    GammonPlayer.one: GammonStats(),
+    GammonPlayer.two: GammonStats(),
+  };
+
+  GammonStats statsFor(GammonPlayer player) => _stats[player]!;
 
   void _setState({
     required List<List<int>> board,
@@ -66,9 +88,14 @@ class GammonState extends ChangeNotifier {
 
     _turnPlayer =
         _dice[0].roll > _dice[1].roll ? GammonPlayer.one : GammonPlayer.two;
+    _recordRoll(_turnPlayer!);
     _undoState =
         GammonState.from(board: _board, dice: dice, turnPlayer: _turnPlayer);
     _moveNo = 1;
+  }
+
+  void _recordRoll(GammonPlayer player) {
+    _stats[player]!.record(_dice.map((d) => d.roll).toList());
   }
 
   void commitTurn() {
@@ -76,6 +103,7 @@ class GammonState extends ChangeNotifier {
 
     _turnPlayer = GammonRules.otherPlayer(_turnPlayer);
     _rollDice(); // roll dice before capturing updo state
+    _recordRoll(_turnPlayer!);
     _undoState =
         GammonState.from(board: _board, dice: dice, turnPlayer: _turnPlayer);
     ++_moveNo; // can't be undone, so not capturing it
