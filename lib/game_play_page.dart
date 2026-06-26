@@ -66,6 +66,11 @@ class _GamePlayPageState extends State<GamePlayPage> {
                   onPressed: _tapAutoBearOff,
                 ),
               IconButton(
+                tooltip: 'win chances & cube advice',
+                icon: const Icon(Icons.insights),
+                onPressed: _tapOdds,
+              ),
+              IconButton(
                 tooltip: 'provide feedback',
                 icon: const Icon(Icons.feedback),
                 onPressed: _tapFeedback,
@@ -103,6 +108,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
   void _tapReverse() => _controller.reversed = !_controller.reversed;
   void _tapUndo() => _controller.undo();
   void _tapAutoBearOff() => _controller.autoBearOff();
+  void _tapOdds() => _controller.showOdds();
   void _tapFeedback() => unawaited(
         ul.launchUrl(Uri.parse('https://github.com/csells/fibscli/issues')),
       );
@@ -151,6 +157,11 @@ class GameViewController extends ChangeNotifier {
   set onAutoBearOff(void Function() onAutoBearOff) =>
       _onAutoBearOff = onAutoBearOff;
   void autoBearOff() => _onAutoBearOff();
+
+  late void Function() _onShowOdds;
+  // ignore: avoid_setters_without_getters
+  set onShowOdds(void Function() onShowOdds) => _onShowOdds = onShowOdds;
+  void showOdds() => _onShowOdds();
 }
 
 class GameView extends StatefulWidget {
@@ -190,6 +201,8 @@ class _GameViewState extends State<GameView> {
       _game!.autoBearOff();
       _reset();
     };
+
+    widget.controller.onShowOdds = () => OddsDialog.show(context, _game!);
 
     _newGame();
   }
@@ -635,6 +648,63 @@ class QuitGameDialog extends StatelessWidget {
 
   static Future<bool?> show(BuildContext context) => showDialog<bool>(
       context: context, builder: (context) => const QuitGameDialog());
+}
+
+// Win-chance estimate and recommended cube action (issue #14). The numbers are
+// a race heuristic, not an equity-engine rollout.
+class OddsDialog extends StatelessWidget {
+  const OddsDialog(this.game, {super.key});
+  final GammonState game;
+
+  static String _cubeAdvice(CubeAction action, int onRollNo) {
+    switch (action) {
+      case CubeAction.noDouble:
+        return 'Player $onRollNo: too early to double.';
+      case CubeAction.doubleTake:
+        return 'Player $onRollNo should double; opponent should take.';
+      case CubeAction.doublePass:
+        return 'Player $onRollNo should double; opponent should pass.';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p1 = (game.winProbabilityFor(GammonPlayer.one) * 100).round();
+    final p2 = (game.winProbabilityFor(GammonPlayer.two) * 100).round();
+    final onRollNo = game.turnPlayer == GammonPlayer.one ? 1 : 2;
+
+    return AlertDialog(
+      title: const Text('Win Chances'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Player 1: $p1%'),
+          Text('Player 2: $p2%'),
+          const SizedBox(height: 12),
+          Text(_cubeAdvice(game.recommendedCubeAction, onRollNo)),
+          const SizedBox(height: 12),
+          const Text(
+            'Estimated from the pip-count race; not an exact rollout.',
+            style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+      actions: [
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('OK'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static Future<void> show(BuildContext context, GammonState game) =>
+      showDialog<void>(
+          context: context, builder: (context) => OddsDialog(game));
 }
 
 // Offer-a-double dialog: the player on roll doubles, the opponent decides
