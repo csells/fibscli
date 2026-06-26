@@ -362,9 +362,12 @@ class _GameViewState extends State<GameView> {
                           ),
                         ),
 
-                        // pieces
-                        for (final layout in PieceLayout.getLayouts(
-                            game!.board, _pipNosToHighlight))
+                        // pieces; moving pieces are drawn last so they appear
+                        // on top of stationary pieces (issue #6)
+                        for (final layout in PieceLayout.drawOrder(
+                            PieceLayout.getLayouts(
+                                game!.board, _pipNosToHighlight),
+                            _pieceLayouts.keys.toSet()))
                           _pieceLayouts.containsKey(layout.pieceID)
                               ? AnimatedPiece.fromLayouts(
                                   layouts: _pieceLayouts[layout.pieceID]!,
