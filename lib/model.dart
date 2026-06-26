@@ -251,6 +251,25 @@ class GammonState extends ChangeNotifier {
     return pipCount;
   }
 
+  // Estimated win probability for [player], always complementary between the
+  // two players. The on-roll bonus is credited to whoever is actually on roll
+  // (issue #14).
+  double winProbabilityFor(GammonPlayer player) {
+    final onRollPlayer = _turnPlayer;
+    if (onRollPlayer == null) return 0.5;
+
+    final onRollWins = GammonRules.raceWinProbability(
+      myPips: pipCount(sign: GammonRules.signFor(onRollPlayer)),
+      oppPips: pipCount(
+          sign: GammonRules.signFor(GammonRules.otherPlayer(onRollPlayer))),
+    );
+    return player == onRollPlayer ? onRollWins : 1.0 - onRollWins;
+  }
+
+  // The recommended cube action for the player currently on roll (issue #14).
+  CubeAction get recommendedCubeAction =>
+      GammonRules.cubeAction(winProbabilityFor(_turnPlayer!));
+
   void _useDie(int roll) {
     _dice.firstWhere((d) => d.roll == roll && d.available).available = false;
     _disableUnusableDice();
@@ -340,6 +359,13 @@ extension GammonMoves on Iterable<GammonMove>? {
 }
 
 enum GammonPlayer { one, two }
+
+// Recommended doubling-cube action for the player on roll (issue #14).
+enum CubeAction {
+  noDouble, // too early to double
+  doubleTake, // double; opponent should take
+  doublePass, // double; opponent should pass (drop)
+}
 
 @immutable
 class GammonMove {
@@ -501,6 +527,35 @@ class GammonRules {
       assert(deltas[0][i] == deltasForHop[i],
           'must get back the same delta that was sent in');
     }
+  }
+
+  // Estimate the probability that the player on roll wins a race, given both
+  // pip counts (issue #14). This is a heuristic, NOT an equity engine: a
+  // logistic model of the pip lead, widened by the size of the race (variance
+  // grows with pip count) and nudged by a small on-roll bonus. Good enough to
+  // guide cube decisions in a pure race; it does not account for contact,
+  // wastage, or gammons.
+  static double raceWinProbability({
+    required int myPips,
+    required int oppPips,
+  }) {
+    const onRollBonus = 4.0; // ~half an average roll for moving next
+    final total = (myPips + oppPips).toDouble();
+    final spread = sqrt(total < 1 ? 1 : total) * 1.5;
+    final adjustedLead = (oppPips - myPips) + onRollBonus;
+    return 1.0 / (1.0 + exp(-adjustedLead / spread));
+  }
+
+  // The recommended cube action for the player on roll given their win
+  // probability (issue #14). Uses the classic cubeless money-game reference
+  // points: a take point of 25% (so the opponent passes once the doubler is
+  // above ~75%) and a doubling window that opens around 70%.
+  static CubeAction cubeAction(double winProbability) {
+    const doublePoint = 0.70;
+    const passPoint = 0.75;
+    if (winProbability < doublePoint) return CubeAction.noDouble;
+    if (winProbability <= passPoint) return CubeAction.doubleTake;
+    return CubeAction.doublePass;
   }
 
   // True when the two players' checkers have passed each other so no further
