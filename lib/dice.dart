@@ -164,15 +164,30 @@ class DieLayout {
 }
 
 class DoublingCubeView extends StatelessWidget {
-  const DoublingCubeView({super.key});
+  const DoublingCubeView({required this.cube, super.key});
+  final DoublingCube cube;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.black, width: 2),
-          borderRadius: const BorderRadius.all(Radius.circular(10)),
+  Widget build(BuildContext context) {
+    final faceValue = cube.value;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.black, width: 2),
+        borderRadius: const BorderRadius.all(Radius.circular(10)),
+      ),
+      child: Center(
+        child: FittedBox(
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Text(
+              '$faceValue',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         ),
-        child: const Center(child: Text('64', textAlign: TextAlign.center)),
-      );
+      ),
+    );
+  }
 }

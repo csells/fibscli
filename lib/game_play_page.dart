@@ -340,11 +340,14 @@ class _GameViewState extends State<GameView> {
                             rect: Rect.fromLTWH(
                                 520, 20, 32, 183)), // player2 home shading
 
-                        // doubling cube: undoubled
-                        // Positioned.fromRect(
-                        //   rect: Rect.fromLTWH(238, 186, 44, 44),
-                        //   child: DoublingCubeView(),
-                        // ),
+                        // doubling cube (issue #12)
+                        Positioned.fromRect(
+                          rect: _cubeRect(_game!.cube.owner),
+                          child: GestureDetector(
+                            onTap: _tapCube,
+                            child: DoublingCubeView(cube: _game!.cube),
+                          ),
+                        ),
 
                         // pieces
                         for (final layout in PieceLayout.getLayouts(
@@ -399,6 +402,32 @@ class _GameViewState extends State<GameView> {
 
   void _tapPiece(int pipNo) => _tapPip(pipNo);
   void _tapOff(GammonPlayer player) => _move(GammonRules.offPipNoFor(player));
+
+  // the cube sits at the center bar, shifted toward its owner's side
+  static Rect _cubeRect(GammonPlayer? owner) {
+    const top = <GammonPlayer?, double>{
+      null: 186, // centered
+      GammonPlayer.one: 354, // player1 home is along the bottom
+      GammonPlayer.two: 18, // player2 home is along the top
+    };
+    return Rect.fromLTWH(238, top[owner]!, 44, 44);
+  }
+
+  Future<void> _tapCube() async {
+    final player = _game!.turnPlayer;
+    if (player == null || !_game!.canOfferDouble(player)) return;
+
+    final accepted = await DoubleOfferDialog.show(
+        context, player, _game!.cube.value * 2);
+    if (accepted == null) return; // dismissed
+
+    if (accepted) {
+      _game!.acceptDouble();
+      _reset();
+    } else {
+      _game!.declineDouble(); // ends the game; _gameChanged shows the result
+    }
+  }
 
   void _tapPip(int pipNo) {
     if (_fromPipNo == null) {
@@ -606,6 +635,46 @@ class QuitGameDialog extends StatelessWidget {
 
   static Future<bool?> show(BuildContext context) => showDialog<bool>(
       context: context, builder: (context) => const QuitGameDialog());
+}
+
+// Offer-a-double dialog: the player on roll doubles, the opponent decides
+// (issue #12).
+class DoubleOfferDialog extends StatelessWidget {
+  const DoubleOfferDialog(this.doubler, this.newValue, {super.key});
+  final GammonPlayer doubler;
+  final int newValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final doublerNo = doubler == GammonPlayer.one ? 1 : 2;
+    final opponentNo = doubler == GammonPlayer.one ? 2 : 1;
+    return AlertDialog(
+      title: Text('Player $doublerNo doubles to $newValue'),
+      content: Text('Player $opponentNo, do you accept?'),
+      actions: [
+        OutlinedButton(
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('Decline'),
+          ),
+          onPressed: () => Navigator.pop(context, false),
+        ),
+        ElevatedButton(
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('Accept'),
+          ),
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
+    );
+  }
+
+  static Future<bool?> show(
+          BuildContext context, GammonPlayer doubler, int newValue) =>
+      showDialog<bool>(
+          context: context,
+          builder: (context) => DoubleOfferDialog(doubler, newValue));
 }
 
 class NewGameDialog extends StatelessWidget {

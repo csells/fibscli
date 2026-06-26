@@ -22,6 +22,27 @@ class GammonStats {
   }
 }
 
+// The doubling cube (issue #12). Starts centered (owned by neither) at 1.
+// Taking a double doubles the stake and transfers ownership to the taker, who
+// alone may then redouble. The value tops out at 64.
+class DoublingCube {
+  static const maxValue = 64;
+
+  int value = 1;
+  GammonPlayer? owner; // null == centered, either player may double
+
+  bool canDoubleBy(GammonPlayer player) =>
+      value < maxValue && (owner == null || owner == player);
+
+  // Apply an accepted double offered by [offeredBy]: the taker (the other
+  // player) becomes the new owner and the value doubles.
+  void applyTake(GammonPlayer offeredBy) {
+    assert(canDoubleBy(offeredBy));
+    value *= 2;
+    owner = GammonRules.otherPlayer(offeredBy);
+  }
+}
+
 class GammonState extends ChangeNotifier {
   GammonState() {
     _setState(
@@ -55,6 +76,32 @@ class GammonState extends ChangeNotifier {
   };
 
   GammonStats statsFor(GammonPlayer player) => _stats[player]!;
+
+  final cube = DoublingCube();
+
+  // A player may offer a double when it's their turn, before they've moved
+  // (all dice still available), and the cube allows it (issue #12).
+  bool canOfferDouble(GammonPlayer? player) =>
+      !_gameOver &&
+      player != null &&
+      player == _turnPlayer &&
+      cube.canDoubleBy(player) &&
+      _dice.every((d) => d.available);
+
+  // The opponent accepts the double offered by the player on roll: play
+  // continues with a higher stake.
+  void acceptDouble() {
+    if (_gameOver) throw Exception('game over');
+    cube.applyTake(_turnPlayer!);
+    notifyListeners();
+  }
+
+  // The opponent declines the double: the doubler (current turn player) wins.
+  void declineDouble() {
+    if (_gameOver) throw Exception('game over');
+    _gameOver = true;
+    notifyListeners();
+  }
 
   void _setState({
     required List<List<int>> board,
