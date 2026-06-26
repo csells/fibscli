@@ -17,6 +17,16 @@ void main() {
       expect(GammonRules.maxPlayableDice(board, GammonPlayer.one, [6, 5]), 1);
     });
 
+    test('doubles: must play as many of the four numbers as possible', () {
+      // rules.html: "In the case of doubles, when all four numbers cannot be
+      // played, the player must play as many numbers as he can." Two checkers
+      // on the ace point with 6-6-6-6 can only bear off twice.
+      final board = makeBoard({1: -2});
+      expect(
+          GammonRules.maxPlayableDice(board, GammonPlayer.one, [6, 6, 6, 6]),
+          2);
+    });
+
     test('no dice playable when fully blocked from the bar', () {
       // player1 on the bar (pip 25); all entry points 19..24 blocked.
       final board = makeBoard({

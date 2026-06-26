@@ -1,7 +1,10 @@
+import 'package:fibscli/dice.dart';
 import 'package:fibscli/game_play_page.dart';
 import 'package:fibscli/model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'board_builder.dart';
 
 void main() {
   group('OddsDialog (issue #14)', () {
@@ -20,6 +23,19 @@ void main() {
       expect(find.textContaining('double'), findsOneWidget);
       // and the honesty disclaimer
       expect(find.textContaining('not an exact rollout'), findsOneWidget);
+    });
+
+    testWidgets('labels a pure race as an exact calculation', (tester) async {
+      // a no-contact race: the win chances come from the exact solver
+      final game = GammonState.from(
+        board: makeBoard({6: -1, 24: 1}),
+        dice: [DieState(3), DieState(1)],
+        turnPlayer: GammonPlayer.one,
+      );
+      await tester.pumpWidget(MaterialApp(home: OddsDialog(game)));
+
+      expect(find.textContaining('Exact race calculation'), findsOneWidget);
+      expect(find.textContaining('not an exact rollout'), findsNothing);
     });
 
     testWidgets('OK dismisses the dialog', (tester) async {
