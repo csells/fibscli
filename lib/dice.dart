@@ -43,27 +43,19 @@ class DieView extends StatelessWidget {
               gradient: LinearGradient(
                   begin: Alignment.topLeft, colors: _gradeColors),
             ),
-            child: FractionallySizedBox(
-              widthFactor: .925,
-              heightFactor: .925,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _playerColor,
-                  border: const Border(),
-                ),
-                child: Stack(
-                  children: [
-                    for (final rect in layout.getSpotRects())
-                      Positioned.fromRect(
-                        rect: rect.shift(const Offset(-1, -1)),
-                        child: Container(
-                            decoration: BoxDecoration(
-                                color: _otherColor, shape: BoxShape.circle)),
-                      ),
-                  ],
-                ),
-              ),
+            // spots sit directly on the die face; previously a solid-colored
+            // inner circle nearly filled the die and read as a "bulge",
+            // especially on the white die against its grey gradient (issue #17)
+            child: Stack(
+              children: [
+                for (final rect in layout.getSpotRects())
+                  Positioned.fromRect(
+                    rect: rect.shift(const Offset(-1, -1)),
+                    child: Container(
+                        decoration: BoxDecoration(
+                            color: _otherColor, shape: BoxShape.circle)),
+                  ),
+              ],
             ),
           ),
         ),
@@ -127,6 +119,8 @@ class DieLayout {
   final double left;
   final double top;
   final List<Offset> spots;
+
+  static List<Offset> spotsFor(int roll) => _spotses[roll - 1];
 
   Rect get rect => Rect.fromLTWH(left, top, _dieWidth, _dieHeight);
   Iterable<Rect> getSpotRects() sync* {
