@@ -51,16 +51,9 @@ void main() {
     });
 
     test('returns null when the die has no legal play', () {
-      // single checker on pip 1; a 1 bears it off, but here use a die that
-      // overshoots while a higher checker blocks the forced bear-off
-      final board = makeBoard({6: -1, 1: -1});
-      // die 5 from pip 6 -> pip 1 (legal move); so not null. Use a blocked case:
-      final blocked = makeBoard({1: -1});
-      // checker on 1, die 6: forced bear-off is legal -> not null either.
-      // Construct a genuinely stuck case: opponent fully blocks a non-home move.
-      expect(GammonRules.greedyMoveForDie(board, GammonPlayer.one, 5), isNotNull);
-      expect(
-          GammonRules.greedyMoveForDie(blocked, GammonPlayer.one, 6), isNotNull);
+      // player1 on the bar; the entry point for a 1 (pip 24) is blocked
+      final board = makeBoard({25: -1, 24: 2});
+      expect(GammonRules.greedyMoveForDie(board, GammonPlayer.one, 1), isNull);
     });
   });
 

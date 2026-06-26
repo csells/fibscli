@@ -11,7 +11,7 @@ A Flutter app (`fibscli`) that is currently a standalone, single-player backgamm
 - Run (dev): `flutter run` (targets web/desktop/mobile; works across form factors)
 - Build web: `./build-web.sh` → `flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true`
 - Analyze/lint: `flutter analyze` (lint config in `analysis_options.yaml`, based on `all_lint_rules_community` with many explicit overrides)
-- Test: `flutter test` — **but note all test files in `test/` are currently fully commented out**, so this runs nothing. Uncommenting them requires the `../fibsboard` dependency (see below).
+- Test: `flutter test` — the suite covers the rules engine and game-model features (move generation, forced moves, doubling, stats, race/auto-bear-off, win-probability, piece-animation planning). `test/board_builder.dart` builds boards from a concise `{pipNo: signedCount}` spec for unit tests.
 
 ## Critical dependency caveat
 
