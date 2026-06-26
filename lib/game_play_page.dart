@@ -359,7 +359,9 @@ class _GameViewState extends State<GameView> {
                           rect: _cubeRect(_game!.cube.owner),
                           child: GestureDetector(
                             onTap: _tapCube,
-                            child: DoublingCubeView(cube: _game!.cube),
+                            child: DoublingCubeView(
+                                cube: _game!.cube,
+                                reversed: controller.reversed),
                           ),
                         ),
 
