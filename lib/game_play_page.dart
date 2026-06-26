@@ -390,12 +390,16 @@ class _GameViewState extends State<GameView> {
   }
 
   bool _move(int toEndPipNo) {
-    // find the first set of hops that move from the current pip to
-    // the desired pip
+    // find the set of hops that move from the current pip to the desired pip,
+    // preferring an ordering that hits opponent blots along the way (issue #9)
     final hops = _fromPipNo == null
         ? null
-        : _legalMovesForPips[_fromPipNo]
-            .hops(fromPipNo: _fromPipNo, toPipNo: toEndPipNo);
+        : GammonRules.preferredHops(
+            _game!.board,
+            _legalMovesForPips[_fromPipNo] ?? const <GammonMove>[],
+            fromPipNo: _fromPipNo!,
+            toPipNo: toEndPipNo,
+          );
 
     // if this is a legal move, do the move
     if (hops != null) {

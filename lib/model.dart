@@ -459,6 +459,36 @@ class GammonRules {
     return legalMoves.toList();
   }
 
+  // count how many opponent blots a move hits along the way
+  static int hitCountForMove(List<List<int>> board, GammonMove move) {
+    final deltas = checkLegalMove(board, move);
+    return deltas
+        .expand((deltasForHop) => deltasForHop)
+        .where((delta) => delta.kind == GammonDeltaKind.hit)
+        .length;
+  }
+
+  // Among [moves] that go from [fromPipNo] to [toPipNo], return the hops of the
+  // one that hits the most opponent blots along the way. When the destination
+  // can be reached via several hop orderings (e.g. 8->5->4 vs 8->7->4), this
+  // prefers an ordering that hits rather than picking an arbitrary first one.
+  // Returns null if no matching move exists (issue #9).
+  static List<int>? preferredHops(
+    List<List<int>> board,
+    Iterable<GammonMove> moves, {
+    required int fromPipNo,
+    required int toPipNo,
+  }) {
+    final matching = moves
+        .where((m) => m.fromPipNo == fromPipNo && m.toPipNo == toPipNo)
+        .toList();
+    if (matching.isEmpty) return null;
+
+    matching.sort((a, b) =>
+        hitCountForMove(board, b).compareTo(hitCountForMove(board, a)));
+    return matching.first.hops;
+  }
+
   static List<List<GammonDelta>> checkLegalMove(
       List<List<int>> board, GammonMove move) {
     // temp board state while checking each hop of the move
