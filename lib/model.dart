@@ -5,6 +5,44 @@ import 'package:flutter/foundation.dart';
 import 'package:trotter/trotter.dart';
 
 import 'dice.dart';
+import 'race_eval.dart';
+
+// Per-player tallies shown in the end-game summary (issue #10).
+class GammonStats {
+  int rolls = 0;
+  int doubles = 0;
+  int pips = 0; // total of all dice rolled
+
+  void record(List<int> diceRolls) {
+    if (diceRolls.isEmpty) return;
+    ++rolls;
+    pips += diceRolls.fold<int>(0, (sum, r) => sum + r);
+    if (diceRolls.length >= 2 && diceRolls.every((r) => r == diceRolls.first)) {
+      ++doubles;
+    }
+  }
+}
+
+// The doubling cube (issue #12). Starts centered (owned by neither) at 1.
+// Taking a double doubles the stake and transfers ownership to the taker, who
+// alone may then redouble. The value tops out at 64.
+class DoublingCube {
+  static const maxValue = 64;
+
+  int value = 1;
+  GammonPlayer? owner; // null == centered, either player may double
+
+  bool canDoubleBy(GammonPlayer player) =>
+      value < maxValue && (owner == null || owner == player);
+
+  // Apply an accepted double offered by [offeredBy]: the taker (the other
+  // player) becomes the new owner and the value doubles.
+  void applyTake(GammonPlayer offeredBy) {
+    assert(canDoubleBy(offeredBy));
+    value *= 2;
+    owner = GammonRules.otherPlayer(offeredBy);
+  }
+}
 
 class GammonState extends ChangeNotifier {
   GammonState() {
@@ -33,6 +71,38 @@ class GammonState extends ChangeNotifier {
   late GammonState _undoState; // state for implementing undo
   var _moveNo = 1;
   var _gameOver = false;
+  final _stats = <GammonPlayer, GammonStats>{
+    GammonPlayer.one: GammonStats(),
+    GammonPlayer.two: GammonStats(),
+  };
+
+  GammonStats statsFor(GammonPlayer player) => _stats[player]!;
+
+  final cube = DoublingCube();
+
+  // A player may offer a double when it's their turn, before they've moved
+  // (all dice still available), and the cube allows it (issue #12).
+  bool canOfferDouble(GammonPlayer? player) =>
+      !_gameOver &&
+      player != null &&
+      player == _turnPlayer &&
+      cube.canDoubleBy(player) &&
+      _dice.every((d) => d.available);
+
+  // The opponent accepts the double offered by the player on roll: play
+  // continues with a higher stake.
+  void acceptDouble() {
+    if (_gameOver) throw Exception('game over');
+    cube.applyTake(_turnPlayer!);
+    notifyListeners();
+  }
+
+  // The opponent declines the double: the doubler (current turn player) wins.
+  void declineDouble() {
+    if (_gameOver) throw Exception('game over');
+    _gameOver = true;
+    notifyListeners();
+  }
 
   void _setState({
     required List<List<int>> board,
@@ -66,9 +136,14 @@ class GammonState extends ChangeNotifier {
 
     _turnPlayer =
         _dice[0].roll > _dice[1].roll ? GammonPlayer.one : GammonPlayer.two;
+    _recordRoll(_turnPlayer!);
     _undoState =
         GammonState.from(board: _board, dice: dice, turnPlayer: _turnPlayer);
     _moveNo = 1;
+  }
+
+  void _recordRoll(GammonPlayer player) {
+    _stats[player]!.record(_dice.map((d) => d.roll).toList());
   }
 
   void commitTurn() {
@@ -76,6 +151,7 @@ class GammonState extends ChangeNotifier {
 
     _turnPlayer = GammonRules.otherPlayer(_turnPlayer);
     _rollDice(); // roll dice before capturing updo state
+    _recordRoll(_turnPlayer!);
     _undoState =
         GammonState.from(board: _board, dice: dice, turnPlayer: _turnPlayer);
     ++_moveNo; // can't be undone, so not capturing it
@@ -97,7 +173,7 @@ class GammonState extends ChangeNotifier {
     if (_gameOver) return {};
 
     final rolls = _dice.where((d) => d.available).map((d) => d.roll).toList();
-    return GammonRules.getAllLegalMoves(board, _turnPlayer, rolls);
+    return GammonRules.getForcedLegalMoves(board, _turnPlayer, rolls);
   }
 
   List<List<GammonDelta>> applyMove({required GammonMove move}) {
@@ -125,6 +201,38 @@ class GammonState extends ChangeNotifier {
 
   int get moveNo => _moveNo;
 
+  // auto bear-off is offered only in a pure race (issue #11)
+  bool get canAutoBearOff => !_gameOver && GammonRules.isRace(board);
+
+  // Play the rest of the game greedily. Only meaningful in a pure race, where
+  // no decision affects the outcome, so the player can skip clicking out every
+  // bear-off. Mutates state directly (no per-move animation).
+  void autoBearOff() {
+    if (_gameOver) return;
+
+    while (!_gameOver) {
+      // play every available die greedily for the current turn
+      while (true) {
+        final available =
+            _dice.where((d) => d.available).map((d) => d.roll).toList();
+        if (available.isEmpty) break;
+
+        GammonMove? chosen;
+        for (final die in available) {
+          chosen = GammonRules.greedyMoveForDie(board, _turnPlayer, die);
+          if (chosen != null) break;
+        }
+        if (chosen == null) break; // no legal move for any remaining die
+
+        final deltas = applyMove(move: chosen);
+        if (deltas.isEmpty) break; // safety: avoid spinning
+      }
+
+      if (_gameOver) break;
+      commitTurn();
+    }
+  }
+
   int pipCount({required int sign}) {
     var pipCount = 0;
 
@@ -143,6 +251,36 @@ class GammonState extends ChangeNotifier {
 
     return pipCount;
   }
+
+  // Win probability for [player], always complementary between the two players
+  // (issue #14). In a pure race this is the exact value from the race solver;
+  // with contact it falls back to the pip-count heuristic.
+  double winProbabilityFor(GammonPlayer player) {
+    final onRollPlayer = _turnPlayer;
+    if (onRollPlayer == null) return 0.5;
+
+    final onRollWins = RaceEval.winProbabilityOrNull(board, onRollPlayer) ??
+        GammonRules.raceWinProbability(
+          myPips: pipCount(sign: GammonRules.signFor(onRollPlayer)),
+          oppPips: pipCount(
+              sign: GammonRules.signFor(GammonRules.otherPlayer(onRollPlayer))),
+        );
+    return player == onRollPlayer ? onRollWins : 1.0 - onRollWins;
+  }
+
+  // The recommended cube action for the player currently on roll (issue #14).
+  // Exact in a pure race; heuristic with contact.
+  CubeAction get recommendedCubeAction {
+    final onRoll = _turnPlayer!;
+    if (cube.value >= DoublingCube.maxValue) return CubeAction.noDouble;
+    return RaceEval.cubeActionOrNull(board, onRoll, cube.owner) ??
+        GammonRules.cubeAction(winProbabilityFor(onRoll));
+  }
+
+  // True when the win chances and cube action are exact (a pure race) rather
+  // than a pip-count estimate, so the UI can label them honestly (issue #14).
+  bool get hasExactOdds => RaceEval.winProbabilityOrNull(board, _turnPlayer ??
+      GammonPlayer.one) != null;
 
   void _useDie(int roll) {
     _dice.firstWhere((d) => d.roll == roll && d.available).available = false;
@@ -166,9 +304,10 @@ class GammonState extends ChangeNotifier {
   }
 
   void _disableUnusableDice() {
-    // check all the pips for legal moves
+    // check all the pips for legal moves (forced-move rules applied so that a
+    // die the player is not allowed to play counts as unusable; issue #4)
     final rolls = _dice.where((d) => d.available).map((d) => d.roll).toList();
-    final moves = GammonRules.getAllLegalMoves(board, _turnPlayer, rolls);
+    final moves = GammonRules.getForcedLegalMoves(board, _turnPlayer, rolls);
 
     // find all of the possible hops
     final hops = <int>[
@@ -232,6 +371,13 @@ extension GammonMoves on Iterable<GammonMove>? {
 }
 
 enum GammonPlayer { one, two }
+
+// Recommended doubling-cube action for the player on roll (issue #14).
+enum CubeAction {
+  noDouble, // too early to double
+  doubleTake, // double; opponent should take
+  doublePass, // double; opponent should pass (drop)
+}
 
 @immutable
 class GammonMove {
@@ -395,6 +541,173 @@ class GammonRules {
     }
   }
 
+  // Estimate the probability that the player on roll wins a race, given both
+  // pip counts (issue #14). This is a heuristic, NOT an equity engine: a
+  // logistic model of the pip lead, widened by the size of the race (variance
+  // grows with pip count) and nudged by a small on-roll bonus. Good enough to
+  // guide cube decisions in a pure race; it does not account for contact,
+  // wastage, or gammons.
+  static double raceWinProbability({
+    required int myPips,
+    required int oppPips,
+  }) {
+    const onRollBonus = 4.0; // ~half an average roll for moving next
+    final total = (myPips + oppPips).toDouble();
+    final spread = sqrt(total < 1 ? 1 : total) * 1.5;
+    final adjustedLead = (oppPips - myPips) + onRollBonus;
+    return 1.0 / (1.0 + exp(-adjustedLead / spread));
+  }
+
+  // The recommended cube action for the player on roll given their win
+  // probability (issue #14). Uses the classic cubeless money-game reference
+  // points: a take point of 25% (so the opponent passes once the doubler is
+  // above ~75%) and a doubling window that opens around 70%.
+  static CubeAction cubeAction(double winProbability) {
+    const doublePoint = 0.70;
+    const passPoint = 0.75;
+    if (winProbability < doublePoint) return CubeAction.noDouble;
+    if (winProbability <= passPoint) return CubeAction.doubleTake;
+    return CubeAction.doublePass;
+  }
+
+  // True when the two players' checkers have passed each other so no further
+  // hits are possible: a pure race. Used to offer auto bear-off (issue #11).
+  static bool isRace(List<List<int>> board) {
+    // any checker on the bar means contact is still possible
+    if (board[0].any((p) => playerFor(p) == GammonPlayer.two)) return false;
+    if (board[25].any((p) => playerFor(p) == GammonPlayer.one)) return false;
+
+    int? p1Max; // highest point player1 occupies (player1's rearmost)
+    int? p2Min; // lowest point player2 occupies (player2's rearmost)
+    for (var pip = 1; pip <= 24; ++pip) {
+      for (final id in board[pip]) {
+        if (playerFor(id) == GammonPlayer.one) {
+          p1Max = p1Max == null ? pip : max(p1Max, pip);
+        } else {
+          p2Min = p2Min == null ? pip : min(p2Min, pip);
+        }
+      }
+    }
+
+    // if either side is entirely off the board, it's trivially a race
+    if (p1Max == null || p2Min == null) return true;
+    return p1Max < p2Min;
+  }
+
+  // Greedy bear-off choice for a single die (issue #11): bear a checker off if
+  // possible, clearing the highest such point; otherwise advance the rearmost
+  // checker. Returns null when the die has no legal play.
+  static GammonMove? greedyMoveForDie(
+      List<List<int>> board, GammonPlayer? player, int die) {
+    final movesByPip = getAllLegalMoves(board, player, [die]);
+    final candidates = <GammonMove>[
+      for (final moves in movesByPip.values) ...moves
+    ];
+    if (candidates.isEmpty) return null;
+
+    // "rearness": how far from home a point is for this player (higher == more
+    // checker work remaining), so the rearmost checker has the largest value.
+    int rearness(int pipNo) => player == GammonPlayer.one ? pipNo : -pipNo;
+
+    final offPipNo = offPipNoFor(player);
+    final bearoffs =
+        candidates.where((m) => m.toPipNo == offPipNo).toList();
+    final pool = bearoffs.isNotEmpty ? bearoffs : candidates;
+    pool.sort((a, b) => rearness(b.fromPipNo).compareTo(rearness(a.fromPipNo)));
+    return pool.first;
+  }
+
+  static List<List<int>> _copyBoard(List<List<int>> board) =>
+      List<List<int>>.generate(board.length, (i) => List<int>.from(board[i]));
+
+  // The maximum number of dice (single hops) that can be legally played this
+  // turn, considering every move ordering. For non-doubles this is 0, 1, or 2;
+  // for doubles up to 4. Used to enforce the rule that a player must play as
+  // many dice as possible (issue #4).
+  static int maxPlayableDice(
+      List<List<int>> board, GammonPlayer? player, List<int> rolls) {
+    if (rolls.isEmpty) return 0;
+
+    var best = 0;
+    final tried = <int>{};
+    for (final roll in rolls) {
+      if (!tried.add(roll)) continue; // doubles: same value, same result
+      final remaining = List<int>.of(rolls)..remove(roll);
+
+      // every legal single-die play for this roll, from any pip
+      final movesByPip = getAllLegalMoves(board, player, [roll]);
+      for (final moves in movesByPip.values) {
+        for (final move in moves) {
+          final tempBoard = _copyBoard(board);
+          final deltas = applyMove(tempBoard, move);
+          if (deltas.isEmpty) continue;
+          final depth = 1 + maxPlayableDice(tempBoard, player, remaining);
+          if (depth > best) best = depth;
+          if (best == rolls.length) return best; // can't do better
+        }
+      }
+    }
+    return best;
+  }
+
+  static List<int> _rollsAfter(List<int> rolls, Iterable<int> hops) {
+    final remaining = List<int>.of(rolls);
+    for (final hop in hops) {
+      remaining.remove(hop.abs());
+    }
+    return remaining;
+  }
+
+  // Like [getAllLegalMoves], but restricted to the moves a player is actually
+  // allowed to make under the forced-move rules: a player must use as many dice
+  // as possible, and when only one of two different dice can be played, must
+  // play the larger one (issue #4).
+  static Map<int, List<GammonMove>> getForcedLegalMoves(
+      List<List<int>> board, GammonPlayer? player, List<int> rolls) {
+    final maxDice = maxPlayableDice(board, player, rolls);
+    if (maxDice == 0) return {};
+
+    final all = getAllLegalMoves(board, player, rolls);
+    final result = <int, List<GammonMove>>{};
+    for (final entry in all.entries) {
+      final kept = <GammonMove>[];
+      for (final move in entry.value) {
+        final tempBoard = _copyBoard(board);
+        final deltas = applyMove(tempBoard, move);
+        if (deltas.isEmpty) continue;
+        final remaining = _rollsAfter(rolls, move.hops);
+        final reachable =
+            move.hops.length + maxPlayableDice(tempBoard, player, remaining);
+        if (reachable == maxDice) kept.add(move);
+      }
+      if (kept.isNotEmpty) result[entry.key] = kept;
+    }
+
+    // larger-die rule: when only a single die can be played and the two dice
+    // differ, the player must play the larger one.
+    if (maxDice == 1) {
+      final dieValues = {
+        for (final moves in result.values)
+          for (final move in moves) move.hops.first.abs()
+      };
+      if (dieValues.length > 1) {
+        final largest = dieValues.reduce(max);
+        for (final pipNo in result.keys.toList()) {
+          final kept = result[pipNo]!
+              .where((m) => m.hops.first.abs() == largest)
+              .toList();
+          if (kept.isEmpty) {
+            result.remove(pipNo);
+          } else {
+            result[pipNo] = kept;
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
   // calculate legal moves for all pips
   static Map<int, List<GammonMove>> getAllLegalMoves(
       List<List<int>> board, GammonPlayer? player, List<int> rolls) {
@@ -457,6 +770,36 @@ class GammonRules {
     }
 
     return legalMoves.toList();
+  }
+
+  // count how many opponent blots a move hits along the way
+  static int hitCountForMove(List<List<int>> board, GammonMove move) {
+    final deltas = checkLegalMove(board, move);
+    return deltas
+        .expand((deltasForHop) => deltasForHop)
+        .where((delta) => delta.kind == GammonDeltaKind.hit)
+        .length;
+  }
+
+  // Among [moves] that go from [fromPipNo] to [toPipNo], return the hops of the
+  // one that hits the most opponent blots along the way. When the destination
+  // can be reached via several hop orderings (e.g. 8->5->4 vs 8->7->4), this
+  // prefers an ordering that hits rather than picking an arbitrary first one.
+  // Returns null if no matching move exists (issue #9).
+  static List<int>? preferredHops(
+    List<List<int>> board,
+    Iterable<GammonMove> moves, {
+    required int fromPipNo,
+    required int toPipNo,
+  }) {
+    final matching = moves
+        .where((m) => m.fromPipNo == fromPipNo && m.toPipNo == toPipNo)
+        .toList();
+    if (matching.isEmpty) return null;
+
+    matching.sort((a, b) =>
+        hitCountForMove(board, b).compareTo(hitCountForMove(board, a)));
+    return matching.first.hops;
   }
 
   static List<List<GammonDelta>> checkLegalMove(

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
@@ -34,6 +33,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
     // ignore: discarded_futures
     _prefsFuture.then((prefs) {
       _prefs = prefs;
+      _controller.reversed = prefs.getBool('reversed') ?? false;
       _controller.addListener(_savePrefs);
     });
   }
@@ -49,51 +49,65 @@ class _GamePlayPageState extends State<GamePlayPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: Colors.green,
-        appBar: AppBar(
-          title: const Text(App.title),
-          elevation: 0,
-          actions: [
-            IconButton(
-              tooltip: 'provide feedback',
-              icon: const Icon(Icons.feedback),
-              onPressed: _tapFeedback,
-            ),
-            IconButton(
-              tooltip: 'backgammon help',
-              icon: const Icon(Icons.help),
-              onPressed: _tapHelp,
-            ),
-            IconButton(
-              tooltip: 'reverse board',
-              icon: const Icon(Icons.sync),
-              onPressed: _tapReverse,
-            ),
-            IconButton(
-              tooltip: 'new game',
-              icon: const Icon(Icons.fiber_new),
-              onPressed: _tapNewGame,
-            ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          tooltip: 'undo turn',
-          onPressed: _controller.canUndo ? _tapUndo : null,
-          child: const Icon(Icons.undo),
-        ),
-        body: FutureBuilder2<SharedPreferences>(
-          future: _prefsFuture,
-          data: (context, prefs) {
-            _controller.reversed = prefs!.getBool('reversed') ?? false;
-            return GameView(controller: _controller);
-          },
+  Widget build(BuildContext context) =>
+      ChangeNotifierBuilder<GameViewController>(
+        notifier: _controller,
+        builder: (context, controller, child) => Scaffold(
+          backgroundColor: Colors.green,
+          appBar: AppBar(
+            title: const Text(App.title),
+            elevation: 0,
+            actions: [
+              if (controller.canAutoBearOff)
+                IconButton(
+                  tooltip: 'auto bear off',
+                  icon: const Icon(Icons.fast_forward),
+                  onPressed: _tapAutoBearOff,
+                ),
+              IconButton(
+                tooltip: 'win chances & cube advice',
+                icon: const Icon(Icons.insights),
+                onPressed: _tapOdds,
+              ),
+              IconButton(
+                tooltip: 'provide feedback',
+                icon: const Icon(Icons.feedback),
+                onPressed: _tapFeedback,
+              ),
+              IconButton(
+                tooltip: 'backgammon help',
+                icon: const Icon(Icons.help),
+                onPressed: _tapHelp,
+              ),
+              IconButton(
+                tooltip: 'reverse board',
+                icon: const Icon(Icons.sync),
+                onPressed: _tapReverse,
+              ),
+              IconButton(
+                tooltip: 'new game',
+                icon: const Icon(Icons.fiber_new),
+                onPressed: _tapNewGame,
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            tooltip: 'undo turn',
+            onPressed: controller.canUndo ? _tapUndo : null,
+            child: const Icon(Icons.undo),
+          ),
+          body: FutureBuilder2<SharedPreferences>(
+            future: _prefsFuture,
+            data: (context, prefs) => GameView(controller: _controller),
+          ),
         ),
       );
 
   void _tapNewGame() => _controller.newGame();
   void _tapReverse() => _controller.reversed = !_controller.reversed;
   void _tapUndo() => _controller.undo();
+  void _tapAutoBearOff() => _controller.autoBearOff();
+  void _tapOdds() => _controller.showOdds();
   void _tapFeedback() => unawaited(
         ul.launchUrl(Uri.parse('https://github.com/csells/fibscli/issues')),
       );
@@ -105,18 +119,29 @@ class _GamePlayPageState extends State<GamePlayPage> {
 class GameViewController extends ChangeNotifier {
   bool _reversed = false;
   var _canUndo = true;
+  var _canAutoBearOff = false;
   late void Function() _onUndo;
   late void Function() _onNewGame;
+  late void Function() _onAutoBearOff;
 
   bool get reversed => _reversed;
   set reversed(bool reversed) {
+    if (_reversed == reversed) return;
     _reversed = reversed;
     notifyListeners();
   }
 
   bool get canUndo => _canUndo;
   set canUndo(bool canUndo) {
+    if (_canUndo == canUndo) return;
     _canUndo = canUndo;
+    notifyListeners();
+  }
+
+  bool get canAutoBearOff => _canAutoBearOff;
+  set canAutoBearOff(bool canAutoBearOff) {
+    if (_canAutoBearOff == canAutoBearOff) return;
+    _canAutoBearOff = canAutoBearOff;
     notifyListeners();
   }
 
@@ -127,6 +152,16 @@ class GameViewController extends ChangeNotifier {
   // ignore: avoid_setters_without_getters
   set onNewGame(void Function() onNewGame) => _onNewGame = onNewGame;
   void newGame() => _onNewGame();
+
+  // ignore: avoid_setters_without_getters
+  set onAutoBearOff(void Function() onAutoBearOff) =>
+      _onAutoBearOff = onAutoBearOff;
+  void autoBearOff() => _onAutoBearOff();
+
+  late void Function() _onShowOdds;
+  // ignore: avoid_setters_without_getters
+  set onShowOdds(void Function() onShowOdds) => _onShowOdds = onShowOdds;
+  void showOdds() => _onShowOdds();
 }
 
 class GameView extends StatefulWidget {
@@ -143,6 +178,7 @@ class _GameViewState extends State<GameView> {
   var _legalMovesForPips = <int, List<GammonMove>>{};
   int? _fromPipNo;
   final _pieceLayouts = <int?, List<PieceLayout>>{};
+  final _pieceDelays = <int?, Duration>{};
 
   @override
   void initState() {
@@ -160,6 +196,14 @@ class _GameViewState extends State<GameView> {
           : await QuitGameDialog.show(context); // result can return null
       if (ok ?? false) _newGame();
     };
+
+    widget.controller.onAutoBearOff = () {
+      assert(_game!.canAutoBearOff);
+      _game!.autoBearOff();
+      _reset();
+    };
+
+    widget.controller.onShowOdds = () => OddsDialog.show(context, _game!);
 
     _newGame();
   }
@@ -185,7 +229,7 @@ class _GameViewState extends State<GameView> {
     _game!.removeListener(_gameChanged);
     widget.controller.canUndo = false;
     final ok = await NewGameDialog.show(
-        context, _game!.turnPlayer); // result can be null
+        context, _game!.turnPlayer, _game!); // result can be null
     if (ok ?? false) _newGame();
   }
 
@@ -310,18 +354,28 @@ class _GameViewState extends State<GameView> {
                             rect: Rect.fromLTWH(
                                 520, 20, 32, 183)), // player2 home shading
 
-                        // doubling cube: undoubled
-                        // Positioned.fromRect(
-                        //   rect: Rect.fromLTWH(238, 186, 44, 44),
-                        //   child: DoublingCubeView(),
-                        // ),
+                        // doubling cube (issue #12)
+                        Positioned.fromRect(
+                          rect: _cubeRect(_game!.cube.owner),
+                          child: GestureDetector(
+                            onTap: _tapCube,
+                            child: DoublingCubeView(
+                                cube: _game!.cube,
+                                reversed: controller.reversed),
+                          ),
+                        ),
 
-                        // pieces
-                        for (final layout in PieceLayout.getLayouts(
-                            game!.board, _pipNosToHighlight))
+                        // pieces; moving pieces are drawn last so they appear
+                        // on top of stationary pieces (issue #6)
+                        for (final layout in PieceLayout.drawOrder(
+                            PieceLayout.getLayouts(
+                                game!.board, _pipNosToHighlight),
+                            _pieceLayouts.keys.toSet()))
                           _pieceLayouts.containsKey(layout.pieceID)
                               ? AnimatedPiece.fromLayouts(
                                   layouts: _pieceLayouts[layout.pieceID]!,
+                                  delay: _pieceDelays[layout.pieceID] ??
+                                      Duration.zero,
                                   onEnd: () =>
                                       _endPieceAnimation(layout.pieceID),
                                   child: GestureDetector(
@@ -370,6 +424,32 @@ class _GameViewState extends State<GameView> {
   void _tapPiece(int pipNo) => _tapPip(pipNo);
   void _tapOff(GammonPlayer player) => _move(GammonRules.offPipNoFor(player));
 
+  // the cube sits at the center bar, shifted toward its owner's side
+  static Rect _cubeRect(GammonPlayer? owner) {
+    const top = <GammonPlayer?, double>{
+      null: 186, // centered
+      GammonPlayer.one: 354, // player1 home is along the bottom
+      GammonPlayer.two: 18, // player2 home is along the top
+    };
+    return Rect.fromLTWH(238, top[owner]!, 44, 44);
+  }
+
+  Future<void> _tapCube() async {
+    final player = _game!.turnPlayer;
+    if (player == null || !_game!.canOfferDouble(player)) return;
+
+    final accepted = await DoubleOfferDialog.show(
+        context, player, _game!.cube.value * 2);
+    if (accepted == null) return; // dismissed
+
+    if (accepted) {
+      _game!.acceptDouble();
+      _reset();
+    } else {
+      _game!.declineDouble(); // ends the game; _gameChanged shows the result
+    }
+  }
+
   void _tapPip(int pipNo) {
     if (_fromPipNo == null) {
       // if there's no pip to move from selected and it has legal moves,
@@ -390,12 +470,16 @@ class _GameViewState extends State<GameView> {
   }
 
   bool _move(int toEndPipNo) {
-    // find the first set of hops that move from the current pip to
-    // the desired pip
+    // find the set of hops that move from the current pip to the desired pip,
+    // preferring an ordering that hits opponent blots along the way (issue #9)
     final hops = _fromPipNo == null
         ? null
-        : _legalMovesForPips[_fromPipNo]
-            .hops(fromPipNo: _fromPipNo, toPipNo: toEndPipNo);
+        : GammonRules.preferredHops(
+            _game!.board,
+            _legalMovesForPips[_fromPipNo] ?? const <GammonMove>[],
+            fromPipNo: _fromPipNo!,
+            toPipNo: toEndPipNo,
+          );
 
     // if this is a legal move, do the move
     if (hops != null) {
@@ -405,11 +489,13 @@ class _GameViewState extends State<GameView> {
           GammonMove(fromPipNo: _fromPipNo!, toPipNo: toEndPipNo, hops: hops);
       final deltasForHops = _game!.applyMove(move: move);
 
-      // convert game states for each hop into a sequence of layouts for
-      // each affected piece
+      // convert game states for each hop into a sequence of layouts (and hit
+      // delays) for each affected piece
       assert(deltasForHops.length == hops.length);
       assert(_pieceLayouts.isEmpty);
-      _pieceLayouts.addAll(_pieceLayoutsFor(initialBoard, deltasForHops));
+      final anim = MoveAnimation.forMove(initialBoard, deltasForHops);
+      _pieceLayouts.addAll(anim.layouts);
+      _pieceDelays.addAll(anim.delays);
     }
 
     _reset();
@@ -421,6 +507,7 @@ class _GameViewState extends State<GameView> {
       _legalMovesForPips = _game!.getAllLegalMoves();
       _fromPipNo = null;
     });
+    widget.controller.canAutoBearOff = _game!.canAutoBearOff;
   }
 
   void _tapDice() {
@@ -450,59 +537,13 @@ class _GameViewState extends State<GameView> {
     return result;
   }
 
-  static Map<int?, List<PieceLayout>> _pieceLayoutsFor(
-    List<List<int>> initialBoard,
-    List<List<GammonDelta>> deltasForHops,
-  ) {
-    // find the main piece that's moving (not the pieces moving to the bar)
-    final mainPieceID = deltasForHops[0][0].pieceID;
-    if (kDebugMode) {
-      for (final deltasForHop in deltasForHops) {
-        assert(deltasForHop[0].pieceID == mainPieceID);
-      }
-    }
-
-    // copy the initial board; it'll change as we apply deltas
-    final board = List<List<int>>.generate(
-        initialBoard.length, (i) => List<int>.from(initialBoard[i]));
-
-    // find the set of pieces that are affected by this move
-    final pieceIDs = <int?>[
-      for (final deltasForHop in deltasForHops)
-        for (final delta in deltasForHop) delta.pieceID
-    ];
-
-    // initialize the list of layouts that each piece travels
-    final pieceLayouts = <int?, List<PieceLayout>>{};
-    for (final pieceID in pieceIDs) {
-      pieceLayouts[pieceID] = [];
-    }
-
-    // get layout for each piece at each hop (most won't move)
-    // start with an empty delta to handle initial board state
-    for (final deltasForHop in <List<GammonDelta>>[
-      <GammonDelta>[],
-      ...deltasForHops
-    ]) {
-      // update the board for the this hop
-      GammonRules.applyDeltasForHop(board, deltasForHop);
-
-      final layouts = PieceLayout.getLayouts(board);
-      for (final pieceID in pieceIDs) {
-        // add the layout to this hop for this piece
-        final layout = layouts.firstWhere((l) => l.pieceID == pieceID);
-        pieceLayouts[pieceID]!.add(layout);
-      }
-    }
-
-    return pieceLayouts;
-  }
-
   // remove each animated piece from the list of pieces to animate
   void _endPieceAnimation(int pieceID) {
     _pieceLayouts.remove(pieceID)!;
+    _pieceDelays.remove(pieceID);
 
-    // the last piece has been animated, so draw the final state of the board w/ labels, on edge, etc.
+    // the last piece has been animated, so draw the final state of the board
+    // w/ labels, on edge, etc.
     if (_pieceLayouts.isEmpty) setState(() {});
   }
 }
@@ -573,14 +614,122 @@ class QuitGameDialog extends StatelessWidget {
       context: context, builder: (context) => const QuitGameDialog());
 }
 
+// Win-chance estimate and recommended cube action (issue #14). The numbers are
+// a race heuristic, not an equity-engine rollout.
+class OddsDialog extends StatelessWidget {
+  const OddsDialog(this.game, {super.key});
+  final GammonState game;
+
+  static String _cubeAdvice(CubeAction action, int onRollNo) {
+    switch (action) {
+      case CubeAction.noDouble:
+        return 'Player $onRollNo: too early to double.';
+      case CubeAction.doubleTake:
+        return 'Player $onRollNo should double; opponent should take.';
+      case CubeAction.doublePass:
+        return 'Player $onRollNo should double; opponent should pass.';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p1 = (game.winProbabilityFor(GammonPlayer.one) * 100).round();
+    final p2 = (game.winProbabilityFor(GammonPlayer.two) * 100).round();
+    final onRollNo = game.turnPlayer == GammonPlayer.one ? 1 : 2;
+
+    return AlertDialog(
+      title: const Text('Win Chances'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Player 1: $p1%'),
+          Text('Player 2: $p2%'),
+          const SizedBox(height: 12),
+          Text(_cubeAdvice(game.recommendedCubeAction, onRollNo)),
+          const SizedBox(height: 12),
+          Text(
+            game.hasExactOdds
+                ? 'Exact race calculation (no contact remaining).'
+                : 'Estimated from the pip-count race; not an exact rollout.',
+            style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+      actions: [
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('OK'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static Future<void> show(BuildContext context, GammonState game) =>
+      showDialog<void>(
+          context: context, builder: (context) => OddsDialog(game));
+}
+
+// Offer-a-double dialog: the player on roll doubles, the opponent decides
+// (issue #12).
+class DoubleOfferDialog extends StatelessWidget {
+  const DoubleOfferDialog(this.doubler, this.newValue, {super.key});
+  final GammonPlayer doubler;
+  final int newValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final doublerNo = doubler == GammonPlayer.one ? 1 : 2;
+    final opponentNo = doubler == GammonPlayer.one ? 2 : 1;
+    return AlertDialog(
+      title: Text('Player $doublerNo doubles to $newValue'),
+      content: Text('Player $opponentNo, do you accept?'),
+      actions: [
+        OutlinedButton(
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('Decline'),
+          ),
+          onPressed: () => Navigator.pop(context, false),
+        ),
+        ElevatedButton(
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('Accept'),
+          ),
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
+    );
+  }
+
+  static Future<bool?> show(
+          BuildContext context, GammonPlayer doubler, int newValue) =>
+      showDialog<bool>(
+          context: context,
+          builder: (context) => DoubleOfferDialog(doubler, newValue));
+}
+
 class NewGameDialog extends StatelessWidget {
-  const NewGameDialog(this.winner, {super.key});
+  const NewGameDialog(this.winner, this.game, {super.key});
   final GammonPlayer? winner;
+  final GammonState game;
 
   @override
   Widget build(BuildContext context) => AlertDialog(
         title: Text('Player ${winner == GammonPlayer.one ? 1 : 2} wins!'),
-        content: const Text('Would you like to play another game?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _StatsTable(game: game),
+            const SizedBox(height: 16),
+            const Text('Would you like to play another game?'),
+          ],
+        ),
         actions: [
           OutlinedButton(
             child: const Padding(
@@ -599,7 +748,58 @@ class NewGameDialog extends StatelessWidget {
         ],
       );
 
-  static Future<bool?> show(BuildContext context, GammonPlayer? winner) =>
+  static Future<bool?> show(
+          BuildContext context, GammonPlayer? winner, GammonState game) =>
       showDialog<bool>(
-          context: context, builder: (context) => NewGameDialog(winner));
+          context: context, builder: (context) => NewGameDialog(winner, game));
+}
+
+// End-of-game stats: rolls, total dice pips, doubles per player (issue #10).
+class _StatsTable extends StatelessWidget {
+  const _StatsTable({required this.game});
+  final GammonState game;
+
+  @override
+  Widget build(BuildContext context) {
+    final p1 = game.statsFor(GammonPlayer.one);
+    final p2 = game.statsFor(GammonPlayer.two);
+    const headerStyle = TextStyle(fontWeight: FontWeight.bold);
+
+    TableRow row(String label, Object a, Object b) => TableRow(
+          children: [
+            Padding(padding: const EdgeInsets.all(4), child: Text(label)),
+            Padding(
+                padding: const EdgeInsets.all(4),
+                child: Text('$a', textAlign: TextAlign.center)),
+            Padding(
+                padding: const EdgeInsets.all(4),
+                child: Text('$b', textAlign: TextAlign.center)),
+          ],
+        );
+
+    return Table(
+      defaultColumnWidth: const IntrinsicColumnWidth(),
+      columnWidths: const {0: FlexColumnWidth()},
+      children: [
+        const TableRow(
+          children: [
+            Padding(padding: EdgeInsets.all(4), child: Text('')),
+            Padding(
+              padding: EdgeInsets.all(4),
+              child: Text('Player 1',
+                  style: headerStyle, textAlign: TextAlign.center),
+            ),
+            Padding(
+              padding: EdgeInsets.all(4),
+              child: Text('Player 2',
+                  style: headerStyle, textAlign: TextAlign.center),
+            ),
+          ],
+        ),
+        row('Rolls', p1.rolls, p2.rolls),
+        row('Total dice', p1.pips, p2.pips),
+        row('Doubles', p1.doubles, p2.doubles),
+      ],
+    );
+  }
 }

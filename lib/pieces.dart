@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 
 import 'model.dart';
 
+// Milliseconds of animation per unit of on-screen distance a piece travels.
+// Shared by AnimatedPiece (segment duration) and MoveAnimation (hit delays) so
+// a hittee's wait lines up with the hitter's travel time.
+const kAnimationMsPerDistance = 3;
+
 class PieceView extends StatelessWidget {
   PieceView({required this.layout, super.key})
       : _gradeColors = _pieceColors[layout.pieceID.sign == -1 ? 0 : 1],
@@ -59,6 +64,69 @@ class PieceView extends StatelessWidget {
         );
 }
 
+// The per-piece layout paths and start delays for animating a single move.
+// A hittee waits ([delays]) until the hitter reaches it before sliding to the
+// bar, so a piece is no longer sent off before it's hit on screen (issue #5).
+class MoveAnimation {
+  MoveAnimation(this.layouts, this.delays);
+
+  factory MoveAnimation.forMove(
+    List<List<int>> initialBoard,
+    List<List<GammonDelta>> deltasForHops,
+  ) {
+    // the main piece that's moving (not the pieces being sent to the bar)
+    final mainPieceID = deltasForHops[0][0].pieceID;
+
+    // copy the initial board; it'll change as we apply deltas
+    final board = List<List<int>>.generate(
+        initialBoard.length, (i) => List<int>.from(initialBoard[i]));
+
+    // every piece affected by this move (the mover plus any hittees)
+    final pieceIDs = <int?>[
+      for (final deltasForHop in deltasForHops)
+        for (final delta in deltasForHop) delta.pieceID
+    ];
+
+    final layouts = <int?, List<PieceLayout>>{
+      for (final pieceID in pieceIDs) pieceID: <PieceLayout>[]
+    };
+
+    // record each piece's layout at each board state (initial, then each hop)
+    for (final deltasForHop in <List<GammonDelta>>[
+      <GammonDelta>[],
+      ...deltasForHops
+    ]) {
+      GammonRules.applyDeltasForHop(board, deltasForHop);
+      final hopLayouts = PieceLayout.getLayouts(board);
+      for (final pieceID in pieceIDs) {
+        layouts[pieceID]!
+            .add(hopLayouts.firstWhere((l) => l.pieceID == pieceID));
+      }
+    }
+
+    // a hittee starts moving only once the hitter has reached the hit pip
+    final delays = <int?, Duration>{};
+    final hitterPath = layouts[mainPieceID]!;
+    for (var hop = 0; hop != deltasForHops.length; ++hop) {
+      for (final delta in deltasForHops[hop]) {
+        if (delta.kind != GammonDeltaKind.bar) continue;
+        var distance = 0.0;
+        for (var i = 1; i <= hop + 1; ++i) {
+          distance += (hitterPath[i - 1].offset! - hitterPath[i].offset!)
+              .distance;
+        }
+        delays[delta.pieceID] = Duration(
+            milliseconds: (distance * kAnimationMsPerDistance).floor());
+      }
+    }
+
+    return MoveAnimation(layouts, delays);
+  }
+
+  final Map<int?, List<PieceLayout>> layouts;
+  final Map<int?, Duration> delays;
+}
+
 class PieceLayout {
   PieceLayout({
     required this.pipNo,
@@ -88,6 +156,18 @@ class PieceLayout {
   String toString() =>
       'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect, '
       'highlight=$highlight)';
+
+  // Order layouts so that currently-animating (moving) pieces are drawn last,
+  // i.e. on top of stationary pieces, instead of in pip order (issue #6).
+  static List<PieceLayout> drawOrder(
+      Iterable<PieceLayout> layouts, Set<int?> animatingIDs) {
+    final stationary = <PieceLayout>[];
+    final moving = <PieceLayout>[];
+    for (final layout in layouts) {
+      (animatingIDs.contains(layout.pieceID) ? moving : stationary).add(layout);
+    }
+    return [...stationary, ...moving];
+  }
 
   static Iterable<PieceLayout> getLayouts(List<List<int>> board,
       [List<int?>? pipNosToHighlight]) sync* {
