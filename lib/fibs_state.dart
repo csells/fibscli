@@ -3,7 +3,9 @@ import 'dart:developer' as dev;
 import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/material.dart';
 
+import 'fibs_board.dart';
 import 'main.dart';
+import 'model.dart';
 import 'tinystate.dart';
 
 class FibsMessage {
@@ -40,8 +42,16 @@ class FibsState extends ChangeNotifier {
   final FibsConnection _conn;
   String? _user;
 
+  // the most recent board state of the game being watched/played, mapped into
+  // the game model for read-only rendering (null when not in a game)
+  GammonState? _gameState;
+  GammonState? get gameState => _gameState;
+
   String? get user => _user;
   bool get connected => _conn.connected;
+
+  // FIBS users whose name marks them as a bot (the existing heuristic)
+  static bool isBot(String user) => user.contains('Bot');
 
   void _streamItem(CookieMessage cm) {
     dev.log(cm.toString());
@@ -65,10 +75,42 @@ class FibsState extends ChangeNotifier {
           cm.crumbs!['message']!,
         ));
 
+      // gameplay: render the live board read-only (milestone 1)
+      case FibsCookie.FIBS_Board:
+        _gameState = FibsBoard.fromCrumbs(cm.crumbs!).toGammonState();
+        notifyListeners();
+
+      // any other gameplay/lobby chatter is fine to ignore for now rather than
+      // crash the stream (previously this threw)
       // ignore: no_default_cases
       default:
-        throw Exception('unhandled cookie: ${cm.cookie}');
+        break;
     }
+  }
+
+  // bots in the who-list that are currently free to play (not already in a game)
+  List<WhoInfo> get availableBots => [
+        for (final who in whoInfos)
+          if (isBot(who.user) && who.ready && who.opponent.isEmpty) who,
+      ];
+
+  // bots currently in a game that can be watched
+  List<WhoInfo> get watchableBots => [
+        for (final who in whoInfos)
+          if (isBot(who.user) && who.opponent.isNotEmpty) who,
+      ];
+
+  void watch(WhoInfo who) {
+    assert(isBot(who.user), 'bots only');
+    _gameState = null;
+    _conn.send('watch ${who.user}');
+    notifyListeners();
+  }
+
+  void stopWatching() {
+    _conn.send('unwatch');
+    _gameState = null;
+    notifyListeners();
   }
 
   bool get loggedIn => _conn.connected;
@@ -101,6 +143,7 @@ class FibsState extends ChangeNotifier {
     whoInfos.clear();
     messages.clear();
     _user = null;
+    _gameState = null;
     notifyListeners();
   }
 
