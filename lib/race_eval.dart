@@ -20,15 +20,28 @@ import 'model.dart';
 class RaceEval {
   RaceEval._();
 
-  // Stop and fall back to the heuristic if a position is too large to solve
-  // quickly (race2.c notes the method only suits "relatively small positions").
+  // Runtime backstop: bail if the memo tables blow past this while solving.
   static const _memoCap = 400000;
 
+  // Upfront size gate: the number of distinct positions a side can reach is at
+  // most C(checkers + points - 1, points - 1) (stars and bars). When the
+  // product of both sides' counts exceeds this, the exact search would be far
+  // too slow, so we skip it WITHOUT enumerating and let the caller fall back to
+  // the pip-count heuristic. This keeps the evaluator cheap to *reject* a big
+  // race, instead of grinding to _memoCap first.
+  static const _solvableStateLimit = 120000;
+
+  /// True when [board] is a pure race small enough for the exact solver to
+  /// handle quickly. Cheap (closed form); makes no recursive calls.
+  static bool isSolvableRace(List<List<int>> board) =>
+      GammonRules.isRace(board) &&
+      _estimatedStates(board) <= _solvableStateLimit;
+
   /// Exact probability that [onRoll] wins the race, or null if the position is
-  /// not a pure race or is too large to solve.
+  /// not a pure race or is too large to solve quickly.
   static double? winProbabilityOrNull(
       List<List<int>> board, GammonPlayer onRoll) {
-    if (!GammonRules.isRace(board)) return null;
+    if (!isSolvableRace(board)) return null;
     try {
       return RaceEval._()._winProb(board, onRoll);
     } on _RaceTooBig {
@@ -40,12 +53,53 @@ class RaceEval {
   /// centered), or null if the position is not a pure race or is too large.
   static CubeAction? cubeActionOrNull(
       List<List<int>> board, GammonPlayer onRoll, GammonPlayer? cubeOwner) {
-    if (!GammonRules.isRace(board)) return null;
+    if (!isSolvableRace(board)) return null;
     try {
       return RaceEval._()._cubeAction(board, onRoll, cubeOwner);
     } on _RaceTooBig {
       return null;
     }
+  }
+
+  // Estimate the combined state-space size: for each player, the number of ways
+  // to distribute their on-board checkers over the points from their off pip up
+  // to their rearmost checker (stars and bars), capped to keep the math small.
+  static int _estimatedStates(List<List<int>> board) {
+    var product = 1;
+    for (final player in GammonPlayer.values) {
+      final offPipNo = GammonRules.offPipNoFor(player);
+      var checkers = 0;
+      var span = 0;
+      for (var pip = 1; pip <= 24; ++pip) {
+        final mine = board[pip]
+            .where((id) => GammonRules.playerFor(id) == player)
+            .length;
+        if (mine == 0) continue;
+        checkers += mine;
+        // distance from this pip back toward the off tray bounds the span
+        final depth = (pip - offPipNo).abs();
+        if (depth > span) span = depth;
+      }
+      if (checkers == 0) continue; // all off: a single state
+      final points = span < 1 ? 1 : span;
+      product *= _choose(checkers + points - 1, points - 1);
+      // early out so a huge product can't run away
+      if (product > _solvableStateLimit) return product;
+    }
+    return product;
+  }
+
+  // n-choose-k, clamped so a huge value can't overflow before the caller's
+  // threshold check (returns just past the limit once it's clearly too big).
+  static int _choose(int n, int k) {
+    if (k < 0 || k > n) return 0;
+    final kk = k > n - k ? n - k : k;
+    var result = 1;
+    for (var i = 0; i < kk; ++i) {
+      result = result * (n - i) ~/ (i + 1);
+      if (result > _solvableStateLimit) return _solvableStateLimit + 1;
+    }
+    return result;
   }
 
   final _winMemo = <String, double>{};

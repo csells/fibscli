@@ -11,16 +11,16 @@ A Flutter app (`fibscli`) that is currently a standalone, single-player backgamm
 - Run (dev): `flutter run` (targets web/desktop/mobile; works across form factors)
 - Build web: `./build-web.sh` → `flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true`
 - Analyze/lint: `flutter analyze` (lint config in `analysis_options.yaml`, based on `all_lint_rules_community` with many explicit overrides)
-- Test: `flutter test` — the suite covers the rules engine and game-model features (move generation, forced moves, doubling, stats, race/auto-bear-off, win-probability, piece-animation planning). `test/board_builder.dart` builds boards from a concise `{pipNo: signedCount}` spec for unit tests.
+- Test: `flutter test` — the suite covers the rules engine and game-model features (move generation, forced moves, doubling, stats, race/auto-bear-off, win-probability, piece-animation planning). `test/board_builder.dart` builds boards from a concise `{pipNo: signedCount}` spec for **partial** positions (most rule tests); `test/scenario_test.dart` uses `fibsboard`'s ASCII `boardFromLines` for **full-board** scenarios (which require a complete 15-checker-per-side position).
 
-## Critical dependency caveat
+## Monorepo workspace
 
-`pubspec.yaml` declares two **path** dependencies on sibling repos that are NOT present in this checkout:
+This repo is a self-contained **Dart pub workspace** — it builds standalone with no sibling repos. The root `pubspec.yaml` lists `workspace:` members and the two former path-dependency siblings are vendored under `packages/`:
 
-- `fibscli_lib: { path: ../fibscli_lib }` — FIBS protocol/networking (CLIP cookies, `FibsConnection`, websocket proxy)
-- `fibsboard: { path: ../fibsboard }` (dev) — board-from-ASCII helpers used by the (commented-out) tests
+- `packages/fibscli_lib/` — FIBS protocol/networking (CLIP cookies, `FibsConnection`, websocket proxy). Used only by the dormant FIBS UI (`lib/fibs_state.dart`).
+- `packages/fibsboard/` (dev dep) — board-from-ASCII helpers (`boardFromLines`/`linesFromBoard`) used by the full-board scenario tests.
 
-`flutter pub get` will fail unless these repos are cloned as siblings. If they're missing, you can still read/edit code, but builds and `pub get` won't work.
+Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`) and keeps its **own** strict `analysis_options.yaml` — every package is an equal peer under the same lint rules. `flutter pub get` at the root resolves the whole workspace; there is a single root `pubspec.lock` and a single `.dart_tool/`. The vendored sources are copied verbatim, so `packages/fibscli_lib` carries two pre-existing `discarded_futures` infos from upstream that are intentionally left as-is.
 
 ## FIBS networking is stubbed out in the UI
 
