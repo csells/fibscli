@@ -1,5 +1,6 @@
 import 'fibs_board.dart';
 import 'model.dart';
+import 'pubeval.dart';
 
 // Legal-move generation for a live FIBS game, so an autonomous/assisted player
 // can pick legal moves. The engine (GammonRules) has a fixed orientation
@@ -78,16 +79,16 @@ class FibsPlay {
     return 'move ${parts.join(' ')}';
   }
 
-  // The best complete legal turn as one FIBS `move` command, chosen by a simple
-  // positional heuristic so we play to win (not just the first legal turn).
-  // Enumerates the distinct full turns and scores each resulting board.
+  // The best complete legal turn as one FIBS `move` command, chosen by
+  // Tesauro's pubeval position evaluator so we play to win (not just the first
+  // legal turn). Enumerates the distinct full turns, scores each end board.
   static String? bestTurnCommand(FibsBoard fb, {List<int>? dice}) {
     final d = dice ?? fb.activeDice;
     if (d.isEmpty || fb.turnPlayer == null) return null;
     final player = fb.turnPlayer!;
 
     final turns = <List<GammonMove>>[];
-    final endScores = <int>[];
+    final endScores = <double>[];
     final seen = <String>{};
 
     void dfs(
@@ -96,7 +97,7 @@ class FibsPlay {
       if (forced.isEmpty) {
         if (path.isNotEmpty) {
           turns.add(List.of(path));
-          endScores.add(_score(board, player));
+          endScores.add(PubEval.eval(board, player));
         }
         return;
       }
@@ -144,39 +145,6 @@ class FibsPlay {
         ..write(',');
     }
     return sb.toString();
-  }
-
-  static int _pip(List<List<int>> board, GammonPlayer p) {
-    var total = board[GammonRules.barPipNoFor(p)]
-            .where((id) => GammonRules.playerFor(id) == p)
-            .length *
-        25;
-    for (var pip = 1; pip <= 24; ++pip) {
-      final c = board[pip].where((id) => GammonRules.playerFor(id) == p).length;
-      total += c * (p == GammonPlayer.one ? pip : 25 - pip);
-    }
-    return total;
-  }
-
-  // Position score from [me]'s view after a turn: race lead, hits made, fewer
-  // exposed blots, more points made.
-  static int _score(List<List<int>> board, GammonPlayer me) {
-    final opp = GammonRules.otherPlayer(me);
-    final lead = _pip(board, opp) - _pip(board, me);
-    final oppOnBar = board[GammonRules.barPipNoFor(opp)]
-        .where((id) => GammonRules.playerFor(id) == opp)
-        .length;
-
-    var myBlots = 0;
-    var myPoints = 0;
-    final home = me == GammonPlayer.one ? const [1, 6] : const [19, 24];
-    for (var pip = 1; pip <= 24; ++pip) {
-      final mine =
-          board[pip].where((id) => GammonRules.playerFor(id) == me).length;
-      if (mine == 1) myBlots++;
-      if (mine >= 2 && pip >= home[0] && pip <= home[1]) myPoints++;
-    }
-    return lead + 30 * oppOnBar - 12 * myBlots + 5 * myPoints;
   }
 
   // Translate one canonical GammonMove into a FIBS `move` command, mapping each
