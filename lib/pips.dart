@@ -7,33 +7,35 @@ class PipLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Align(
-        alignment: Alignment.center,
-        child: RotatedBox(
-          quarterTurns: reversed ? 2 : 0,
-          child: Text(
-            layout.pipNo.toString(),
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.black, fontSize: 10),
-          ),
-        ),
-      );
+    alignment: Alignment.center,
+    child: RotatedBox(
+      quarterTurns: reversed ? 2 : 0,
+      child: Text(
+        layout.pipNo.toString(),
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Colors.black, fontSize: 10),
+      ),
+    ),
+  );
 }
 
 class PipTriangle extends StatelessWidget {
   PipTriangle({required this.pip, required this.highlight, super.key})
-      : painter = PipPainter(
-          pip: pip,
-          clipper: PipClipper(pip),
-          highlight: highlight,
-        );
+    : painter = PipPainter(
+        pip: pip,
+        clipper: PipClipper(pip),
+        highlight: highlight,
+      );
 
   final int pip;
   final bool highlight;
   final PipPainter painter;
 
   @override
-  Widget build(BuildContext context) =>
-      ClipPath(clipper: painter.clipper, child: CustomPaint(painter: painter));
+  Widget build(BuildContext context) => ClipPath(
+    clipper: painter.clipper,
+    child: CustomPaint(painter: painter),
+  );
 }
 
 class PipLayout {
@@ -66,26 +68,47 @@ class PipLayout {
 
           // bottom-right
           if (pip >= 1 && pip <= 6) {
-            layouts.add(PipLayout(
-                pipNo: pip, left: 285 + dx, top: 249, labelDy: height + 1));
+            layouts.add(
+              PipLayout(
+                pipNo: pip,
+                left: 285 + dx,
+                top: 249,
+                labelDy: height + 1,
+              ),
+            );
           }
           // bottom-left
           else if (pip >= 7 && pip <= 12) {
-            layouts.add(PipLayout(
-                pipNo: pip, left: 21 + dx, top: 249, labelDy: height + 1));
+            layouts.add(
+              PipLayout(
+                pipNo: pip,
+                left: 21 + dx,
+                top: 249,
+                labelDy: height + 1,
+              ),
+            );
           }
           // top-left
           else if (pip >= 13 && pip <= 18) {
-            layouts.add(PipLayout(
-                pipNo: pip, left: 21 + dx, top: 21, labelDy: -labelHeight - 1));
+            layouts.add(
+              PipLayout(
+                pipNo: pip,
+                left: 21 + dx,
+                top: 21,
+                labelDy: -labelHeight - 1,
+              ),
+            );
           }
           // top-right
           else if (pip >= 19 && pip <= 24) {
-            layouts.add(PipLayout(
+            layouts.add(
+              PipLayout(
                 pipNo: pip,
                 left: 285 + dx,
                 top: 21,
-                labelDy: -labelHeight - 1));
+                labelDy: -labelHeight - 1,
+              ),
+            );
           }
           // error
           else {
@@ -104,7 +127,7 @@ class PipLayout {
 
 class PipPainter extends CustomPainter {
   PipPainter({required int pip, required this.clipper, required this.highlight})
-      : _color = pip.isOdd ? _lightColor : _darkColor;
+    : _color = pip.isOdd ? _lightColor : _darkColor;
   static final _lightColor = Colors.grey[300];
   static const _darkColor = Colors.grey;
 

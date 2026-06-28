@@ -12,12 +12,7 @@ void main() {
 
     test('separated positions are a pure race', () {
       // all player1 in their home (1..6), all player2 in their home (19..24)
-      final board = makeBoard({
-        6: -8,
-        3: -7,
-        19: 8,
-        22: 7,
-      });
+      final board = makeBoard({6: -8, 3: -7, 19: 8, 22: 7});
       expect(GammonRules.isRace(board), isTrue);
     });
 

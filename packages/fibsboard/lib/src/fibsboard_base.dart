@@ -21,7 +21,7 @@ String dartFromBoard(List<List<int>> board) {
     final p2label = p2pieces == 0 ? null : '${p2pieces}x player2';
     final labels = <String>[
       if (p1label != null) p1label,
-      if (p2label != null) p2label
+      if (p2label != null) p2label,
     ];
 
     sb.write('  [');
@@ -110,19 +110,27 @@ List<List<int>> boardFromLines(List<String> lines) {
     if (pip >= 1 && pip <= 6) {
       // player1 home board
       totalPieceCount(
-          pip, _readLineUp(lines: lines, dx: 40 - (pip - 1) * 3, dy: 11));
+        pip,
+        _readLineUp(lines: lines, dx: 40 - (pip - 1) * 3, dy: 11),
+      );
     } else if (pip >= 7 && pip <= 12) {
       // player1 outer board
       totalPieceCount(
-          pip, _readLineUp(lines: lines, dx: 17 - (pip - 7) * 3, dy: 11));
+        pip,
+        _readLineUp(lines: lines, dx: 17 - (pip - 7) * 3, dy: 11),
+      );
     } else if (pip >= 13 && pip <= 18) {
       // player2 outer board
       totalPieceCount(
-          pip, _readLineDown(lines: lines, dx: 2 + (pip - 13) * 3, dy: 1));
+        pip,
+        _readLineDown(lines: lines, dx: 2 + (pip - 13) * 3, dy: 1),
+      );
     } else if (pip >= 19 && pip <= 24) {
       // player2 home board
       totalPieceCount(
-          pip, _readLineDown(lines: lines, dx: 25 + (pip - 19) * 3, dy: 1));
+        pip,
+        _readLineDown(lines: lines, dx: 25 + (pip - 19) * 3, dy: 1),
+      );
     } else {
       assert(false, 'unreachable');
     }
@@ -189,15 +197,13 @@ Map<String?, int> _readLineUp({
   required List<String> lines,
   required int dx,
   required int dy,
-}) =>
-    _readLineVert(lines: lines, dx: dx, dy: dy, dir: -1);
+}) => _readLineVert(lines: lines, dx: dx, dy: dy, dir: -1);
 
 Map<String?, int> _readLineDown({
   required List<String> lines,
   required int dx,
   required int dy,
-}) =>
-    _readLineVert(lines: lines, dx: dx, dy: dy, dir: 1);
+}) => _readLineVert(lines: lines, dx: dx, dy: dy, dir: 1);
 
 void _writeLineVert({
   required List<String> lines,
@@ -230,9 +236,14 @@ void _writeLineUp({
   required int dy,
   required String char,
   required int length,
-}) =>
-    _writeLineVert(
-        lines: lines, dx: dx, dy: dy, char: char, length: length, dir: -1);
+}) => _writeLineVert(
+  lines: lines,
+  dx: dx,
+  dy: dy,
+  char: char,
+  length: length,
+  dir: -1,
+);
 
 void _writeLineDown({
   required List<String> lines,
@@ -240,9 +251,14 @@ void _writeLineDown({
   required int dy,
   required String char,
   required int length,
-}) =>
-    _writeLineVert(
-        lines: lines, dx: dx, dy: dy, char: char, length: length, dir: 1);
+}) => _writeLineVert(
+  lines: lines,
+  dx: dx,
+  dy: dy,
+  char: char,
+  length: length,
+  dir: 1,
+);
 
 // everything is a constant except the dots when can be replaced
 const _boardTemplate = '''
@@ -314,35 +330,39 @@ List<String> linesFromBoard(List<List<int>> board) {
     if (pip >= 1 && pip <= 6) {
       // player1 home board
       _writeLineUp(
-          lines: lines,
-          dx: 40 - (pip - 1) * 3,
-          dy: 11,
-          char: color,
-          length: pieces);
+        lines: lines,
+        dx: 40 - (pip - 1) * 3,
+        dy: 11,
+        char: color,
+        length: pieces,
+      );
     } else if (pip >= 7 && pip <= 12) {
       // player1 outer board
       _writeLineUp(
-          lines: lines,
-          dx: 17 - (pip - 7) * 3,
-          dy: 11,
-          char: color,
-          length: pieces);
+        lines: lines,
+        dx: 17 - (pip - 7) * 3,
+        dy: 11,
+        char: color,
+        length: pieces,
+      );
     } else if (pip >= 13 && pip <= 18) {
       // player2 outer board
       _writeLineDown(
-          lines: lines,
-          dx: 2 + (pip - 13) * 3,
-          dy: 1,
-          char: color,
-          length: pieces);
+        lines: lines,
+        dx: 2 + (pip - 13) * 3,
+        dy: 1,
+        char: color,
+        length: pieces,
+      );
     } else if (pip >= 19 && pip <= 24) {
       // player2 home board
       _writeLineDown(
-          lines: lines,
-          dx: 25 + (pip - 19) * 3,
-          dy: 1,
-          char: color,
-          length: pieces);
+        lines: lines,
+        dx: 25 + (pip - 19) * 3,
+        dy: 1,
+        char: color,
+        length: pieces,
+      );
     } else {
       assert(false, 'unreachable');
     }
@@ -350,31 +370,35 @@ List<String> linesFromBoard(List<List<int>> board) {
 
   // player1 and player2 off
   _writeLineUp(
-      lines: lines,
-      dx: 44,
-      dy: 11,
-      char: 'X',
-      length: board[0].where((pid) => pid < 0).length);
+    lines: lines,
+    dx: 44,
+    dy: 11,
+    char: 'X',
+    length: board[0].where((pid) => pid < 0).length,
+  );
   _writeLineDown(
-      lines: lines,
-      dx: 44,
-      dy: 1,
-      char: 'O',
-      length: board[25].where((pid) => pid > 0).length);
+    lines: lines,
+    dx: 44,
+    dy: 1,
+    char: 'O',
+    length: board[25].where((pid) => pid > 0).length,
+  );
 
   // player1 and player2 bar
   _writeLineUp(
-      lines: lines,
-      dx: 21,
-      dy: 11,
-      char: 'X',
-      length: board[25].where((pid) => pid < 0).length);
+    lines: lines,
+    dx: 21,
+    dy: 11,
+    char: 'X',
+    length: board[25].where((pid) => pid < 0).length,
+  );
   _writeLineDown(
-      lines: lines,
-      dx: 21,
-      dy: 1,
-      char: 'O',
-      length: board[0].where((pid) => pid > 0).length);
+    lines: lines,
+    dx: 21,
+    dy: 1,
+    char: 'O',
+    length: board[0].where((pid) => pid > 0).length,
+  );
 
   checkLines(lines);
   return lines;
@@ -397,12 +421,16 @@ extension on String {
 /// board - The board to validate
 void checkBoard(List<List<int>> board) {
   // track the pieces we find
-  final foundPieceIDs =
-      List<List<bool>>.generate(2, (_) => List<bool>.filled(15, false));
+  final foundPieceIDs = List<List<bool>>.generate(
+    2,
+    (_) => List<bool>.filled(15, false),
+  );
   void found(int pieceID) {
     assert(pieceID.abs() >= 1 && pieceID.abs() <= 15);
-    assert(!foundPieceIDs[pieceID < 0 ? 0 : 1][pieceID.abs() - 1],
-        'duplicate pieceID: $pieceID');
+    assert(
+      !foundPieceIDs[pieceID < 0 ? 0 : 1][pieceID.abs() - 1],
+      'duplicate pieceID: $pieceID',
+    );
     foundPieceIDs[pieceID < 0 ? 0 : 1][pieceID.abs() - 1] = true;
   }
 
@@ -431,8 +459,10 @@ void checkBoard(List<List<int>> board) {
     // board
     if (pieces > 0) {
       for (final pip in List<int>.generate(19, (i) => 25 - i)) {
-        assert(board[pip].isEmpty || board[pip][0].sign != sign,
-            'found X pieces outside home board on pip $pip');
+        assert(
+          board[pip].isEmpty || board[pip][0].sign != sign,
+          'found X pieces outside home board on pip $pip',
+        );
       }
     }
   }
@@ -448,8 +478,10 @@ void checkBoard(List<List<int>> board) {
     // board
     if (pieces > 0) {
       for (final pip in List<int>.generate(19, (i) => 0 + i)) {
-        assert(board[pip].isEmpty || board[pip][0].sign != sign,
-            'found O pieces outside home board on pip $pip');
+        assert(
+          board[pip].isEmpty || board[pip][0].sign != sign,
+          'found O pieces outside home board on pip $pip',
+        );
       }
     }
   }

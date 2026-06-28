@@ -76,8 +76,9 @@ String? _validate(FibsBoard fb, List<int> dice, String command) {
     final fromS = fromTo[0];
     final toS = fromTo[1];
     final from = fromS == 'bar' ? barCell : int.parse(fromS);
-    final to =
-        toS == 'off' ? offCell : (toS == 'bar' ? barCell : int.parse(toS));
+    final to = toS == 'off'
+        ? offCell
+        : (toS == 'bar' ? barCell : int.parse(toS));
 
     final fromCount = pts[from];
     final haveOurs = us == 1 ? fromCount > 0 : fromCount < 0;
@@ -133,7 +134,8 @@ void main() {
       if (dice.isEmpty) continue;
 
       ourTurns++;
-      final cmd = FibsPlay.bestTurnCommand(fb, dice: dice) ??
+      final cmd =
+          FibsPlay.bestTurnCommand(fb, dice: dice) ??
           FibsPlay.fullTurnCommand(fb, dice: dice);
       if (cmd == null) {
         dances++; // engine found no legal move -> we'd correctly send nothing
@@ -143,10 +145,17 @@ void main() {
       if (reason != null) failures.add(reason);
     }
 
-    expect(ourTurns, greaterThan(20),
-        reason: 'fixture should exercise many of our turns (got $ourTurns)');
-    expect(failures, isEmpty,
-        reason: 'replayed $ourTurns turns ($dances dances); illegal moves:\n'
-            '${failures.join("\n")}');
+    expect(
+      ourTurns,
+      greaterThan(20),
+      reason: 'fixture should exercise many of our turns (got $ourTurns)',
+    );
+    expect(
+      failures,
+      isEmpty,
+      reason:
+          'replayed $ourTurns turns ($dances dances); illegal moves:\n'
+          '${failures.join("\n")}',
+    );
   });
 }

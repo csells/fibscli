@@ -78,21 +78,21 @@ class FibsBoard {
   // dances, FIBS auto-rolls for us): the roll proves it's our turn even though
   // the last board still shows the opponent on roll.
   FibsBoard copyWith({int? turnColor}) => FibsBoard(
-        points: points,
-        turnColor: turnColor ?? this.turnColor,
-        player1Color: player1Color,
-        direction: direction,
-        player1Dice: player1Dice,
-        player2Dice: player2Dice,
-        cube: cube,
-        player1Off: player1Off,
-        player2Off: player2Off,
-        player1Bar: player1Bar,
-        player2Bar: player2Bar,
-        player1Name: player1Name,
-        player2Name: player2Name,
-        canMove: canMove,
-      );
+    points: points,
+    turnColor: turnColor ?? this.turnColor,
+    player1Color: player1Color,
+    direction: direction,
+    player1Dice: player1Dice,
+    player2Dice: player2Dice,
+    cube: cube,
+    player1Off: player1Off,
+    player2Off: player2Off,
+    player1Bar: player1Bar,
+    player2Bar: player2Bar,
+    player1Name: player1Name,
+    player2Name: player2Name,
+    canMove: canMove,
+  );
 
   // The color (and hence GammonPlayer) that [me] plays, by matching the board's
   // player names. In our OWN game FIBS names player1 the literal "You"; when
@@ -116,10 +116,12 @@ class FibsBoard {
   int get oBar => _player1IsX ? player2Bar : player1Bar;
 
   GammonPlayer? get turnPlayer => turnColor == -1
-      ? GammonPlayer.one // X
+      ? GammonPlayer
+            .one // X
       : turnColor == 1
-          ? GammonPlayer.two // O
-          : null;
+      ? GammonPlayer
+            .two // O
+      : null;
 
   // the dice of whoever is on roll (the player whose color == turnColor),
   // empty until someone has rolled
@@ -163,10 +165,6 @@ class FibsBoard {
     place(25, oOff);
 
     final dice = activeDice.map(DieState.new).toList();
-    return GammonState.from(
-      board: board,
-      dice: dice,
-      turnPlayer: turnPlayer,
-    );
+    return GammonState.from(board: board, dice: dice, turnPlayer: turnPlayer);
   }
 }

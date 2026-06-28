@@ -30,11 +30,13 @@ void main() {
       expect(wp(100, 100), greaterThan(wp(100, 70)));
     });
 
-    test('a dominant lead is near-certain and a deep deficit near-hopeless',
-        () {
-      expect(wp(30, 150), greaterThan(0.95));
-      expect(wp(150, 30), lessThan(0.05));
-    });
+    test(
+      'a dominant lead is near-certain and a deep deficit near-hopeless',
+      () {
+        expect(wp(30, 150), greaterThan(0.95));
+        expect(wp(150, 30), lessThan(0.05));
+      },
+    );
   });
 
   group('GammonRules.cubeAction (issue #14)', () {

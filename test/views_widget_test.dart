@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _host(Widget child) => MaterialApp(
-      home: Scaffold(
-        body: Center(child: SizedBox(width: 60, height: 60, child: child)),
-      ),
-    );
+  home: Scaffold(
+    body: Center(child: SizedBox(width: 60, height: 60, child: child)),
+  ),
+);
 
 void main() {
   group('DoublingCubeView (issue #12)', () {
@@ -27,14 +27,18 @@ void main() {
       expect(find.text('1'), findsOneWidget);
     });
 
-    testWidgets('counter-rotates its value when the board is reversed',
-        (tester) async {
+    testWidgets('counter-rotates its value when the board is reversed', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-          _host(DoublingCubeView(cube: DoublingCube(), reversed: true)));
-      final rotated = tester.widget<RotatedBox>(find.descendant(
-        of: find.byType(DoublingCubeView),
-        matching: find.byType(RotatedBox),
-      ));
+        _host(DoublingCubeView(cube: DoublingCube(), reversed: true)),
+      );
+      final rotated = tester.widget<RotatedBox>(
+        find.descendant(
+          of: find.byType(DoublingCubeView),
+          matching: find.byType(RotatedBox),
+        ),
+      );
       expect(rotated.quarterTurns, 2); // flipped 180 to read upright
     });
   });
@@ -42,8 +46,9 @@ void main() {
   group('DieView (issue #17)', () {
     for (final player in GammonPlayer.values) {
       for (var roll = 1; roll <= 6; ++roll) {
-        testWidgets('renders $player die showing $roll without overflow',
-            (tester) async {
+        testWidgets('renders $player die showing $roll without overflow', (
+          tester,
+        ) async {
           final layout = DieLayout(
             die: DieState(roll),
             player: player,

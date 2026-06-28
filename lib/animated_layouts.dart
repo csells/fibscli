@@ -34,18 +34,21 @@ class _AnimatedPieceState extends State<AnimatedPiece>
 
     final distance = [
       for (var i = 1; i != widget.layouts.length; ++i)
-        (widget.layouts[i - 1].offset! - widget.layouts[i].offset!).distance
+        (widget.layouts[i - 1].offset! - widget.layouts[i].offset!).distance,
     ].sum();
 
     final animatable = _animatableFor(widget.layouts);
 
     _controller = AnimationController(
-        vsync: this,
-        duration: Duration(
-            milliseconds: (distance * kAnimationMsPerDistance).floor()));
+      vsync: this,
+      duration: Duration(
+        milliseconds: (distance * kAnimationMsPerDistance).floor(),
+      ),
+    );
 
-    _animation = animatable
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+    _animation = animatable.animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
 
     // a hittee waits for the hitter to arrive before sliding to the bar
     // (issue #5); during the delay it stays at its first layout
@@ -64,22 +67,16 @@ class _AnimatedPieceState extends State<AnimatedPiece>
   }
 
   static Animatable<PieceLayout> _animatableFor(List<PieceLayout> layouts) =>
-      TweenSequence(
-        [
-          for (var i = 1; i != layouts.length; ++i) ...[
-            TweenSequenceItem(
-              tween: PieceLayoutTween(begin: layouts[i - 1], end: layouts[i]),
-              weight:
-                  (layouts[i - 1].offset! - layouts[i].offset!).distance + 1,
-            ),
-            if (i != layouts.length - 1)
-              TweenSequenceItem(
-                tween: ConstantTween(layouts[i]),
-                weight: 100,
-              ),
-          ],
+      TweenSequence([
+        for (var i = 1; i != layouts.length; ++i) ...[
+          TweenSequenceItem(
+            tween: PieceLayoutTween(begin: layouts[i - 1], end: layouts[i]),
+            weight: (layouts[i - 1].offset! - layouts[i].offset!).distance + 1,
+          ),
+          if (i != layouts.length - 1)
+            TweenSequenceItem(tween: ConstantTween(layouts[i]), weight: 100),
         ],
-      );
+      ]);
 
   @override
   void dispose() {
@@ -89,18 +86,18 @@ class _AnimatedPieceState extends State<AnimatedPiece>
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) =>
-            Positioned.fromRect(rect: _animation.value.rect, child: child!),
-        child: widget.child,
-      );
+    animation: _controller,
+    builder: (context, child) =>
+        Positioned.fromRect(rect: _animation.value.rect, child: child!),
+    child: widget.child,
+  );
 }
 
 class PieceLayoutTween extends Tween<PieceLayout> {
   PieceLayoutTween({required PieceLayout begin, required PieceLayout end})
-      : assert(begin.highlight == end.highlight),
-        assert(begin.pieceID == end.pieceID),
-        super(begin: begin, end: end) {
+    : assert(begin.highlight == end.highlight),
+      assert(begin.pieceID == end.pieceID),
+      super(begin: begin, end: end) {
     // only the offset and the pipno changes (accept when it doesn't...)
     // assert(begin.offset != end.offset);
     // assert(begin.pipNo != end.pipNo);
@@ -112,12 +109,15 @@ class PieceLayoutTween extends Tween<PieceLayout> {
 
   @override
   PieceLayout lerp(double t) => PieceLayout(
-        pipNo: 0, // used?
-        pieceID: begin!.pieceID,
-        offset: Offset.lerp(
-            begin!.offset, end!.offset, t), // only the offset changes
-        label: '', // used?
-        highlight: begin!.highlight,
-        edge: begin!.edge,
-      );
+    pipNo: 0, // used?
+    pieceID: begin!.pieceID,
+    offset: Offset.lerp(
+      begin!.offset,
+      end!.offset,
+      t,
+    ), // only the offset changes
+    label: '', // used?
+    highlight: begin!.highlight,
+    edge: begin!.edge,
+  );
 }

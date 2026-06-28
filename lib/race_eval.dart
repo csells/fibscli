@@ -40,7 +40,9 @@ class RaceEval {
   /// Exact probability that [onRoll] wins the race, or null if the position is
   /// not a pure race or is too large to solve quickly.
   static double? winProbabilityOrNull(
-      List<List<int>> board, GammonPlayer onRoll) {
+    List<List<int>> board,
+    GammonPlayer onRoll,
+  ) {
     if (!isSolvableRace(board)) return null;
     try {
       return RaceEval._()._winProb(board, onRoll);
@@ -52,7 +54,10 @@ class RaceEval {
   /// Exact cube action for [onRoll] given the current [cubeOwner] (null =
   /// centered), or null if the position is not a pure race or is too large.
   static CubeAction? cubeActionOrNull(
-      List<List<int>> board, GammonPlayer onRoll, GammonPlayer? cubeOwner) {
+    List<List<int>> board,
+    GammonPlayer onRoll,
+    GammonPlayer? cubeOwner,
+  ) {
     if (!isSolvableRace(board)) return null;
     try {
       return RaceEval._()._cubeAction(board, onRoll, cubeOwner);
@@ -169,7 +174,10 @@ class RaceEval {
           final value = _won(next, toMove)
               ? 1.0
               : -_unitEquity(
-                  next, GammonRules.otherPlayer(toMove), _flip(owner));
+                  next,
+                  GammonRules.otherPlayer(toMove),
+                  _flip(owner),
+                );
           if (value > best) best = value;
         }
         total += weight * best;
@@ -182,7 +190,10 @@ class RaceEval {
   }
 
   CubeAction _cubeAction(
-      List<List<int>> board, GammonPlayer toMove, GammonPlayer? cubeOwner) {
+    List<List<int>> board,
+    GammonPlayer toMove,
+    GammonPlayer? cubeOwner,
+  ) {
     final owner = cubeOwner == null ? 0 : (cubeOwner == toMove ? 1 : 2);
     if (owner == 2) return CubeAction.noDouble; // can't double; opponent owns
 
@@ -204,13 +215,15 @@ class RaceEval {
 
   // --- move enumeration -----------------------------------------------------
 
-  static List<int> _rollDice(int a, int b) =>
-      a == b ? [a, a, a, a] : [a, b];
+  static List<int> _rollDice(int a, int b) => a == b ? [a, a, a, a] : [a, b];
 
   // Every distinct board reachable by playing a full turn with [rolls], using
   // the maximum number of dice the rules require.
   static List<List<List<int>>> _turns(
-      List<List<int>> board, GammonPlayer player, List<int> rolls) {
+    List<List<int>> board,
+    GammonPlayer player,
+    List<int> rolls,
+  ) {
     final byDepth = <int, List<List<List<int>>>>{};
 
     void search(List<List<int>> current, List<int> remaining, int depth) {

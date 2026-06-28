@@ -9,11 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'cookie_monster.dart';
 
-enum _LoginState {
-  prelogin,
-  sentcred,
-  postlogin,
-}
+enum _LoginState { prelogin, sentcred, postlogin }
 
 /// Handles the WebSocket connection to the FIBS server.
 ///
@@ -74,8 +70,10 @@ class FibsConnection {
           case _LoginState.prelogin:
             // wait for login prompt
             final expecting = <FibsCookie>[FibsCookie.FIBS_LoginPrompt];
-            final found =
-                cms.map((cm) => cm.cookie).where(expecting.contains).toList();
+            final found = cms
+                .map((cm) => cm.cookie)
+                .where(expecting.contains)
+                .toList();
             if (found.isEmpty) return; // wait for next batch
 
             // send credentials
@@ -87,10 +85,12 @@ class FibsConnection {
             final expecting = <FibsCookie>[
               FibsCookie.CLIP_WELCOME,
               FibsCookie.FIBS_FailedLogin,
-              FibsCookie.FIBS_LoginPrompt
+              FibsCookie.FIBS_LoginPrompt,
             ];
-            final found =
-                cms.map((cm) => cm.cookie).where(expecting.contains).toList();
+            final found = cms
+                .map((cm) => cm.cookie)
+                .where(expecting.contains)
+                .toList();
             if (found.isEmpty) return; // wait for next batch
 
             // complete the login

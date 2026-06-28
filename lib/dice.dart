@@ -10,16 +10,18 @@ class DieState {
 
 class DieView extends StatelessWidget {
   DieView({required this.layout, super.key, void Function()? onTap})
-      : _onTap = onTap ?? _noop,
-        _playerColor =
-            layout.player == GammonPlayer.one ? Colors.black : Colors.white,
-        _otherColor =
-            layout.player == GammonPlayer.one ? Colors.white : Colors.black,
-        _gradeColors = _dieColors[layout.player!.index];
+    : _onTap = onTap ?? _noop,
+      _playerColor = layout.player == GammonPlayer.one
+          ? Colors.black
+          : Colors.white,
+      _otherColor = layout.player == GammonPlayer.one
+          ? Colors.white
+          : Colors.black,
+      _gradeColors = _dieColors[layout.player!.index];
 
   static final _dieColors = [
     [Colors.grey[850]!, const Color(0xFF141414)],
-    [Colors.grey[50]!, Colors.grey[300]!]
+    [Colors.grey[50]!, Colors.grey[300]!],
   ];
 
   final List<Color> _gradeColors;
@@ -32,34 +34,39 @@ class DieView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: _onTap,
-        child: Opacity(
-          opacity: layout.die.available ? 1.0 : 0.5,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: _playerColor,
-              border: Border.all(color: Colors.black, width: 1),
-              borderRadius: const BorderRadius.all(Radius.circular(4)),
-              gradient: LinearGradient(
-                  begin: Alignment.topLeft, colors: _gradeColors),
-            ),
-            // spots sit directly on the die face; previously a solid-colored
-            // inner circle nearly filled the die and read as a "bulge",
-            // especially on the white die against its grey gradient (issue #17)
-            child: Stack(
-              children: [
-                for (final rect in layout.getSpotRects())
-                  Positioned.fromRect(
-                    rect: rect.shift(const Offset(-1, -1)),
-                    child: Container(
-                        decoration: BoxDecoration(
-                            color: _otherColor, shape: BoxShape.circle)),
-                  ),
-              ],
-            ),
+    onTap: _onTap,
+    child: Opacity(
+      opacity: layout.die.available ? 1.0 : 0.5,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _playerColor,
+          border: Border.all(color: Colors.black, width: 1),
+          borderRadius: const BorderRadius.all(Radius.circular(4)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            colors: _gradeColors,
           ),
         ),
-      );
+        // spots sit directly on the die face; previously a solid-colored
+        // inner circle nearly filled the die and read as a "bulge",
+        // especially on the white die against its grey gradient (issue #17)
+        child: Stack(
+          children: [
+            for (final rect in layout.getSpotRects())
+              Positioned.fromRect(
+                rect: rect.shift(const Offset(-1, -1)),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _otherColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class DieLayout {
@@ -93,7 +100,7 @@ class DieLayout {
       const Offset(10, 10),
       const Offset(26, 26),
       const Offset(10, 26),
-      const Offset(26, 10)
+      const Offset(26, 10),
     ],
     [
       // 5
@@ -101,7 +108,7 @@ class DieLayout {
       const Offset(26, 26),
       const Offset(10, 26),
       const Offset(26, 10),
-      const Offset(18, 18)
+      const Offset(18, 18),
     ],
     [
       // 6
@@ -110,7 +117,7 @@ class DieLayout {
       const Offset(10, 26),
       const Offset(26, 10),
       const Offset(10, 18),
-      const Offset(26, 18)
+      const Offset(26, 18),
     ],
   ];
 
@@ -134,7 +141,11 @@ class DieLayout {
     assert(dice.length == 2 || dice.length == 4);
 
     GammonPlayer? diePlayer(
-        int moveNo, List<DieState> dice, int index, GammonPlayer? turnPlayer) {
+      int moveNo,
+      List<DieState> dice,
+      int index,
+      GammonPlayer? turnPlayer,
+    ) {
       if (moveNo != 1) return turnPlayer;
       final maxDieIndex = dice[0].roll > dice[1].roll ? 0 : 1;
       return index == maxDieIndex

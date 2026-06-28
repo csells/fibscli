@@ -43,8 +43,10 @@ void main() {
 
       expect(next, isNot(opener));
       expect(game.statsFor(next).rolls, 1);
-      expect(game.statsFor(next).pips,
-          game.dice.fold<int>(0, (sum, d) => sum + d.roll));
+      expect(
+        game.statsFor(next).pips,
+        game.dice.fold<int>(0, (sum, d) => sum + d.roll),
+      );
     });
   });
 }

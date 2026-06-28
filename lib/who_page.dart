@@ -21,109 +21,109 @@ class _WhoPageState extends State<WhoPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text(App.title),
-          actions: [
-            IconButton(
-              onPressed: () => setState(() => _showMessages = !_showMessages),
-              icon: const Icon(Icons.message),
-              tooltip: _showMessages ? 'hide messages' : 'show messages',
-            ),
-            IconButton(
-              onPressed: App.fibs.connected
-                  ? () => unawaited(_tapSend(context))
-                  : null,
-              icon: const Icon(Icons.send),
-              tooltip: 'send command',
-            ),
-            OutlinedButton(
-                onPressed: App.fibs.logout, child: const Text('Logout')),
-          ],
+    appBar: AppBar(
+      automaticallyImplyLeading: false,
+      title: const Text(App.title),
+      actions: [
+        IconButton(
+          onPressed: () => setState(() => _showMessages = !_showMessages),
+          icon: const Icon(Icons.message),
+          tooltip: _showMessages ? 'hide messages' : 'show messages',
         ),
-        body: Row(
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  ChangeNotifierBuilder<NotifierList<WhoInfo>>(
-                    notifier: App.fibs.whoInfos,
-                    builder: (context, whoInfos, child) => Column(
-                      children: [
-                        Container(
-                          alignment: Alignment.center,
-                          padding: const EdgeInsets.all(10),
-                          child: Stack(
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  'FIBS Who',
-                                  style: TextStyle(
-                                      color: Theme.of(context).primaryColor,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 36),
-                                ),
+        IconButton(
+          onPressed: App.fibs.connected
+              ? () => unawaited(_tapSend(context))
+              : null,
+          icon: const Icon(Icons.send),
+          tooltip: 'send command',
+        ),
+        OutlinedButton(onPressed: App.fibs.logout, child: const Text('Logout')),
+      ],
+    ),
+    body: Row(
+      children: [
+        Expanded(
+          child: Stack(
+            children: [
+              ChangeNotifierBuilder<NotifierList<WhoInfo>>(
+                notifier: App.fibs.whoInfos,
+                builder: (context, whoInfos, child) => Column(
+                  children: [
+                    Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(10),
+                      child: Stack(
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'FIBS Who',
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 36,
                               ),
-                              const Align(
-                                alignment: Alignment.centerRight,
-                                child: Text('TODO'),
-                                // TODO
-                                // DropdownButton<String>(
-                                //   value: _source.filter,
-                                //   items: [
-                                //     for (final item in [
-                                //       'both',
-                                //       'humans',
-                                //       'bots'
-                                //     ])
-                                //       DropdownMenuItem<String>(
-                                //           value: item, child: Text(item)),
-                                //   ],
-                                //   onChanged: (item) =>
-                                //       setState(() => _source.filter = item),
-                                // ),
-                              )
-                            ],
+                            ),
                           ),
-                        ),
-                        const Expanded(
-                          child: Text('TODO'),
-                          // TODO
-                          // SfDataGrid(
-                          //   source: _source,
-                          //   columnWidthMode: ColumnWidthMode.fill,
-                          //   allowMultiColumnSorting: true,
-                          //   allowSorting: true,
-                          //   allowTriStateSorting: true,
-                          //   onCellTap: _tapCell,
-                          //   columns: <GridColumn>[
-                          //     GridColumn(
-                          //         columnName: 'user', label: Text('user')),
-                          //     GridColumn(
-                          //         columnName: 'experience',
-                          //         label: Text('experience')),
-                          //     GridColumn(
-                          //         columnName: 'opponent',
-                          //         label: Text('opponent')),
-                          //     GridColumn(
-                          //       columnName: 'rating', label: Text('rating')),
-                          //     GridColumn(
-                          //         columnName: 'ready', label: Text('ready')),
-                          //   ],
-                          // ),
-                        ),
-                      ],
+                          const Align(
+                            alignment: Alignment.centerRight,
+                            child: Text('TODO'),
+                            // TODO
+                            // DropdownButton<String>(
+                            //   value: _source.filter,
+                            //   items: [
+                            //     for (final item in [
+                            //       'both',
+                            //       'humans',
+                            //       'bots'
+                            //     ])
+                            //       DropdownMenuItem<String>(
+                            //           value: item, child: Text(item)),
+                            //   ],
+                            //   onChanged: (item) =>
+                            //       setState(() => _source.filter = item),
+                            // ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  // if (_showMessages)
-                  //  MessagesView(whoInfos: App.fibs.whoInfos),
-                ],
+                    const Expanded(
+                      child: Text('TODO'),
+                      // TODO
+                      // SfDataGrid(
+                      //   source: _source,
+                      //   columnWidthMode: ColumnWidthMode.fill,
+                      //   allowMultiColumnSorting: true,
+                      //   allowSorting: true,
+                      //   allowTriStateSorting: true,
+                      //   onCellTap: _tapCell,
+                      //   columns: <GridColumn>[
+                      //     GridColumn(
+                      //         columnName: 'user', label: Text('user')),
+                      //     GridColumn(
+                      //         columnName: 'experience',
+                      //         label: Text('experience')),
+                      //     GridColumn(
+                      //         columnName: 'opponent',
+                      //         label: Text('opponent')),
+                      //     GridColumn(
+                      //       columnName: 'rating', label: Text('rating')),
+                      //     GridColumn(
+                      //         columnName: 'ready', label: Text('ready')),
+                      //   ],
+                      // ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              // if (_showMessages)
+              //  MessagesView(whoInfos: App.fibs.whoInfos),
+            ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   // TODO
   // void _watch(WhoInfo who) {
@@ -242,24 +242,27 @@ class _SendComandDialogState extends State<SendComandDialog> {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(8),
-        child: Row(
-          children: [
-            Expanded(
-                child: TextField(
-                    decoration:
-                        const InputDecoration(hintText: 'command to send'),
-                    controller: _controller)),
-            OutlinedButton(
-                onPressed: () => Navigator.pop(context, ''),
-                child: const Text('Cancel')),
-            const SizedBox(width: 8),
-            ElevatedButton(
-                onPressed: () => Navigator.pop(context, _controller!.text),
-                child: const Text('Send')),
-          ],
+    padding: const EdgeInsets.all(8),
+    child: Row(
+      children: [
+        Expanded(
+          child: TextField(
+            decoration: const InputDecoration(hintText: 'command to send'),
+            controller: _controller,
+          ),
         ),
-      );
+        OutlinedButton(
+          onPressed: () => Navigator.pop(context, ''),
+          child: const Text('Cancel'),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, _controller!.text),
+          child: const Text('Send'),
+        ),
+      ],
+    ),
+  );
 }
 
 // TODO

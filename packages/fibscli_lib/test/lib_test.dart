@@ -118,12 +118,16 @@ void main() {
     expect(double.parse(cm.crumbs!['rating']!), 1418.61);
     expect(23, int.parse(cm.crumbs!['experience']!));
     expect(1914, int.parse(cm.crumbs!['idle']!));
-    expect(DateTime.parse('2002-12-30 12:58:52'),
-        CookieMonster.parseTimestamp(cm.crumbs!['login']!));
+    expect(
+      DateTime.parse('2002-12-30 12:58:52'),
+      CookieMonster.parseTimestamp(cm.crumbs!['login']!),
+    );
     expect('192.168.40.3', cm.crumbs!['hostName']);
     expect('MacFIBS', CookieMonster.parseOptional(cm.crumbs!['client']!));
-    expect('someplayer@somewhere.com',
-        CookieMonster.parseOptional(cm.crumbs!['email']!));
+    expect(
+      'someplayer@somewhere.com',
+      CookieMonster.parseOptional(cm.crumbs!['email']!),
+    );
   });
 
   test('CLIP_WHO_END', () {
@@ -158,10 +162,14 @@ void main() {
     final cm = monster.eatCookie(s);
     expect(FibsCookie.CLIP_MESSAGE, cm.cookie);
     expect('someplayer', cm.crumbs!['from']);
-    expect(DateTime.parse('2002-12-30 12:58:52'),
-        CookieMonster.parseTimestamp(cm.crumbs!['time']!));
-    expect("I'll log in at 10pm if you want to finish that game.",
-        cm.crumbs!['message']);
+    expect(
+      DateTime.parse('2002-12-30 12:58:52'),
+      CookieMonster.parseTimestamp(cm.crumbs!['time']!),
+    );
+    expect(
+      "I'll log in at 10pm if you want to finish that game.",
+      cm.crumbs!['message'],
+    );
   });
 
   test('CLIP_MESSAGE_DELIVERED', () {
@@ -214,7 +222,9 @@ void main() {
     expect(FibsCookie.CLIP_KIBITZES, cm.cookie);
     expect('someplayer', cm.crumbs!['name']);
     expect(
-        "G'Day and good luck from Hobart, Australia.", cm.crumbs!['message']);
+      "G'Day and good luck from Hobart, Australia.",
+      cm.crumbs!['message'],
+    );
   });
 
   test('CLIP_YOU_SAY', () {
@@ -232,7 +242,9 @@ void main() {
     final cm = monster.eatCookie(s);
     expect(FibsCookie.CLIP_YOU_SHOUT, cm.cookie);
     expect(
-        "Watch out for someplayer.  He's a Tasmanian.", cm.crumbs!['message']);
+      "Watch out for someplayer.  He's a Tasmanian.",
+      cm.crumbs!['message'],
+    );
   });
 
   test('CLIP_YOU_WHISPER', () {
@@ -241,7 +253,9 @@ void main() {
     final cm = monster.eatCookie(s);
     expect(FibsCookie.CLIP_YOU_WHISPER, cm.cookie);
     expect(
-        'Hello and hope you enjoy watching this game.', cm.crumbs!['message']);
+      'Hello and hope you enjoy watching this game.',
+      cm.crumbs!['message'],
+    );
   });
 
   test('CLIP_YOU_KIBITZ', () {
@@ -392,9 +406,9 @@ void main() {
       expect(FibsCookie.FIBS_SettingsChange, cm.cookie);
       expect(pair.key, cm.crumbs!['name']);
       expect(
-          true,
-          CookieMonster.parseBool(cm.crumbs![
-              'value'])); //, $"{cm.crumbs["name"]}= {cm.crumbs["value"]}");
+        true,
+        CookieMonster.parseBool(cm.crumbs!['value']),
+      ); //, $"{cm.crumbs["name"]}= {cm.crumbs["value"]}");
     }
   });
 
@@ -407,7 +421,8 @@ void main() {
           "** You don't agree that doublets during opening double the cube.",
       'automove': "** Forced moves won't be done automatically.",
       'away': 'Welcome back.',
-      'bell': "** Your terminal won't ring the bell if someone talks to you "
+      'bell':
+          "** Your terminal won't ring the bell if someone talks to you "
           'or invites you',
       'crawford': '** You would like to play without using the Crawford rule.',
       'double': "** You won't be asked if you want to double.",
@@ -429,9 +444,9 @@ void main() {
       expect(FibsCookie.FIBS_SettingsChange, cm.cookie);
       expect(pair.key, cm.crumbs!['name']);
       expect(
-          false,
-          CookieMonster.parseBool(cm.crumbs![
-              'value'])); //, $"{cm.crumbs["name"]}= {cm.crumbs["value"]}");
+        false,
+        CookieMonster.parseBool(cm.crumbs!['value']),
+      ); //, $"{cm.crumbs["name"]}= {cm.crumbs["value"]}");
     }
   });
 
@@ -483,8 +498,10 @@ void main() {
     expect(3, int.parse(cm.crumbs!['matchLength']!));
     expect(0, int.parse(cm.crumbs!['player1Score']!));
     expect(1, int.parse(cm.crumbs!['player2Score']!));
-    expect('0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0:2:0',
-        cm.crumbs!['board']);
+    expect(
+      '0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0:2:0',
+      cm.crumbs!['board'],
+    );
     expect('O', CookieMonster.parseBoardTurn(cm.crumbs!['turnColor']!));
     expect('6:2', cm.crumbs!['player1Dice']);
     expect('0:0', cm.crumbs!['player2Dice']);
@@ -493,7 +510,9 @@ void main() {
     expect(true, CookieMonster.parseBool(cm.crumbs!['player2MayDouble']));
     expect(false, CookieMonster.parseBool(cm.crumbs!['wasDoubled']));
     expect(
-        'O', CookieMonster.parseBoardColorString(cm.crumbs!['player1Color']!));
+      'O',
+      CookieMonster.parseBoardColorString(cm.crumbs!['player1Color']!),
+    );
     expect(-1, int.parse(cm.crumbs!['direction']!));
     expect(0, int.parse(cm.crumbs!['player1Home']!));
     expect(0, int.parse(cm.crumbs!['player2Home']!));

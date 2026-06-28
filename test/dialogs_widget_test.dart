@@ -39,16 +39,18 @@ void main() {
     });
 
     testWidgets('OK dismisses the dialog', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => OddsDialog.show(context, GammonState()),
-              child: const Text('go'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => OddsDialog.show(context, GammonState()),
+                child: const Text('go'),
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('go'));
       await tester.pumpAndSettle();
       expect(find.text('Win Chances'), findsOneWidget);
@@ -62,19 +64,24 @@ void main() {
   group('DoubleOfferDialog (issue #12)', () {
     Future<bool?> showAndTap(WidgetTester tester, String button) async {
       bool? result;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                result = await DoubleOfferDialog.show(
-                    context, GammonPlayer.one, 2);
-              },
-              child: const Text('go'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  result = await DoubleOfferDialog.show(
+                    context,
+                    GammonPlayer.one,
+                    2,
+                  );
+                },
+                child: const Text('go'),
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('go'));
       await tester.pumpAndSettle();
 
@@ -96,11 +103,13 @@ void main() {
   });
 
   group('NewGameDialog stats (issue #10)', () {
-    testWidgets('shows the winner and the per-player stats table',
-        (tester) async {
+    testWidgets('shows the winner and the per-player stats table', (
+      tester,
+    ) async {
       final game = GammonState();
       await tester.pumpWidget(
-          MaterialApp(home: NewGameDialog(GammonPlayer.one, game)));
+        MaterialApp(home: NewGameDialog(GammonPlayer.one, game)),
+      );
 
       expect(find.textContaining('wins'), findsOneWidget);
       // stats table labels

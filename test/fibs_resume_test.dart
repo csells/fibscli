@@ -13,13 +13,15 @@ Future<FibsState> _loggedIn(FakeTransport fake) async {
 }
 
 void main() {
-  test('login does not send junk commands (FIBS lists saved games itself)',
-      () async {
-    final fake = FakeTransport();
-    await _loggedIn(fake);
-    // FIBS auto-reports saved games at login; we must not invent a command
-    expect(fake.sent, isNot(contains('show savedgames')));
-  });
+  test(
+    'login does not send junk commands (FIBS lists saved games itself)',
+    () async {
+      final fake = FakeTransport();
+      await _loggedIn(fake);
+      // FIBS auto-reports saved games at login; we must not invent a command
+      expect(fake.sent, isNot(contains('show savedgames')));
+    },
+  );
 
   test('a saved-games listing populates savedMatches', () async {
     final fake = FakeTransport();
@@ -66,8 +68,10 @@ void main() {
     final fake = FakeTransport();
     final fibs = await _loggedIn(fake);
 
-    fake.feed("Type 'join' if you want to play the next game, type 'leave' "
-        "if you don't.");
+    fake.feed(
+      "Type 'join' if you want to play the next game, type 'leave' "
+      "if you don't.",
+    );
     await Future<void>.delayed(Duration.zero);
     expect(fibs.mustJoin, isTrue);
 

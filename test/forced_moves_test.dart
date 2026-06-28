@@ -7,8 +7,7 @@ void main() {
   group('GammonRules.maxPlayableDice (issue #4)', () {
     test('opening 3-1 from the initial board can use both dice', () {
       final board = GammonRules.initialBoard();
-      expect(
-          GammonRules.maxPlayableDice(board, GammonPlayer.one, [3, 1]), 2);
+      expect(GammonRules.maxPlayableDice(board, GammonPlayer.one, [3, 1]), 2);
     });
 
     test('only one die playable when both end on a blocked point', () {
@@ -23,8 +22,9 @@ void main() {
       // on the ace point with 6-6-6-6 can only bear off twice.
       final board = makeBoard({1: -2});
       expect(
-          GammonRules.maxPlayableDice(board, GammonPlayer.one, [6, 6, 6, 6]),
-          2);
+        GammonRules.maxPlayableDice(board, GammonPlayer.one, [6, 6, 6, 6]),
+        2,
+      );
     });
 
     test('no dice playable when fully blocked from the bar', () {
@@ -45,8 +45,10 @@ void main() {
   group('GammonRules.getForcedLegalMoves (issue #4)', () {
     test('must play the larger die when only one die can be played', () {
       final board = makeBoard({13: -1, 2: 2});
-      final forced =
-          GammonRules.getForcedLegalMoves(board, GammonPlayer.one, [6, 5]);
+      final forced = GammonRules.getForcedLegalMoves(board, GammonPlayer.one, [
+        6,
+        5,
+      ]);
       final from13 = forced[13] ?? const <GammonMove>[];
       // the larger die (6): 13->7 must be offered
       expect(from13.any((m) => m.toPipNo == 7), isTrue);
@@ -61,15 +63,19 @@ void main() {
       final board = makeBoard({6: -1});
       expect(GammonRules.maxPlayableDice(board, GammonPlayer.one, [6, 1]), 2);
 
-      final forced =
-          GammonRules.getForcedLegalMoves(board, GammonPlayer.one, [6, 1]);
+      final forced = GammonRules.getForcedLegalMoves(board, GammonPlayer.one, [
+        6,
+        1,
+      ]);
       final from6 = forced[6] ?? const <GammonMove>[];
 
       // the 1-play (6->5) that keeps both dice alive must be offered
       expect(from6.any((m) => m.toPipNo == 5), isTrue);
       // the bare 6 bearoff (hops == [-6]) must be excluded
       expect(
-          from6.any((m) => m.hops.length == 1 && m.hops.first == -6), isFalse);
+        from6.any((m) => m.hops.length == 1 && m.hops.first == -6),
+        isFalse,
+      );
     });
   });
 }

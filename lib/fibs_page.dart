@@ -16,21 +16,19 @@ class FibsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
-        notifier: App.fibs,
-        builder: (context, fibs, child) {
-          // This picks WHICH view to show. Each view listens to FibsState
-          // itself (via its own ChangeNotifierBuilder) so it refreshes on
-          // every board update even though it's a const child here.
-          if (!fibs.loggedIn) return const _LoginView();
-          if (fibs.gameState != null) {
-            // playing if we're one of the players, otherwise just watching
-            return fibs.myColor != null
-                ? const _PlayView()
-                : const _WatchView();
-          }
-          return const _BotListView();
-        },
-      );
+    notifier: App.fibs,
+    builder: (context, fibs, child) {
+      // This picks WHICH view to show. Each view listens to FibsState
+      // itself (via its own ChangeNotifierBuilder) so it refreshes on
+      // every board update even though it's a const child here.
+      if (!fibs.loggedIn) return const _LoginView();
+      if (fibs.gameState != null) {
+        // playing if we're one of the players, otherwise just watching
+        return fibs.myColor != null ? const _PlayView() : const _WatchView();
+      }
+      return const _BotListView();
+    },
+  );
 }
 
 // ---- credentials persistence (obscured, opt-in) --------------------------
@@ -66,8 +64,11 @@ class _Creds {
   static bool get shouldAutologin =>
       hasConfig || (remember() && user() != null && pass() != null);
 
-  static Future<void> save(String user, String pass,
-      {required bool remember}) async {
+  static Future<void> save(
+    String user,
+    String pass, {
+    required bool remember,
+  }) async {
     final prefs = App.prefs.value!;
     await prefs.setString('user', user);
     await prefs.setBool('remember', remember);
@@ -147,60 +148,61 @@ class _LoginViewState extends State<_LoginView> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Connect to FIBS')),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _user,
-                    decoration: const InputDecoration(labelText: 'FIBS user'),
-                    autofillHints: const [AutofillHints.username],
-                  ),
-                  TextField(
-                    controller: _pass,
-                    decoration:
-                        const InputDecoration(labelText: 'FIBS password'),
-                    obscureText: true,
-                    onSubmitted: (_) => unawaited(_login()),
-                  ),
-                  CheckboxListTile(
-                    value: _remember,
-                    onChanged: (v) => setState(() => _remember = v ?? false),
-                    title: const Text('Remember my password'),
-                    subtitle: const Text('only on a device you trust'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(_error!,
-                          style: const TextStyle(color: Colors.red)),
-                    ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _busy ? null : () => unawaited(_login()),
-                      child: _busy
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Connect'),
-                    ),
-                  ),
-                ],
+    appBar: AppBar(title: const Text('Connect to FIBS')),
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _user,
+                decoration: const InputDecoration(labelText: 'FIBS user'),
+                autofillHints: const [AutofillHints.username],
               ),
-            ),
+              TextField(
+                controller: _pass,
+                decoration: const InputDecoration(labelText: 'FIBS password'),
+                obscureText: true,
+                onSubmitted: (_) => unawaited(_login()),
+              ),
+              CheckboxListTile(
+                value: _remember,
+                onChanged: (v) => setState(() => _remember = v ?? false),
+                title: const Text('Remember my password'),
+                subtitle: const Text('only on a device you trust'),
+                contentPadding: EdgeInsets.zero,
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _busy ? null : () => unawaited(_login()),
+                  child: _busy
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Connect'),
+                ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 // The bots currently in a game, each watchable.
@@ -226,8 +228,10 @@ class _BotListView extends StatelessWidget {
       ),
       body: (free.isEmpty && playing.isEmpty)
           ? const Center(
-              child: Text('No bots online yet.\nWaiting for the who-list…',
-                  textAlign: TextAlign.center),
+              child: Text(
+                'No bots online yet.\nWaiting for the who-list…',
+                textAlign: TextAlign.center,
+              ),
             )
           : ListView(
               children: [
@@ -237,8 +241,10 @@ class _BotListView extends StatelessWidget {
                   ListTile(
                     leading: const Icon(Icons.smart_toy),
                     title: Text(who.user),
-                    subtitle: Text('ready · rating '
-                        '${who.rating.toStringAsFixed(0)}'),
+                    subtitle: Text(
+                      'ready · rating '
+                      '${who.rating.toStringAsFixed(0)}',
+                    ),
                     trailing: const Icon(Icons.sports_esports),
                     onTap: () => _confirmInvite(context, who),
                   ),
@@ -248,8 +254,10 @@ class _BotListView extends StatelessWidget {
                   ListTile(
                     leading: const Icon(Icons.smart_toy_outlined),
                     title: Text(who.user),
-                    subtitle: Text('playing ${who.opponent} · rating '
-                        '${who.rating.toStringAsFixed(0)}'),
+                    subtitle: Text(
+                      'playing ${who.opponent} · rating '
+                      '${who.rating.toStringAsFixed(0)}',
+                    ),
                     trailing: const Icon(Icons.visibility),
                     onTap: () => App.fibs.watch(who),
                   ),
@@ -263,8 +271,10 @@ class _BotListView extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Invite ${bot.user}?'),
-        content: const Text('Start a 3-point match. Please finish the game '
-            'once it starts — be a good FIBS citizen.'),
+        content: const Text(
+          'Start a 3-point match. Please finish the game '
+          'once it starts — be a good FIBS citizen.',
+        ),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(context, false),
@@ -287,12 +297,15 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-        child: Text(text,
-            style: TextStyle(
-                color: Theme.of(context).primaryColor,
-                fontWeight: FontWeight.bold)),
-      );
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: Theme.of(context).primaryColor,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  );
 }
 
 class _WatchView extends StatelessWidget {
@@ -300,22 +313,22 @@ class _WatchView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
-        notifier: App.fibs,
-        builder: (context, fibs, child) => Scaffold(
-          backgroundColor: Colors.green,
-          appBar: AppBar(
-            title: const Text('Watching'),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: App.fibs.stopWatching,
-            ),
-          ),
-          body: Padding(
-            padding: const EdgeInsets.all(8),
-            child: ReadOnlyBoardView(game: fibs.gameState!),
-          ),
+    notifier: App.fibs,
+    builder: (context, fibs, child) => Scaffold(
+      backgroundColor: Colors.green,
+      appBar: AppBar(
+        title: const Text('Watching'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: App.fibs.stopWatching,
         ),
-      );
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(8),
+        child: ReadOnlyBoardView(game: fibs.gameState!),
+      ),
+    ),
+  );
 }
 
 // Playing a bot via tap-to-move: tap a source pip, then a destination; the
@@ -342,9 +355,9 @@ class _PlayViewState extends State<_PlayView> {
 
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
-        notifier: App.fibs,
-        builder: (context, fibs, child) => _buildBoard(context, fibs),
-      );
+    notifier: App.fibs,
+    builder: (context, fibs, child) => _buildBoard(context, fibs),
+  );
 
   Widget _buildBoard(BuildContext context, FibsState fibs) {
     final me = fibs.myColor!;
@@ -390,8 +403,10 @@ class _PlayViewState extends State<_PlayView> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Leave this game?'),
-        content: const Text('Resigning mid-match is poor FIBS etiquette — '
-            'try to finish. Leave anyway?'),
+        content: const Text(
+          'Resigning mid-match is poor FIBS etiquette — '
+          'try to finish. Leave anyway?',
+        ),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(context, false),
@@ -418,25 +433,35 @@ class _Controls extends StatelessWidget {
     if (fibs.doubleOffered) {
       children.addAll([
         const Text('Opponent doubled!'),
-        ElevatedButton(
-            onPressed: fibs.acceptDouble, child: const Text('Take')),
+        ElevatedButton(onPressed: fibs.acceptDouble, child: const Text('Take')),
         OutlinedButton(onPressed: fibs.rejectDouble, child: const Text('Pass')),
       ]);
     } else if (fibs.canRoll) {
       children.addAll([
         ElevatedButton.icon(
-            onPressed: fibs.roll,
-            icon: const Icon(Icons.casino),
-            label: const Text('Roll')),
+          onPressed: fibs.roll,
+          icon: const Icon(Icons.casino),
+          label: const Text('Roll'),
+        ),
         OutlinedButton(
-            onPressed: fibs.offerDouble, child: const Text('Double')),
+          onPressed: fibs.offerDouble,
+          child: const Text('Double'),
+        ),
       ]);
     } else if (fibs.canMoveNow) {
-      children.add(Text('Your move — dice ${fibs.board!.activeDice.join(", ")}',
-          style: const TextStyle(color: Colors.white)));
+      children.add(
+        Text(
+          'Your move — dice ${fibs.board!.activeDice.join(", ")}',
+          style: const TextStyle(color: Colors.white),
+        ),
+      );
     } else {
-      children.add(const Text('Waiting for opponent…',
-          style: TextStyle(color: Colors.white)));
+      children.add(
+        const Text(
+          'Waiting for opponent…',
+          style: TextStyle(color: Colors.white),
+        ),
+      );
     }
 
     return Container(

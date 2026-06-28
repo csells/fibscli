@@ -109,11 +109,10 @@ class _GamePlayPageState extends State<GamePlayPage> {
   void _tapAutoBearOff() => _controller.autoBearOff();
   void _tapOdds() => _controller.showOdds();
   void _tapFeedback() => unawaited(
-        ul.launchUrl(Uri.parse('https://github.com/csells/fibscli/issues')),
-      );
-  void _tapHelp() => unawaited(
-        ul.launchUrl(Uri.parse('https://www.bkgm.com/rules.html')),
-      );
+    ul.launchUrl(Uri.parse('https://github.com/csells/fibscli/issues')),
+  );
+  void _tapHelp() =>
+      unawaited(ul.launchUrl(Uri.parse('https://www.bkgm.com/rules.html')));
 }
 
 class GameViewController extends ChangeNotifier {
@@ -166,7 +165,7 @@ class GameViewController extends ChangeNotifier {
 
 class GameView extends StatefulWidget {
   GameView({super.key, GameViewController? controller})
-      : controller = controller ?? GameViewController();
+    : controller = controller ?? GameViewController();
   final GameViewController controller;
 
   @override
@@ -229,194 +228,201 @@ class _GameViewState extends State<GameView> {
     _game!.removeListener(_gameChanged);
     widget.controller.canUndo = false;
     final ok = await NewGameDialog.show(
-        context, _game!.turnPlayer, _game!); // result can be null
+      context,
+      _game!.turnPlayer,
+      _game!,
+    ); // result can be null
     if (ok ?? false) _newGame();
   }
 
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<GammonState?>(
-        notifier: _game,
-        builder: (context, game, child) => SizedBox.expand(
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: ChangeNotifierBuilder<GameViewController>(
-              notifier: widget.controller,
-              builder: (context, controller, child) => AnimatedContainer(
-                duration: const Duration(milliseconds: 500),
-                transform: Matrix4.rotationZ(controller.reversed ? pi : 0),
-                transformAlignment: Alignment.center,
-                child: FittedBox(
-                  child: IgnorePointer(
-                    ignoring: _game!.gameOver,
-                    child: Stack(
-                      children: [
-                        // frame
-                        Container(
-                          width: 574,
-                          height: 420,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.black, width: 5),
-                            color: Colors.grey[300],
-                          ),
-                        ),
-
-                        // outer board
-                        Positioned.fromRect(
-                          rect: const Rect.fromLTWH(20, 20, 216, 380),
-                          child: GestureDetector(
-                            onTap: _tapBoard,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.green[900],
-                                  border: Border.all(color: Colors.black)),
-                            ),
-                          ),
-                        ),
-
-                        // home board
-                        Positioned.fromRect(
-                          rect: const Rect.fromLTWH(284, 20, 216, 380),
-                          child: GestureDetector(
-                            onTap: _tapBoard,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.green[900],
-                                  border: Border.all(color: Colors.black)),
-                            ),
-                          ),
-                        ),
-
-                        // pips and labels
-                        for (final layout in PipLayout.layouts!) ...[
-                          Positioned.fromRect(
-                            rect: layout.rect,
-                            child: GestureDetector(
-                              onTap: () => _tapPip(layout.pipNo),
-                              child: PipTriangle(
-                                pip: layout.pipNo,
-                                highlight: _highlightPip(layout.pipNo),
-                              ),
-                            ),
-                          ),
-                          Positioned.fromRect(
-                            rect: layout.labelRect,
-                            child: PipLabel(
-                                layout: layout, reversed: controller.reversed),
-                          ),
-                        ],
-
-                        // player1 off
-                        Positioned.fromRect(
-                          rect: const Rect.fromLTWH(520, 216, 32, 183),
-                          child: GestureDetector(
-                            onTap: () => _tapOff(GammonPlayer.one),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.green[900],
-                                border: Border.all(
-                                    color: _highlightOff(GammonPlayer.one)
-                                        ? Colors.yellow
-                                        : Colors.black,
-                                    width: 2),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // player2 off
-                        Positioned.fromRect(
-                          rect: const Rect.fromLTWH(520, 20, 32, 183),
-                          child: GestureDetector(
-                            onTap: () => _tapOff(GammonPlayer.two),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.green[900],
-                                border: Border.all(
-                                    color: _highlightOff(GammonPlayer.two)
-                                        ? Colors.yellow
-                                        : Colors.black,
-                                    width: 2),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const InnerShadingRect(
-                            rect: Rect.fromLTWH(
-                                20, 20, 216, 380)), // outer board shading
-                        const InnerShadingRect(
-                            rect: Rect.fromLTWH(
-                                284, 20, 216, 380)), // home board shading
-                        const InnerShadingRect(
-                            rect: Rect.fromLTWH(
-                                520, 216, 32, 183)), // player1 home shading
-                        const InnerShadingRect(
-                            rect: Rect.fromLTWH(
-                                520, 20, 32, 183)), // player2 home shading
-
-                        // doubling cube (issue #12)
-                        Positioned.fromRect(
-                          rect: _cubeRect(_game!.cube.owner),
-                          child: GestureDetector(
-                            onTap: _tapCube,
-                            child: DoublingCubeView(
-                                cube: _game!.cube,
-                                reversed: controller.reversed),
-                          ),
-                        ),
-
-                        // pieces; moving pieces are drawn last so they appear
-                        // on top of stationary pieces (issue #6)
-                        for (final layout in PieceLayout.drawOrder(
-                            PieceLayout.getLayouts(
-                                game!.board, _pipNosToHighlight),
-                            _pieceLayouts.keys.toSet()))
-                          _pieceLayouts.containsKey(layout.pieceID)
-                              ? AnimatedPiece.fromLayouts(
-                                  layouts: _pieceLayouts[layout.pieceID]!,
-                                  delay: _pieceDelays[layout.pieceID] ??
-                                      Duration.zero,
-                                  onEnd: () =>
-                                      _endPieceAnimation(layout.pieceID),
-                                  child: GestureDetector(
-                                    onTap: () => _tapPiece(layout.pipNo),
-                                    child: PieceView(layout: layout.animated),
-                                  ),
-                                )
-                              : Positioned.fromRect(
-                                  rect: layout.rect,
-                                  child: GestureDetector(
-                                    onTap: () => _tapPiece(layout.pipNo),
-                                    child: PieceView(layout: layout),
-                                  ),
-                                ),
-
-                        // dice
-                        for (final layout in DieLayout.getLayouts(game))
-                          Positioned.fromRect(
-                            rect: layout.rect,
-                            child: DieView(
-                              layout: layout,
-                              onTap: _tapDice,
-                            ),
-                          ),
-
-                        // pip counts
-                        for (final layout in PipCountLayout.getLayouts(game))
-                          Positioned.fromRect(
-                            rect: layout.rect,
-                            child: PipCountView(
-                                layout: layout, reversed: controller.reversed),
-                          ),
-                      ],
+    notifier: _game,
+    builder: (context, game, child) => SizedBox.expand(
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: ChangeNotifierBuilder<GameViewController>(
+          notifier: widget.controller,
+          builder: (context, controller, child) => AnimatedContainer(
+            duration: const Duration(milliseconds: 500),
+            transform: Matrix4.rotationZ(controller.reversed ? pi : 0),
+            transformAlignment: Alignment.center,
+            child: FittedBox(
+              child: IgnorePointer(
+                ignoring: _game!.gameOver,
+                child: Stack(
+                  children: [
+                    // frame
+                    Container(
+                      width: 574,
+                      height: 420,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black, width: 5),
+                        color: Colors.grey[300],
+                      ),
                     ),
-                  ),
+
+                    // outer board
+                    Positioned.fromRect(
+                      rect: const Rect.fromLTWH(20, 20, 216, 380),
+                      child: GestureDetector(
+                        onTap: _tapBoard,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.green[900],
+                            border: Border.all(color: Colors.black),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // home board
+                    Positioned.fromRect(
+                      rect: const Rect.fromLTWH(284, 20, 216, 380),
+                      child: GestureDetector(
+                        onTap: _tapBoard,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.green[900],
+                            border: Border.all(color: Colors.black),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // pips and labels
+                    for (final layout in PipLayout.layouts!) ...[
+                      Positioned.fromRect(
+                        rect: layout.rect,
+                        child: GestureDetector(
+                          onTap: () => _tapPip(layout.pipNo),
+                          child: PipTriangle(
+                            pip: layout.pipNo,
+                            highlight: _highlightPip(layout.pipNo),
+                          ),
+                        ),
+                      ),
+                      Positioned.fromRect(
+                        rect: layout.labelRect,
+                        child: PipLabel(
+                          layout: layout,
+                          reversed: controller.reversed,
+                        ),
+                      ),
+                    ],
+
+                    // player1 off
+                    Positioned.fromRect(
+                      rect: const Rect.fromLTWH(520, 216, 32, 183),
+                      child: GestureDetector(
+                        onTap: () => _tapOff(GammonPlayer.one),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.green[900],
+                            border: Border.all(
+                              color: _highlightOff(GammonPlayer.one)
+                                  ? Colors.yellow
+                                  : Colors.black,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // player2 off
+                    Positioned.fromRect(
+                      rect: const Rect.fromLTWH(520, 20, 32, 183),
+                      child: GestureDetector(
+                        onTap: () => _tapOff(GammonPlayer.two),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.green[900],
+                            border: Border.all(
+                              color: _highlightOff(GammonPlayer.two)
+                                  ? Colors.yellow
+                                  : Colors.black,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const InnerShadingRect(
+                      rect: Rect.fromLTWH(20, 20, 216, 380),
+                    ), // outer board shading
+                    const InnerShadingRect(
+                      rect: Rect.fromLTWH(284, 20, 216, 380),
+                    ), // home board shading
+                    const InnerShadingRect(
+                      rect: Rect.fromLTWH(520, 216, 32, 183),
+                    ), // player1 home shading
+                    const InnerShadingRect(
+                      rect: Rect.fromLTWH(520, 20, 32, 183),
+                    ), // player2 home shading
+                    // doubling cube (issue #12)
+                    Positioned.fromRect(
+                      rect: _cubeRect(_game!.cube.owner),
+                      child: GestureDetector(
+                        onTap: _tapCube,
+                        child: DoublingCubeView(
+                          cube: _game!.cube,
+                          reversed: controller.reversed,
+                        ),
+                      ),
+                    ),
+
+                    // pieces; moving pieces are drawn last so they appear
+                    // on top of stationary pieces (issue #6)
+                    for (final layout in PieceLayout.drawOrder(
+                      PieceLayout.getLayouts(game!.board, _pipNosToHighlight),
+                      _pieceLayouts.keys.toSet(),
+                    ))
+                      _pieceLayouts.containsKey(layout.pieceID)
+                          ? AnimatedPiece.fromLayouts(
+                              layouts: _pieceLayouts[layout.pieceID]!,
+                              delay:
+                                  _pieceDelays[layout.pieceID] ?? Duration.zero,
+                              onEnd: () => _endPieceAnimation(layout.pieceID),
+                              child: GestureDetector(
+                                onTap: () => _tapPiece(layout.pipNo),
+                                child: PieceView(layout: layout.animated),
+                              ),
+                            )
+                          : Positioned.fromRect(
+                              rect: layout.rect,
+                              child: GestureDetector(
+                                onTap: () => _tapPiece(layout.pipNo),
+                                child: PieceView(layout: layout),
+                              ),
+                            ),
+
+                    // dice
+                    for (final layout in DieLayout.getLayouts(game))
+                      Positioned.fromRect(
+                        rect: layout.rect,
+                        child: DieView(layout: layout, onTap: _tapDice),
+                      ),
+
+                    // pip counts
+                    for (final layout in PipCountLayout.getLayouts(game))
+                      Positioned.fromRect(
+                        rect: layout.rect,
+                        child: PipCountView(
+                          layout: layout,
+                          reversed: controller.reversed,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   List<int?> get _pipNosToHighlight =>
       _fromPipNo != null ? [_fromPipNo] : _legalMovesForPips.keys.toList();
@@ -439,7 +445,10 @@ class _GameViewState extends State<GameView> {
     if (player == null || !_game!.canOfferDouble(player)) return;
 
     final accepted = await DoubleOfferDialog.show(
-        context, player, _game!.cube.value * 2);
+      context,
+      player,
+      _game!.cube.value * 2,
+    );
     if (accepted == null) return; // dismissed
 
     if (accepted) {
@@ -484,9 +493,14 @@ class _GameViewState extends State<GameView> {
     // if this is a legal move, do the move
     if (hops != null) {
       final initialBoard = List<List<int>>.generate(
-          _game!.board.length, (i) => List<int>.from(_game!.board[i]));
-      final move =
-          GammonMove(fromPipNo: _fromPipNo!, toPipNo: toEndPipNo, hops: hops);
+        _game!.board.length,
+        (i) => List<int>.from(_game!.board[i]),
+      );
+      final move = GammonMove(
+        fromPipNo: _fromPipNo!,
+        toPipNo: toEndPipNo,
+        hops: hops,
+      );
       final deltasForHops = _game!.applyMove(move: move);
 
       // convert game states for each hop into a sequence of layouts (and hit
@@ -524,15 +538,18 @@ class _GameViewState extends State<GameView> {
 
   bool _highlightOff(GammonPlayer player) {
     final offPipNo = GammonRules.offPipNoFor(player);
-    final legalMoves =
-        _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo];
+    final legalMoves = _fromPipNo == null
+        ? null
+        : _legalMovesForPips[_fromPipNo];
     return legalMoves != null && legalMoves.any((m) => m.toPipNo == offPipNo);
   }
 
   bool _highlightPip(int pipNo) {
-    final legalMoves =
-        _fromPipNo == null ? null : _legalMovesForPips[_fromPipNo];
-    final result = legalMoves != null &&
+    final legalMoves = _fromPipNo == null
+        ? null
+        : _legalMovesForPips[_fromPipNo];
+    final result =
+        legalMoves != null &&
         legalMoves.hasHops(fromPipNo: _fromPipNo, toPipNo: pipNo);
     return result;
   }
@@ -549,40 +566,37 @@ class _GameViewState extends State<GameView> {
 }
 
 class InnerShadingRect extends StatelessWidget {
-  const InnerShadingRect({
-    required this.rect,
-    super.key,
-  });
+  const InnerShadingRect({required this.rect, super.key});
   final Rect rect;
 
   @override
   Widget build(BuildContext context) => Positioned.fromRect(
-        rect: rect,
-        child: Stack(
-          children: [
-            Container(
-              height: 10,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.black.withAlpha(51), Colors.transparent],
-                ),
-              ),
+    rect: rect,
+    child: Stack(
+      children: [
+        Container(
+          height: 10,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.black.withAlpha(51), Colors.transparent],
             ),
-            Container(
-              width: 10,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Colors.black.withAlpha(51), Colors.transparent],
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+        Container(
+          width: 10,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Colors.black.withAlpha(51), Colors.transparent],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class QuitGameDialog extends StatelessWidget {
@@ -590,28 +604,30 @@ class QuitGameDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Game Already In Progress'),
-        content: const Text('OK to quit current game?'),
-        actions: [
-          OutlinedButton(
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('Keep Playing'),
-            ),
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          ElevatedButton(
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('Quit Game'),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      );
+    title: const Text('Game Already In Progress'),
+    content: const Text('OK to quit current game?'),
+    actions: [
+      OutlinedButton(
+        child: const Padding(
+          padding: EdgeInsets.all(8),
+          child: Text('Keep Playing'),
+        ),
+        onPressed: () => Navigator.pop(context, false),
+      ),
+      ElevatedButton(
+        child: const Padding(
+          padding: EdgeInsets.all(8),
+          child: Text('Quit Game'),
+        ),
+        onPressed: () => Navigator.pop(context, true),
+      ),
+    ],
+  );
 
   static Future<bool?> show(BuildContext context) => showDialog<bool>(
-      context: context, builder: (context) => const QuitGameDialog());
+    context: context,
+    builder: (context) => const QuitGameDialog(),
+  );
 }
 
 // Win-chance estimate and recommended cube action (issue #14). The numbers are
@@ -659,10 +675,7 @@ class OddsDialog extends StatelessWidget {
       actions: [
         ElevatedButton(
           onPressed: () => Navigator.pop(context),
-          child: const Padding(
-            padding: EdgeInsets.all(8),
-            child: Text('OK'),
-          ),
+          child: const Padding(padding: EdgeInsets.all(8), child: Text('OK')),
         ),
       ],
     );
@@ -670,7 +683,9 @@ class OddsDialog extends StatelessWidget {
 
   static Future<void> show(BuildContext context, GammonState game) =>
       showDialog<void>(
-          context: context, builder: (context) => OddsDialog(game));
+        context: context,
+        builder: (context) => OddsDialog(game),
+      );
 }
 
 // Offer-a-double dialog: the player on roll doubles, the opponent decides
@@ -707,10 +722,13 @@ class DoubleOfferDialog extends StatelessWidget {
   }
 
   static Future<bool?> show(
-          BuildContext context, GammonPlayer doubler, int newValue) =>
-      showDialog<bool>(
-          context: context,
-          builder: (context) => DoubleOfferDialog(doubler, newValue));
+    BuildContext context,
+    GammonPlayer doubler,
+    int newValue,
+  ) => showDialog<bool>(
+    context: context,
+    builder: (context) => DoubleOfferDialog(doubler, newValue),
+  );
 }
 
 class NewGameDialog extends StatelessWidget {
@@ -720,38 +738,42 @@ class NewGameDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: Text('Player ${winner == GammonPlayer.one ? 1 : 2} wins!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _StatsTable(game: game),
-            const SizedBox(height: 16),
-            const Text('Would you like to play another game?'),
-          ],
+    title: Text('Player ${winner == GammonPlayer.one ? 1 : 2} wins!'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StatsTable(game: game),
+        const SizedBox(height: 16),
+        const Text('Would you like to play another game?'),
+      ],
+    ),
+    actions: [
+      OutlinedButton(
+        child: const Padding(
+          padding: EdgeInsets.all(8),
+          child: Text('No, Thanks'),
         ),
-        actions: [
-          OutlinedButton(
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('No, Thanks'),
-            ),
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          ElevatedButton(
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('Yes, Please!'),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      );
+        onPressed: () => Navigator.pop(context, false),
+      ),
+      ElevatedButton(
+        child: const Padding(
+          padding: EdgeInsets.all(8),
+          child: Text('Yes, Please!'),
+        ),
+        onPressed: () => Navigator.pop(context, true),
+      ),
+    ],
+  );
 
   static Future<bool?> show(
-          BuildContext context, GammonPlayer? winner, GammonState game) =>
-      showDialog<bool>(
-          context: context, builder: (context) => NewGameDialog(winner, game));
+    BuildContext context,
+    GammonPlayer? winner,
+    GammonState game,
+  ) => showDialog<bool>(
+    context: context,
+    builder: (context) => NewGameDialog(winner, game),
+  );
 }
 
 // End-of-game stats: rolls, total dice pips, doubles per player (issue #10).
@@ -766,16 +788,18 @@ class _StatsTable extends StatelessWidget {
     const headerStyle = TextStyle(fontWeight: FontWeight.bold);
 
     TableRow row(String label, Object a, Object b) => TableRow(
-          children: [
-            Padding(padding: const EdgeInsets.all(4), child: Text(label)),
-            Padding(
-                padding: const EdgeInsets.all(4),
-                child: Text('$a', textAlign: TextAlign.center)),
-            Padding(
-                padding: const EdgeInsets.all(4),
-                child: Text('$b', textAlign: TextAlign.center)),
-          ],
-        );
+      children: [
+        Padding(padding: const EdgeInsets.all(4), child: Text(label)),
+        Padding(
+          padding: const EdgeInsets.all(4),
+          child: Text('$a', textAlign: TextAlign.center),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(4),
+          child: Text('$b', textAlign: TextAlign.center),
+        ),
+      ],
+    );
 
     return Table(
       defaultColumnWidth: const IntrinsicColumnWidth(),
@@ -786,13 +810,19 @@ class _StatsTable extends StatelessWidget {
             Padding(padding: EdgeInsets.all(4), child: Text('')),
             Padding(
               padding: EdgeInsets.all(4),
-              child: Text('Player 1',
-                  style: headerStyle, textAlign: TextAlign.center),
+              child: Text(
+                'Player 1',
+                style: headerStyle,
+                textAlign: TextAlign.center,
+              ),
             ),
             Padding(
               padding: EdgeInsets.all(4),
-              child: Text('Player 2',
-                  style: headerStyle, textAlign: TextAlign.center),
+              child: Text(
+                'Player 2',
+                style: headerStyle,
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),

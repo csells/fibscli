@@ -36,8 +36,10 @@ void main() {
       }
 
       // and it plays like the opening: a 3-1 can make the five point
-      final moves =
-          GammonRules.getAllLegalMoves(board, GammonPlayer.one, [3, 1]);
+      final moves = GammonRules.getAllLegalMoves(board, GammonPlayer.one, [
+        3,
+        1,
+      ]);
       expect(moves[8]!.any((m) => m.toPipNo == 5), isTrue);
       expect(moves[6]!.any((m) => m.toPipNo == 5), isTrue);
     });

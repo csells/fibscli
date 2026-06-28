@@ -11,11 +11,11 @@ const kAnimationMsPerDistance = 3;
 
 class PieceView extends StatelessWidget {
   PieceView({required this.layout, super.key})
-      : _gradeColors = _pieceColors[layout.pieceID.sign == -1 ? 0 : 1],
-        _textColor = layout.pieceID.sign == -1 ? Colors.white : Colors.black;
+    : _gradeColors = _pieceColors[layout.pieceID.sign == -1 ? 0 : 1],
+      _textColor = layout.pieceID.sign == -1 ? Colors.white : Colors.black;
   static final _pieceColors = [
     [Colors.grey[800]!, Colors.black],
-    [Colors.white, Colors.grey[400]!]
+    [Colors.white, Colors.grey[400]!],
   ];
 
   final Color _textColor;
@@ -33,11 +33,14 @@ class PieceView extends StatelessWidget {
       : DecoratedBox(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient:
-                LinearGradient(begin: Alignment.topLeft, colors: _gradeColors),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              colors: _gradeColors,
+            ),
             border: Border.all(
-                color: layout.highlight ? Colors.yellow : Colors.black,
-                width: layout.highlight ? 2 : 1),
+              color: layout.highlight ? Colors.yellow : Colors.black,
+              width: layout.highlight ? 2 : 1,
+            ),
           ),
           child: Center(
             child: FractionallySizedBox(
@@ -47,8 +50,9 @@ class PieceView extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        colors: [_gradeColors[1], _gradeColors[0]]),
+                      begin: Alignment.topLeft,
+                      colors: [_gradeColors[1], _gradeColors[0]],
+                    ),
                   ),
                   child: Center(
                     child: Text(
@@ -79,28 +83,31 @@ class MoveAnimation {
 
     // copy the initial board; it'll change as we apply deltas
     final board = List<List<int>>.generate(
-        initialBoard.length, (i) => List<int>.from(initialBoard[i]));
+      initialBoard.length,
+      (i) => List<int>.from(initialBoard[i]),
+    );
 
     // every piece affected by this move (the mover plus any hittees)
     final pieceIDs = <int?>[
       for (final deltasForHop in deltasForHops)
-        for (final delta in deltasForHop) delta.pieceID
+        for (final delta in deltasForHop) delta.pieceID,
     ];
 
     final layouts = <int?, List<PieceLayout>>{
-      for (final pieceID in pieceIDs) pieceID: <PieceLayout>[]
+      for (final pieceID in pieceIDs) pieceID: <PieceLayout>[],
     };
 
     // record each piece's layout at each board state (initial, then each hop)
     for (final deltasForHop in <List<GammonDelta>>[
       <GammonDelta>[],
-      ...deltasForHops
+      ...deltasForHops,
     ]) {
       GammonRules.applyDeltasForHop(board, deltasForHop);
       final hopLayouts = PieceLayout.getLayouts(board);
       for (final pieceID in pieceIDs) {
-        layouts[pieceID]!
-            .add(hopLayouts.firstWhere((l) => l.pieceID == pieceID));
+        layouts[pieceID]!.add(
+          hopLayouts.firstWhere((l) => l.pieceID == pieceID),
+        );
       }
     }
 
@@ -112,11 +119,12 @@ class MoveAnimation {
         if (delta.kind != GammonDeltaKind.bar) continue;
         var distance = 0.0;
         for (var i = 1; i <= hop + 1; ++i) {
-          distance += (hitterPath[i - 1].offset! - hitterPath[i].offset!)
-              .distance;
+          distance +=
+              (hitterPath[i - 1].offset! - hitterPath[i].offset!).distance;
         }
         delays[delta.pieceID] = Duration(
-            milliseconds: (distance * kAnimationMsPerDistance).floor());
+          milliseconds: (distance * kAnimationMsPerDistance).floor(),
+        );
       }
     }
 
@@ -160,7 +168,9 @@ class PieceLayout {
   // Order layouts so that currently-animating (moving) pieces are drawn last,
   // i.e. on top of stationary pieces, instead of in pip order (issue #6).
   static List<PieceLayout> drawOrder(
-      Iterable<PieceLayout> layouts, Set<int?> animatingIDs) {
+    Iterable<PieceLayout> layouts,
+    Set<int?> animatingIDs,
+  ) {
     final stationary = <PieceLayout>[];
     final moving = <PieceLayout>[];
     for (final layout in layouts) {
@@ -169,8 +179,10 @@ class PieceLayout {
     return [...stationary, ...moving];
   }
 
-  static Iterable<PieceLayout> getLayouts(List<List<int>> board,
-      [List<int?>? pipNosToHighlight]) sync* {
+  static Iterable<PieceLayout> getLayouts(
+    List<List<int>> board, [
+    List<int?>? pipNosToHighlight,
+  ]) sync* {
     assert(board.length == 26);
     assert(_pieceSize.width == _pieceSize.height);
 
@@ -199,35 +211,39 @@ class PieceLayout {
           if (pipNo >= 1 && pipNo <= 6) {
             // bottom right
             yield PieceLayout(
-                pipNo: pipNo,
-                pieceID: pieceID,
-                offset: Offset(468 - dx, 371 - dy),
-                label: label,
-                highlight: highlight);
+              pipNo: pipNo,
+              pieceID: pieceID,
+              offset: Offset(468 - dx, 371 - dy),
+              label: label,
+              highlight: highlight,
+            );
           } else if (pipNo >= 7 && pipNo <= 12) {
             // bottom left
             yield PieceLayout(
-                pipNo: pipNo,
-                pieceID: pieceID,
-                offset: Offset(204 - dx, 371 - dy),
-                label: label,
-                highlight: highlight);
+              pipNo: pipNo,
+              pieceID: pieceID,
+              offset: Offset(204 - dx, 371 - dy),
+              label: label,
+              highlight: highlight,
+            );
           } else if (pipNo >= 13 && pipNo <= 18) {
             // top left
             yield PieceLayout(
-                pipNo: pipNo,
-                pieceID: pieceID,
-                offset: Offset(24 + dx, 21 + dy),
-                label: label,
-                highlight: highlight);
+              pipNo: pipNo,
+              pieceID: pieceID,
+              offset: Offset(24 + dx, 21 + dy),
+              label: label,
+              highlight: highlight,
+            );
           } else if (pipNo >= 19 && pipNo <= 24) {
             // top right
             yield PieceLayout(
-                pipNo: pipNo,
-                pieceID: pieceID,
-                offset: Offset(288 + dx, 21 + dy),
-                label: label,
-                highlight: highlight);
+              pipNo: pipNo,
+              pieceID: pieceID,
+              offset: Offset(288 + dx, 21 + dy),
+              label: label,
+              highlight: highlight,
+            );
           } else {
             assert(false);
           }
@@ -253,11 +269,12 @@ class PieceLayout {
             : 138.0 - _offset.dy * min(i, 2);
         final highlight = highlightedPiecePip && i == 0;
         yield PieceLayout(
-            pipNo: barPipNo,
-            pieceID: pieceID,
-            offset: Offset(246, top),
-            label: label,
-            highlight: highlight);
+          pipNo: barPipNo,
+          pieceID: pieceID,
+          offset: Offset(246, top),
+          label: label,
+          highlight: highlight,
+        );
       }
     }
 
@@ -274,11 +291,12 @@ class PieceLayout {
             ? 386.0 - (_edgeSize.height + 1) * i
             : 22.0 + (_edgeSize.height + 1) * i;
         yield PieceLayout(
-            pipNo: offPipNo,
-            pieceID: pieceID,
-            offset: Offset(520, top),
-            label: '',
-            edge: true);
+          pipNo: offPipNo,
+          pieceID: pieceID,
+          offset: Offset(520, top),
+          label: '',
+          edge: true,
+        );
       }
     }
   }

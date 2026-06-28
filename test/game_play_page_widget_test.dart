@@ -15,16 +15,18 @@ void main() {
     expect(find.byType(DoublingCubeView), findsOneWidget);
   });
 
-  testWidgets('auto bear-off button is hidden off the start (not a race)',
-      (tester) async {
+  testWidgets('auto bear-off button is hidden off the start (not a race)', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: GamePlayPage()));
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('auto bear off'), findsNothing);
   });
 
-  testWidgets('insights button opens the win-chances dialog (issue #14)',
-      (tester) async {
+  testWidgets('insights button opens the win-chances dialog (issue #14)', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: GamePlayPage()));
     await tester.pumpAndSettle();
 
@@ -34,8 +36,9 @@ void main() {
     expect(find.text('Win Chances'), findsOneWidget);
   });
 
-  testWidgets('tapping the cube offers a double and accepting raises it',
-      (tester) async {
+  testWidgets('tapping the cube offers a double and accepting raises it', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: GamePlayPage()));
     await tester.pumpAndSettle();
 
@@ -51,7 +54,9 @@ void main() {
     // the cube now reads 2
     expect(
       find.descendant(
-          of: find.byType(DoublingCubeView), matching: find.text('2')),
+        of: find.byType(DoublingCubeView),
+        matching: find.text('2'),
+      ),
       findsOneWidget,
     );
   });

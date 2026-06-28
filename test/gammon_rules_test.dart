@@ -24,8 +24,10 @@ void main() {
 
     test('player1 opening 3-1 can make the 5 point', () {
       final board = GammonRules.initialBoard();
-      final moves =
-          GammonRules.getAllLegalMoves(board, GammonPlayer.one, [3, 1]);
+      final moves = GammonRules.getAllLegalMoves(board, GammonPlayer.one, [
+        3,
+        1,
+      ]);
       // 8->5 (3) and 6->5 (1) both reach pip 5
       expect(moves[8]!.any((m) => m.toPipNo == 5), isTrue);
       expect(moves[6]!.any((m) => m.toPipNo == 5), isTrue);
@@ -35,13 +37,14 @@ void main() {
       final board = makeBoard({6: -2, 13: 3});
       expect(board[6].length, 2);
       expect(
-          board[6].every((id) => GammonRules.playerFor(id) == GammonPlayer.one),
-          isTrue);
+        board[6].every((id) => GammonRules.playerFor(id) == GammonPlayer.one),
+        isTrue,
+      );
       expect(board[13].length, 3);
       expect(
-          board[13]
-              .every((id) => GammonRules.playerFor(id) == GammonPlayer.two),
-          isTrue);
+        board[13].every((id) => GammonRules.playerFor(id) == GammonPlayer.two),
+        isTrue,
+      );
     });
   });
 }

@@ -59,7 +59,7 @@ class _LoginPageState extends State<LoginPage> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('OK'),
-              )
+              ),
             ],
           ),
         );
@@ -71,74 +71,79 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text(App.title)),
-        body: ValueListenableBuilder<SharedPreferences?>(
-          valueListenable: App.prefs,
-          builder: (context, prefs, child) => prefs == null
-              ? const CircularProgressIndicator()
-              : SizedBox.expand(
-                  child: Form(
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: Center(
-                        child: SizedBox(
-                          width: 500,
-                          child: Column(
+    appBar: AppBar(title: const Text(App.title)),
+    body: ValueListenableBuilder<SharedPreferences?>(
+      valueListenable: App.prefs,
+      builder: (context, prefs, child) => prefs == null
+          ? const CircularProgressIndicator()
+          : SizedBox.expand(
+              child: Form(
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Center(
+                    child: SizedBox(
+                      width: 500,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 20),
+                          Text(
+                            'FIBS Login',
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 36,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            controller: _userController,
+                            decoration: const InputDecoration(
+                              labelText: 'user',
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            obscureText: true,
+                            controller: _passController,
+                            decoration: const InputDecoration(
+                              labelText: 'password',
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
                             children: [
-                              const SizedBox(height: 20),
-                              Text(
-                                'FIBS Login',
-                                style: TextStyle(
-                                    color: Theme.of(context).primaryColor,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 36),
+                              Checkbox(
+                                value: _shouldAutologin,
+                                onChanged: (checked) =>
+                                    setState(() => _shouldAutologin = checked),
                               ),
-                              const SizedBox(height: 20),
-                              TextField(
-                                controller: _userController,
-                                decoration:
-                                    const InputDecoration(labelText: 'user'),
-                              ),
-                              const SizedBox(height: 20),
-                              TextField(
-                                obscureText: true,
-                                controller: _passController,
-                                decoration: const InputDecoration(
-                                    labelText: 'password'),
-                              ),
-                              const SizedBox(height: 20),
-                              Row(
-                                children: [
-                                  Checkbox(
-                                    value: _shouldAutologin,
-                                    onChanged: (checked) => setState(
-                                        () => _shouldAutologin = checked),
-                                  ),
-                                  const Text('Remember user name and password'),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              ElevatedButton(
-                                child: const Text('Login'),
-                                onPressed: () async {
-                                  final user = _userController.text;
-                                  final pass = _passController.text;
-                                  if (user.isEmpty || pass.isEmpty) return;
-                                  if (await _login(user, pass)) {
-                                    await prefs.setBool(
-                                        'autologin', _shouldAutologin!);
-                                    await prefs.setString('user', user);
-                                    await prefs.setString('pass', pass);
-                                  }
-                                },
-                              ),
+                              const Text('Remember user name and password'),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            child: const Text('Login'),
+                            onPressed: () async {
+                              final user = _userController.text;
+                              final pass = _passController.text;
+                              if (user.isEmpty || pass.isEmpty) return;
+                              if (await _login(user, pass)) {
+                                await prefs.setBool(
+                                  'autologin',
+                                  _shouldAutologin!,
+                                );
+                                await prefs.setString('user', user);
+                                await prefs.setString('pass', pass);
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-        ),
-      );
+              ),
+            ),
+    ),
+  );
 }

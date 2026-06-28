@@ -12,8 +12,11 @@ String boardLine({String turn = '1', String p1dice = '6:3'}) =>
     'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
     ':2:0:$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
 
-Future<FibsState> _startGame(WidgetTester tester, FakeTransport fake,
-    {String dice = '6:3'}) async {
+Future<FibsState> _startGame(
+  WidgetTester tester,
+  FakeTransport fake, {
+  String dice = '6:3',
+}) async {
   App.fibs = FibsState.withTransport(fake);
   await App.fibs.login(user: 'joe_grammer', pass: 'x');
   await tester.pumpWidget(const MaterialApp(home: FibsPage()));
@@ -23,8 +26,9 @@ Future<FibsState> _startGame(WidgetTester tester, FakeTransport fake,
 }
 
 void main() {
-  testWidgets('play UI renders the interactive board on our turn',
-      (tester) async {
+  testWidgets('play UI renders the interactive board on our turn', (
+    tester,
+  ) async {
     final fake = FakeTransport();
     final fibs = await _startGame(tester, fake);
 
@@ -33,8 +37,9 @@ void main() {
     expect(fibs.canMoveNow, isTrue);
   });
 
-  testWidgets('tap-to-move sends the absolute-coordinate move command',
-      (tester) async {
+  testWidgets('tap-to-move sends the absolute-coordinate move command', (
+    tester,
+  ) async {
     final fake = FakeTransport();
     final fibs = await _startGame(tester, fake);
 
@@ -43,8 +48,9 @@ void main() {
     expect(fake.sent, contains('move 24-18'));
   });
 
-  testWidgets('roll button appears on our turn with no dice and sends roll',
-      (tester) async {
+  testWidgets('roll button appears on our turn with no dice and sends roll', (
+    tester,
+  ) async {
     final fake = FakeTransport();
     await _startGame(tester, fake, dice: '0:0');
 
@@ -56,8 +62,9 @@ void main() {
     expect(fake.sent, contains('roll'));
   });
 
-  testWidgets('a double offer shows Take/Pass and Take sends accept',
-      (tester) async {
+  testWidgets('a double offer shows Take/Pass and Take sends accept', (
+    tester,
+  ) async {
     final fake = FakeTransport();
     await _startGame(tester, fake);
 

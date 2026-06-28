@@ -13,7 +13,9 @@ void main() {
       // player1 (id -1) on pip 8 hits player2 blot (id 1) on pip 5 with a 3
       final initial = makeBoard({8: -1, 5: 1});
       final deltas = GammonRules.applyMove(
-          _copy(initial), GammonMove(fromPipNo: 8, toPipNo: 5));
+        _copy(initial),
+        GammonMove(fromPipNo: 8, toPipNo: 5),
+      );
       expect(deltas, isNotEmpty);
 
       final anim = MoveAnimation.forMove(initial, deltas);
@@ -31,7 +33,9 @@ void main() {
     test('a plain move has no delays', () {
       final initial = makeBoard({8: -1});
       final deltas = GammonRules.applyMove(
-          _copy(initial), GammonMove(fromPipNo: 8, toPipNo: 5));
+        _copy(initial),
+        GammonMove(fromPipNo: 8, toPipNo: 5),
+      );
 
       final anim = MoveAnimation.forMove(initial, deltas);
 

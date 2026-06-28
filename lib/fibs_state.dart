@@ -49,7 +49,7 @@ class FibsState extends ChangeNotifier {
   // The proxy host/port the websocat bridge listens on (see README). Defaults
   // to the local bridge; overridable so tooling can target 127.0.0.1 directly.
   FibsState({String proxy = 'localhost', int port = 8080})
-      : _conn = FibsConnectionTransport(FibsConnection(proxy, port));
+    : _conn = FibsConnectionTransport(FibsConnection(proxy, port));
 
   // Inject a transport (e.g. a fake) to drive the state without a live server.
   FibsState.withTransport(this._conn);
@@ -105,9 +105,8 @@ class FibsState extends ChangeNotifier {
 
   // --- play state (only meaningful when we are a player, not just watching) --
 
-  GammonPlayer? get myColor => _board == null || _user == null
-      ? null
-      : _board!.colorFor(_user!);
+  GammonPlayer? get myColor =>
+      _board == null || _user == null ? null : _board!.colorFor(_user!);
 
   bool get isMyTurn =>
       _board != null && myColor != null && _board!.turnPlayer == myColor;
@@ -184,11 +183,9 @@ class FibsState extends ChangeNotifier {
       case FibsCookie.CLIP_SAYS:
       case FibsCookie.CLIP_SHOUTS:
       case FibsCookie.CLIP_WHISPERS:
-        messages.add(FibsMessage(
-          cm.cookie,
-          cm.crumbs!['name']!,
-          cm.crumbs!['message']!,
-        ));
+        messages.add(
+          FibsMessage(cm.cookie, cm.crumbs!['name']!, cm.crumbs!['message']!),
+        );
 
       // we rolled: capture our dice (FIBS may not re-send the board with them)
       case FibsCookie.FIBS_YouRoll:
@@ -298,8 +295,10 @@ class FibsState extends ChangeNotifier {
   // a loud bug, not a silently dropped command).
   void roll() {
     if (!canRoll) {
-      throw FibsStateError('roll: not our turn to roll '
-          '(isMyTurn=$isMyTurn rolling=$_rolling dice=$_effectiveDice)');
+      throw FibsStateError(
+        'roll: not our turn to roll '
+        '(isMyTurn=$isMyTurn rolling=$_rolling dice=$_effectiveDice)',
+      );
     }
     _rolling = true; // canRoll is now false until our dice arrive
     _conn.send('roll');
@@ -309,9 +308,11 @@ class FibsState extends ChangeNotifier {
   // Throws if it isn't our turn to move.
   void move(int fromPip, int toPip) {
     if (!canMoveNow) {
-      throw FibsStateError('move: not our turn to move '
-          '(isMyTurn=$isMyTurn dice=$_effectiveDice '
-          'committed=$_committedTurn)');
+      throw FibsStateError(
+        'move: not our turn to move '
+        '(isMyTurn=$isMyTurn dice=$_effectiveDice '
+        'committed=$_committedTurn)',
+      );
     }
     _conn.send(fibsRawMove(fromPip, toPip, myColor!));
   }
@@ -322,12 +323,15 @@ class FibsState extends ChangeNotifier {
   // automate.
   String? playFirstLegalMove() {
     if (!canMoveNow) {
-      throw FibsStateError('playFirstLegalMove: not our turn to move '
-          '(isMyTurn=$isMyTurn dice=$_effectiveDice '
-          'committed=$_committedTurn)');
+      throw FibsStateError(
+        'playFirstLegalMove: not our turn to move '
+        '(isMyTurn=$isMyTurn dice=$_effectiveDice '
+        'committed=$_committedTurn)',
+      );
     }
     // FIBS wants the whole turn in one command; pick the best complete turn
-    final cmd = FibsPlay.bestTurnCommand(_board!, dice: _effectiveDice) ??
+    final cmd =
+        FibsPlay.bestTurnCommand(_board!, dice: _effectiveDice) ??
         FibsPlay.fullTurnCommand(_board!, dice: _effectiveDice);
     // null == a legitimate dance (we have dice but no legal move): send nothing
     // and let FIBS auto-pass. That is NOT an error, so don't throw.
@@ -339,8 +343,10 @@ class FibsState extends ChangeNotifier {
 
   void offerDouble() {
     if (!canRoll) {
-      throw FibsStateError('offerDouble: can only double on our turn before '
-          'rolling (isMyTurn=$isMyTurn dice=$_effectiveDice)');
+      throw FibsStateError(
+        'offerDouble: can only double on our turn before '
+        'rolling (isMyTurn=$isMyTurn dice=$_effectiveDice)',
+      );
     }
     _committedTurn = true; // we've acted this turn; await the response
     _conn.send('double');
@@ -377,16 +383,16 @@ class FibsState extends ChangeNotifier {
   // bots that are free to play (invite targets): bot client, ready, not in a
   // game. Precision-first so we only ever invite a bot, never a human.
   List<WhoInfo> get availableBots => [
-        for (final who in whoInfos)
-          if (isBot(who) && who.ready && who.opponent.isEmpty) who,
-      ];
+    for (final who in whoInfos)
+      if (isBot(who) && who.ready && who.opponent.isEmpty) who,
+  ];
 
   // bots currently in a game that can be watched (their opponent may be human,
   // which is fine for watching)
   List<WhoInfo> get watchableBots => [
-        for (final who in whoInfos)
-          if (isBot(who) && who.opponent.isNotEmpty) who,
-      ];
+    for (final who in whoInfos)
+      if (isBot(who) && who.opponent.isNotEmpty) who,
+  ];
 
   void watch(WhoInfo who) {
     assert(isBot(who), 'bots only');
@@ -411,14 +417,19 @@ class FibsState extends ChangeNotifier {
     assert(!loggedIn);
 
     _conn.stream.listen(_streamItem, onDone: _reset);
-    final cookie = await _conn.login(user, pass).timeout(
-        const Duration(seconds: 3),
-        onTimeout: () => FibsCookie.FIBS_Timeout);
+    final cookie = await _conn
+        .login(user, pass)
+        .timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => FibsCookie.FIBS_Timeout,
+        );
     if (cookie != FibsCookie.CLIP_WELCOME) {
       await _conn.close();
-      throw Exception(cookie == FibsCookie.FIBS_Timeout
-          ? 'unable to connect; check your internet connection'
-          : 'invalid user name and password');
+      throw Exception(
+        cookie == FibsCookie.FIBS_Timeout
+            ? 'unable to connect; check your internet connection'
+            : 'invalid user name and password',
+      );
     }
 
     _user = user;
@@ -560,8 +571,9 @@ class WhoInfo {
       away: CookieMonster.parseBool(cm.crumbs!['away']),
       rating: double.parse(cm.crumbs!['rating']!),
       experience: int.parse(cm.crumbs!['experience']!),
-      lastActive:
-          DateTime.now().add(Duration(seconds: int.parse(cm.crumbs!['idle']!))),
+      lastActive: DateTime.now().add(
+        Duration(seconds: int.parse(cm.crumbs!['idle']!)),
+      ),
       lastLogin: CookieMonster.parseTimestamp(cm.crumbs!['login']!),
       hostname: cm.crumbs!['hostname'] ?? '',
       client: CookieMonster.parseOptional(cm.crumbs!['client']!) ?? '',

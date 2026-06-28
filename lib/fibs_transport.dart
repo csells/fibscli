@@ -17,8 +17,7 @@ class FibsConnectionTransport implements FibsTransport {
   final FibsConnection _conn;
 
   @override
-  Future<FibsCookie> login(String user, String pass) =>
-      _conn.login(user, pass);
+  Future<FibsCookie> login(String user, String pass) => _conn.login(user, pass);
   @override
   void send(String s) => _conn.send(s);
   @override

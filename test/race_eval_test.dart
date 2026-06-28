@@ -8,16 +8,21 @@ void main() {
   group('RaceEval.winProbability — exact expectimax (issue #14)', () {
     test('returns null for a contact position', () {
       expect(
-          RaceEval.winProbabilityOrNull(
-              GammonRules.initialBoard(), GammonPlayer.one),
-          isNull);
+        RaceEval.winProbabilityOrNull(
+          GammonRules.initialBoard(),
+          GammonPlayer.one,
+        ),
+        isNull,
+      );
     });
 
     test('a checker on the ace point wins for sure on roll', () {
       // player1 one checker on pip 1 bears off with any roll; player2 far back
       final board = makeBoard({1: -1, 20: 1, 21: 1});
-      expect(RaceEval.winProbabilityOrNull(board, GammonPlayer.one),
-          closeTo(1.0, 1e-9));
+      expect(
+        RaceEval.winProbabilityOrNull(board, GammonPlayer.one),
+        closeTo(1.0, 1e-9),
+      );
     });
 
     test('the textbook 27/36 race is exactly 0.75', () {
@@ -26,8 +31,10 @@ void main() {
       // next turn, so player1 loses whenever it fails to bear off.
       final board = makeBoard({6: -1, 24: 1});
       expect(GammonRules.isRace(board), isTrue);
-      expect(RaceEval.winProbabilityOrNull(board, GammonPlayer.one),
-          closeTo(27 / 36, 1e-9));
+      expect(
+        RaceEval.winProbabilityOrNull(board, GammonPlayer.one),
+        closeTo(27 / 36, 1e-9),
+      );
     });
 
     test('a symmetric race favors whoever is on roll, equally', () {
@@ -43,16 +50,19 @@ void main() {
   group('RaceEval.cubeAction — exact cube decision (issue #14)', () {
     test('returns null for a contact position', () {
       expect(
-          RaceEval.cubeActionOrNull(
-              GammonRules.initialBoard(), GammonPlayer.one, null),
-          isNull);
+        RaceEval.cubeActionOrNull(
+          GammonRules.initialBoard(),
+          GammonPlayer.one,
+          null,
+        ),
+        isNull,
+      );
     });
 
     test('a strong favorite should double', () {
       // player1 about to bear off its last checkers, player2 well behind
       final board = makeBoard({6: -1, 21: 1, 22: 1, 23: 1});
-      final action =
-          RaceEval.cubeActionOrNull(board, GammonPlayer.one, null);
+      final action = RaceEval.cubeActionOrNull(board, GammonPlayer.one, null);
       expect(action, isNotNull);
       expect(action, isNot(CubeAction.noDouble));
     });
@@ -61,8 +71,10 @@ void main() {
       // player1 (on roll) has two checkers to bear off, player2 only one, so
       // player1 is the underdog and must not double
       final board = makeBoard({6: -1, 3: -1, 19: 1});
-      expect(RaceEval.cubeActionOrNull(board, GammonPlayer.one, null),
-          CubeAction.noDouble);
+      expect(
+        RaceEval.cubeActionOrNull(board, GammonPlayer.one, null),
+        CubeAction.noDouble,
+      );
     });
   });
 }

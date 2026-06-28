@@ -14,10 +14,12 @@ void main() {
 
       expect(ordered.length, layouts.length);
 
-      final firstMoving =
-          ordered.indexWhere((l) => animating.contains(l.pieceID));
-      final lastStationary =
-          ordered.lastIndexWhere((l) => !animating.contains(l.pieceID));
+      final firstMoving = ordered.indexWhere(
+        (l) => animating.contains(l.pieceID),
+      );
+      final lastStationary = ordered.lastIndexWhere(
+        (l) => !animating.contains(l.pieceID),
+      );
       expect(firstMoving, greaterThan(lastStationary));
       // the animated piece ends up last (drawn on top)
       expect(ordered.last.pieceID, layouts.first.pieceID);

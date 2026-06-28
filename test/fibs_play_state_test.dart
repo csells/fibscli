@@ -9,8 +9,11 @@ String boardLine({String p1dice = '0:0', String turn = '1'}) =>
     'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
     ':2:0:$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
 
-Future<FibsState> _inGame(FakeTransport fake,
-    {String p1dice = '0:0', String turn = '1'}) async {
+Future<FibsState> _inGame(
+  FakeTransport fake, {
+  String p1dice = '0:0',
+  String turn = '1',
+}) async {
   final fibs = FibsState.withTransport(fake);
   await fibs.login(user: 'joe_grammer', pass: 'x');
   fake.feed(boardLine(p1dice: p1dice, turn: turn));
@@ -64,26 +67,28 @@ void main() {
     expect(fibs.playFirstLegalMove, throwsA(isA<FibsStateError>()));
   });
 
-  test('a fresh our-turn board clears stale rolled dice (must roll again)',
-      () async {
-    // FIBS often reports the opponent's play as text then jumps straight to our
-    // next roll board with NO opponent-turn board in between. The board is
-    // authoritative: stale dice from our last turn must be dropped, or we'd try
-    // to move ("you have to roll the dice before moving").
-    final fake = FakeTransport();
-    final fibs = await _inGame(fake); // our turn, no dice
-    fibs.roll();
-    fake.feed('You roll 6 and 4');
-    await Future<void>.delayed(Duration.zero);
-    fibs.playFirstLegalMove();
-    expect(fibs.canMoveNow, isFalse); // committed
+  test(
+    'a fresh our-turn board clears stale rolled dice (must roll again)',
+    () async {
+      // FIBS often reports the opponent's play as text then jumps straight to our
+      // next roll board with NO opponent-turn board in between. The board is
+      // authoritative: stale dice from our last turn must be dropped, or we'd try
+      // to move ("you have to roll the dice before moving").
+      final fake = FakeTransport();
+      final fibs = await _inGame(fake); // our turn, no dice
+      fibs.roll();
+      fake.feed('You roll 6 and 4');
+      await Future<void>.delayed(Duration.zero);
+      fibs.playFirstLegalMove();
+      expect(fibs.canMoveNow, isFalse); // committed
 
-    // our next turn arrives as a fresh board with no dice
-    fake.feed(boardLine(turn: '1'));
-    await Future<void>.delayed(Duration.zero);
-    expect(fibs.canMoveNow, isFalse); // stale 6,4 dropped -> nothing to move
-    expect(fibs.canRoll, isTrue); // we must roll fresh
-  });
+      // our next turn arrives as a fresh board with no dice
+      fake.feed(boardLine(turn: '1'));
+      await Future<void>.delayed(Duration.zero);
+      expect(fibs.canMoveNow, isFalse); // stale 6,4 dropped -> nothing to move
+      expect(fibs.canRoll, isTrue); // we must roll fresh
+    },
+  );
 
   test('a YouRoll with no fresh board still makes it our turn', () async {
     // FIBS auto-rolls for us after the opponent dances and sends YouRoll
@@ -103,13 +108,15 @@ void main() {
     expect(cmd, isNotNull);
   });
 
-  test('moving when it is not our turn throws (loud, not a silent no-op)',
-      () async {
-    final fake = FakeTransport();
-    final fibs = await _inGame(fake); // our turn but no dice -> can't move
-    expect(fibs.canMoveNow, isFalse);
-    expect(() => fibs.move(24, 18), throwsA(isA<FibsStateError>()));
-  });
+  test(
+    'moving when it is not our turn throws (loud, not a silent no-op)',
+    () async {
+      final fake = FakeTransport();
+      final fibs = await _inGame(fake); // our turn but no dice -> can't move
+      expect(fibs.canMoveNow, isFalse);
+      expect(() => fibs.move(24, 18), throwsA(isA<FibsStateError>()));
+    },
+  );
 
   test('accepting a double that was never offered throws', () async {
     final fake = FakeTransport();

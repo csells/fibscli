@@ -31,6 +31,6 @@ List<List<int>> makeBoard(Map<int, int> spec) {
 
 /// Convenience for asserting which pips a player occupies.
 List<int> pipsOccupiedBy(List<List<int>> board, GammonPlayer player) => [
-      for (var pip = 0; pip != board.length; ++pip)
-        if (board[pip].any((id) => GammonRules.playerFor(id) == player)) pip,
-    ];
+  for (var pip = 0; pip != board.length; ++pip)
+    if (board[pip].any((id) => GammonRules.playerFor(id) == player)) pip,
+];

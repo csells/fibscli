@@ -35,8 +35,7 @@ void main() {
     expect(fake.sent, contains('who')); // login sends `who`
   });
 
-  testWidgets('does NOT auto-connect without remembered creds',
-      (tester) async {
+  testWidgets('does NOT auto-connect without remembered creds', (tester) async {
     await _setPrefs({'remember': false});
     final fake = FakeTransport();
     App.fibs = FibsState.withTransport(fake);

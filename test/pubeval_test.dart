@@ -80,8 +80,10 @@ void main() {
       // borne-off men are pure progress; more off must score better for us
       final some = boardFrom({25: 10, 24: 3, 23: 2}); // O: 10 off, 5 on board
       final more = boardFrom({25: 13, 24: 2}); //        O: 13 off, 2 on board
-      expect(PubEval.eval(more, GammonPlayer.two),
-          greaterThan(PubEval.eval(some, GammonPlayer.two)));
+      expect(
+        PubEval.eval(more, GammonPlayer.two),
+        greaterThan(PubEval.eval(some, GammonPlayer.two)),
+      );
     });
 
     test('all fifteen men off is the winning sentinel', () {

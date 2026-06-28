@@ -6,21 +6,20 @@ WhoInfo who(
   String opponent = '',
   bool ready = true,
   String client = '3DFiBs4.0', // a human GUI client by default
-}) =>
-    WhoInfo(
-      user: user,
-      opponent: opponent,
-      watching: '',
-      ready: ready,
-      away: false,
-      rating: 1500,
-      experience: 0,
-      lastActive: DateTime(2020),
-      lastLogin: DateTime(2020),
-      hostname: 'h',
-      client: client,
-      email: '',
-    );
+}) => WhoInfo(
+  user: user,
+  opponent: opponent,
+  watching: '',
+  ready: ready,
+  away: false,
+  rating: 1500,
+  experience: 0,
+  lastActive: DateTime(2020),
+  lastLogin: DateTime(2020),
+  hostname: 'h',
+  client: client,
+  email: '',
+);
 
 void main() {
   group('FibsState bots-only (milestone 1)', () {
@@ -28,15 +27,20 @@ void main() {
       // bot clients seen live on FIBS
       expect(FibsState.isBot(who('BlunderBot', client: 'ParlorBot')), isTrue);
       expect(
-          FibsState.isBot(who('pubeval', client: 'Computer_player')), isTrue);
-      expect(FibsState.isBot(who('wildbg', client: 'bot_1p_matches_only')),
-          isTrue);
+        FibsState.isBot(who('pubeval', client: 'Computer_player')),
+        isTrue,
+      );
+      expect(
+        FibsState.isBot(who('wildbg', client: 'bot_1p_matches_only')),
+        isTrue,
+      );
       // a human GUI client is not a bot, even with a botty-looking name
       expect(FibsState.isBot(who('Robotnik', client: '3DFiBs4.0')), isFalse);
       // a "Bot"-named tournament organizer is NOT a playable bot client
       expect(
-          FibsState.isBot(who('TourneyBot', client: '=NTTourney1rganizer2')),
-          isFalse);
+        FibsState.isBot(who('TourneyBot', client: '=NTTourney1rganizer2')),
+        isFalse,
+      );
       // MonteCarlo reports no client but is a confirmed bot on the curated
       // known-names list
       expect(FibsState.isBot(who('MonteCarlo', client: '-')), isTrue);
@@ -44,18 +48,24 @@ void main() {
       expect(FibsState.isBot(who('randomdude', client: '-')), isFalse);
     });
 
-    test('availableBots = free bot-client accounts (no humans, no busy bots)',
-        () {
-      final state = FibsState();
-      state.whoInfos.addAll([
-        who('BlunderBot', client: 'ParlorBot'), //                  free bot ✓
-        who('GammonBot', client: 'ParlorBot', opponent: 'joe'), //  busy bot ✗
-        who('SleepyBot', client: 'ParlorBot', ready: false), //     not ready ✗
-        who('alice', client: 'MGOnline_v1.4.2'), //                 human ✗
-      ]);
+    test(
+      'availableBots = free bot-client accounts (no humans, no busy bots)',
+      () {
+        final state = FibsState();
+        state.whoInfos.addAll([
+          who('BlunderBot', client: 'ParlorBot'), //                  free bot ✓
+          who('GammonBot', client: 'ParlorBot', opponent: 'joe'), //  busy bot ✗
+          who(
+            'SleepyBot',
+            client: 'ParlorBot',
+            ready: false,
+          ), //     not ready ✗
+          who('alice', client: 'MGOnline_v1.4.2'), //                 human ✗
+        ]);
 
-      expect(state.availableBots.map((w) => w.user), ['BlunderBot']);
-    });
+        expect(state.availableBots.map((w) => w.user), ['BlunderBot']);
+      },
+    );
 
     test('watchableBots = bot-client accounts currently in a game', () {
       final state = FibsState();

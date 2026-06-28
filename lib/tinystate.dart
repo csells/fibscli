@@ -5,12 +5,13 @@ class ChangeNotifierBuilder<T extends ChangeNotifier?> extends AnimatedBuilder {
   ChangeNotifierBuilder({
     required T notifier,
     required Widget Function(BuildContext context, T listenable, Widget? child)
-        builder,
+    builder,
     super.key,
     super.child,
   }) : super(
-            animation: notifier!,
-            builder: (context, child) => builder(context, notifier, child));
+         animation: notifier!,
+         builder: (context, child) => builder(context, notifier, child),
+       );
 }
 
 class NotifierList<T> extends Iterable<T> with ChangeNotifier {
@@ -83,17 +84,18 @@ class FutureBuilder2<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<T>(
-      future: future,
-      initialData: initialData,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return error != null
-              ? error!(context, snapshot.error)
-              : Text(snapshot.error.toString());
-        }
-        if (snapshot.hasData) return data(context, snapshot.data);
-        return pending != null
-            ? pending!(context)
-            : const Center(child: CircularProgressIndicator());
-      });
+    future: future,
+    initialData: initialData,
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return error != null
+            ? error!(context, snapshot.error)
+            : Text(snapshot.error.toString());
+      }
+      if (snapshot.hasData) return data(context, snapshot.data);
+      return pending != null
+          ? pending!(context)
+          : const Center(child: CircularProgressIndicator());
+    },
+  );
 }

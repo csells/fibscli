@@ -9,16 +9,16 @@ class PipCountView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Align(
-        alignment: Alignment.center,
-        child: RotatedBox(
-          quarterTurns: reversed ? 2 : 0,
-          child: Text(
-            '${layout.pipCount}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.black, fontSize: 10),
-          ),
-        ),
-      );
+    alignment: Alignment.center,
+    child: RotatedBox(
+      quarterTurns: reversed ? 2 : 0,
+      child: Text(
+        '${layout.pipCount}',
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Colors.black, fontSize: 10),
+      ),
+    ),
+  );
 }
 
 class PipCountLayout {
@@ -37,7 +37,7 @@ class PipCountLayout {
   Rect get rect => Rect.fromLTWH(left, top, width, height);
 
   static List<PipCountLayout> getLayouts(GammonState game) => [
-      PipCountLayout(pipCount: game.pipCount(sign: -1), left: 518, top: 399),
-      PipCountLayout(pipCount: game.pipCount(sign: 1), left: 518, top: 5),
-    ];
+    PipCountLayout(pipCount: game.pipCount(sign: -1), left: 518, top: 399),
+    PipCountLayout(pipCount: game.pipCount(sign: 1), left: 518, top: 5),
+  ];
 }

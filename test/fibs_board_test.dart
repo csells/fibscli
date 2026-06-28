@@ -54,8 +54,9 @@ CookieMessage parse(String raw) {
 // counts per pip with the model's sign convention (negative = player1)
 int _net(int id) => GammonRules.playerFor(id) == GammonPlayer.one ? -1 : 1;
 
-List<int> _counts(List<List<int>> board) =>
-    [for (final pip in board) pip.fold<int>(0, (sum, id) => sum + _net(id))];
+List<int> _counts(List<List<int>> board) => [
+  for (final pip in board) pip.fold<int>(0, (sum, id) => sum + _net(id)),
+];
 
 void main() {
   // standard opening in the FIBS absolute frame (positive = O, negative = X)
@@ -83,8 +84,10 @@ void main() {
 
     test('turn color -1 means X = player1 is on roll', () {
       final cm = parse(fibsBoardLine(opening, turn: -1));
-      expect(FibsBoard.fromCrumbs(cm.crumbs!).toGammonState().turnPlayer,
-          GammonPlayer.one);
+      expect(
+        FibsBoard.fromCrumbs(cm.crumbs!).toGammonState().turnPlayer,
+        GammonPlayer.one,
+      );
     });
 
     test('colorFor maps each player name to its color (player1=X here)', () {
@@ -119,7 +122,8 @@ void main() {
       // player1Color is 1 here (player1 is O), which exercises the color-aware
       // routing of the off/bar count fields — a flat player1=X assumption
       // produces an invalid 14/16 board.
-      const frame = 'board:BlunderBot_IX:cosmicrocker:3:1:1:0:1:4:1:0:3:1:0:0'
+      const frame =
+          'board:BlunderBot_IX:cosmicrocker:3:1:1:0:1:4:1:0:3:1:0:0'
           ':0:0:0:0:0:0:0:0:0:0:-4:-2:-2:-1:0:0:0:-1:0:0:0:0:2:0:1:0:1:-1:0:25'
           ':5:6:0:0:2:1:0:0';
       final cm = parse(frame);

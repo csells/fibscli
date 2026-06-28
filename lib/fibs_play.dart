@@ -44,8 +44,11 @@ class FibsPlay {
   static List<String> legalMoveCommands(FibsBoard fb, {List<int>? dice}) {
     final d = dice ?? fb.activeDice;
     if (d.isEmpty || fb.turnPlayer == null) return const [];
-    final byPip =
-        GammonRules.getForcedLegalMoves(_canonicalBoard(fb), fb.turnPlayer, d);
+    final byPip = GammonRules.getForcedLegalMoves(
+      _canonicalBoard(fb),
+      fb.turnPlayer,
+      d,
+    );
     return [
       for (final moves in byPip.values)
         for (final m in moves) commandFor(fb, m),
@@ -74,8 +77,9 @@ class FibsPlay {
     }
     if (chosen.isEmpty) return null;
     // each commandFor yields "move a-b ..."; merge into one command
-    final parts =
-        chosen.map((m) => commandFor(fb, m).substring('move '.length));
+    final parts = chosen.map(
+      (m) => commandFor(fb, m).substring('move '.length),
+    );
     return 'move ${parts.join(' ')}';
   }
 
@@ -92,7 +96,10 @@ class FibsPlay {
     final seen = <String>{};
 
     void dfs(
-        List<List<int>> board, List<int> remaining, List<GammonMove> path) {
+      List<List<int>> board,
+      List<int> remaining,
+      List<GammonMove> path,
+    ) {
       final forced = GammonRules.getForcedLegalMoves(board, player, remaining);
       if (forced.isEmpty) {
         if (path.isNotEmpty) {
@@ -106,7 +113,9 @@ class FibsPlay {
       for (final moves in forced.values) {
         for (final m in moves) {
           final next = List<List<int>>.generate(
-              board.length, (i) => List<int>.from(board[i]));
+            board.length,
+            (i) => List<int>.from(board[i]),
+          );
           GammonRules.applyMove(next, m);
           final rest = List<int>.of(remaining);
           for (final hop in m.hops) {
@@ -128,8 +137,9 @@ class FibsPlay {
     for (var i = 1; i < turns.length; ++i) {
       if (endScores[i] > endScores[best]) best = i;
     }
-    final parts =
-        turns[best].map((m) => commandFor(fb, m).substring('move '.length));
+    final parts = turns[best].map(
+      (m) => commandFor(fb, m).substring('move '.length),
+    );
     return 'move ${parts.join(' ')}';
   }
 
