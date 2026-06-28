@@ -2,21 +2,22 @@ import 'dart:math';
 
 import 'rules.dart';
 
-// Exact race evaluation, ported from the algorithm in race2.c
-// (https://bkgm.com/rgb/rgb.cgi?view+787, linked from issue #14).
-//
-// For a no-contact position the two sides can never hit each other, so the
-// outcome is a pure race that can be solved exactly by expectimax: average over
-// the 21 distinct dice rolls (doubles weight 1, non-doubles weight 2), choosing
-// the checker play that maximises the mover's result, recursing until a side
-// has borne everything off. Results are memoised on a piece-id-independent
-// signature, which keeps it tractable. Gammons are not modelled (race2.c does
-// not either), which is exact for cube/race purposes since gammons are
-// impossible once the sides have passed each other.
-//
-// Cube decisions use the same recursion with cube ownership: a double is worth
-// the lesser of the opponent's take and pass equities, and is recommended when
-// that exceeds the value of holding the cube.
+/// Exact race evaluation, ported from the algorithm in race2.c
+/// (https://bkgm.com/rgb/rgb.cgi?view+787, linked from issue #14).
+///
+/// For a no-contact position the two sides can never hit each other, so the
+/// outcome is a pure race that can be solved exactly by expectimax: average
+/// over the 21 distinct dice rolls (doubles weight 1, non-doubles weight 2),
+/// choosing
+/// the checker play that maximises the mover's result, recursing until a side
+/// has borne everything off. Results are memoised on a piece-id-independent
+/// signature, which keeps it tractable. Gammons are not modelled (race2.c does
+/// not either), which is exact for cube/race purposes since gammons are
+/// impossible once the sides have passed each other.
+///
+/// Cube decisions use the same recursion with cube ownership: a double is worth
+/// the lesser of the opponent's take and pass equities, and is recommended when
+/// that exceeds the value of holding the cube.
 class RaceEval {
   RaceEval._();
 

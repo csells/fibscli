@@ -2,6 +2,9 @@
 /// evaluators. The pluggable AI-player abstraction is layered on top.
 library;
 
+export 'src/ai/ai_registry.dart';
+export 'src/ai/bg_ai_player.dart';
+export 'src/ai/pubeval_ai_player.dart';
 export 'src/pubeval.dart';
 export 'src/race_eval.dart';
 export 'src/rules.dart';

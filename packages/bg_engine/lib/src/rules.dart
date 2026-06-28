@@ -5,20 +5,26 @@ import 'package:dartx/dartx.dart';
 import 'package:meta/meta.dart';
 import 'package:trotter/trotter.dart';
 
-// The doubling cube (issue #12). Starts centered (owned by neither) at 1.
-// Taking a double doubles the stake and transfers ownership to the taker, who
-// alone may then redouble. The value tops out at 64.
+/// The doubling cube (issue #12). Starts centered (owned by neither) at 1.
+/// Taking a double doubles the stake and transfers ownership to the taker, who
+/// alone may then redouble. The value tops out at 64.
 class DoublingCube {
+  /// The cube can never be doubled past this value.
   static const maxValue = 64;
 
+  /// The current cube value (a power of two, 1..64).
   int value = 1;
+
+  /// The player who currently owns (may turn) the cube; null == centered.
   GammonPlayer? owner; // null == centered, either player may double
 
+  /// Whether [player] is allowed to offer a double now (owns or centered, and
+  /// not already at [maxValue]).
   bool canDoubleBy(GammonPlayer player) =>
       value < maxValue && (owner == null || owner == player);
 
-  // Apply an accepted double offered by [offeredBy]: the taker (the other
-  // player) becomes the new owner and the value doubles.
+  /// Apply an accepted double offered by [offeredBy]: the taker (the other
+  /// player) becomes the new owner and the value doubles.
   void applyTake(GammonPlayer offeredBy) {
     assert(canDoubleBy(offeredBy));
     value *= 2;
@@ -26,15 +32,26 @@ class DoublingCube {
   }
 }
 
+/// The atomic effect a single hop of a move has on the board.
 enum GammonDeltaKind {
-  move, // move to empty pip
-  hit, // hit a blot
-  bar, // been hit
-  bearoff, // move off
+  /// Move a checker to an empty (or own) pip.
+  move,
+
+  /// Hit an opponent blot on the destination pip.
+  hit,
+
+  /// A checker that was hit goes to the bar.
+  bar,
+
+  /// Bear a checker off the board.
+  bearoff,
 }
 
+/// One atomic board change produced by applying a move: a single checker
+/// (identified by [pieceID]) moving from [fromPipNo] to [toPipNo] with [kind].
 @immutable
 class GammonDelta {
+  /// Creates a delta describing one atomic board change.
   const GammonDelta({
     required this.kind,
     required this.fromPipNo,
@@ -42,9 +59,16 @@ class GammonDelta {
     this.pieceID,
   });
 
+  /// What kind of change this is (move/hit/bar/bearoff).
   final GammonDeltaKind kind;
+
+  /// The signed id of the checker affected (null when not applicable).
   final int? pieceID;
+
+  /// The pip the checker moved from.
   final int fromPipNo;
+
+  /// The pip the checker moved to.
   final int toPipNo;
 
   @override
@@ -64,26 +88,47 @@ class GammonDelta {
       kind.index ^ pieceID! ^ fromPipNo.hashCode ^ toPipNo.hashCode;
 }
 
+/// Lookups over a collection of candidate [GammonMove]s by endpoint pips.
 extension GammonMoves on Iterable<GammonMove>? {
+  /// The hop list of the move from [fromPipNo] to [toPipNo], or null if none.
   List<int>? hops({int? fromPipNo, int? toPipNo}) => this!
       .firstOrNullWhere((m) => m.fromPipNo == fromPipNo && m.toPipNo == toPipNo)
       ?.hops;
 
+  /// Whether a move from [fromPipNo] to [toPipNo] exists in the collection.
   bool hasHops({int? fromPipNo, int? toPipNo}) =>
       hops(fromPipNo: fromPipNo, toPipNo: toPipNo) != null;
 }
 
-enum GammonPlayer { one, two }
+/// The two players. Sign encodes ownership on the board: player [one] checkers
+/// are negative ids, player [two] checkers are positive.
+enum GammonPlayer {
+  /// Player 1 (negative piece ids; bears off toward pip 0).
+  one,
 
-// Recommended doubling-cube action for the player on roll (issue #14).
-enum CubeAction {
-  noDouble, // too early to double
-  doubleTake, // double; opponent should take
-  doublePass, // double; opponent should pass (drop)
+  /// Player 2 (positive piece ids; bears off toward pip 25).
+  two,
 }
 
+/// Recommended doubling-cube action for the player on roll (issue #14).
+enum CubeAction {
+  /// Too early to double; just roll.
+  noDouble,
+
+  /// Offer a double; the opponent should take.
+  doubleTake,
+
+  /// Offer a double; the opponent should pass (drop).
+  doublePass,
+}
+
+/// A single checker's full move for a turn: from [fromPipNo] to [toPipNo] via
+/// one or more [hops] (each hop is a die roll; doubles can chain up to four).
 @immutable
 class GammonMove {
+  /// Creates a move from [fromPipNo] to [toPipNo]. If [hops] is omitted the
+  /// move is a single hop of `toPipNo - fromPipNo`; otherwise [hops] are the
+  /// per-die deltas, validated to be legal die rolls in one direction.
   GammonMove({
     required this.fromPipNo,
     required this.toPipNo,
@@ -116,10 +161,17 @@ class GammonMove {
       '(or greater, if bearing off)',
     );
   }
+
+  /// The pip the checker starts on.
   final int fromPipNo;
+
+  /// The pip the checker ends on.
   final int toPipNo;
+
+  /// The per-die hop deltas that make up this move (signed by direction).
   final hops = <int>[];
 
+  /// The player making the move (derived from the hop direction).
   GammonPlayer get player => GammonRules.playerFor(hops[0]);
 
   @override
@@ -145,7 +197,12 @@ class GammonMove {
   }
 }
 
+/// The stateless backgammon rule set: legal-move generation, move application,
+/// and bear-off/bar/hit logic. All methods are static (no instances) and
+/// operate on the canonical board — a length-26 `List<List<int>>` whose inner
+/// lists hold signed piece ids (negative = player1, positive = player2).
 class GammonRules {
+  /// A fresh board in the standard opening position.
   static List<List<int>> initialBoard() => <List<int>>[
     // player1 off, player2 bar
     [], // 0:
@@ -181,17 +238,29 @@ class GammonRules {
     [], // 25:
   ];
 
+  /// The player that owns a checker, from the sign of its [pieceID].
   static GammonPlayer playerFor(int pieceID) =>
       pieceID < 0 ? GammonPlayer.one : GammonPlayer.two;
+
+  /// The ownership sign for [player] (player1 = -1, player2 = +1).
   static int signFor(GammonPlayer? player) =>
       player == GammonPlayer.one ? -1 : 1;
+
+  /// The board index where [player] bears checkers off (player1 = 0,
+  /// player2 = 25).
   static int offPipNoFor(GammonPlayer? player) =>
       player == GammonPlayer.one ? 0 : 25;
+
+  /// The board index of [player]'s bar (player1 = 25, player2 = 0).
   static int barPipNoFor(GammonPlayer player) =>
       player == GammonPlayer.one ? 25 : 0;
+
+  /// The opponent of [player].
   static GammonPlayer otherPlayer(GammonPlayer? player) =>
       player == GammonPlayer.one ? GammonPlayer.two : GammonPlayer.one;
 
+  /// Compute the per-hop deltas for applying [move] to [board], or an empty
+  /// list if any hop is illegal. Does not mutate [board].
   static List<List<GammonDelta>> applyMove(
     List<List<int>> board,
     GammonMove move,
@@ -234,6 +303,8 @@ class GammonRules {
     return deltas;
   }
 
+  /// Apply the deltas for a single hop to [board], mutating it in place
+  /// (re-deriving the move from the deltas and asserting they round-trip).
   static void applyDeltasForHop(
     List<List<int>> board,
     List<GammonDelta> deltasForHop,
@@ -274,12 +345,12 @@ class GammonRules {
     }
   }
 
-  // Estimate the probability that the player on roll wins a race, given both
-  // pip counts (issue #14). This is a heuristic, NOT an equity engine: a
-  // logistic model of the pip lead, widened by the size of the race (variance
-  // grows with pip count) and nudged by a small on-roll bonus. Good enough to
-  // guide cube decisions in a pure race; it does not account for contact,
-  // wastage, or gammons.
+  /// Estimate the probability that the player on roll wins a race, given both
+  /// pip counts (issue #14). This is a heuristic, NOT an equity engine: a
+  /// logistic model of the pip lead, widened by the size of the race (variance
+  /// grows with pip count) and nudged by a small on-roll bonus. Good enough to
+  /// guide cube decisions in a pure race; it does not account for contact,
+  /// wastage, or gammons.
   static double raceWinProbability({
     required int myPips,
     required int oppPips,
@@ -291,10 +362,10 @@ class GammonRules {
     return 1.0 / (1.0 + exp(-adjustedLead / spread));
   }
 
-  // The recommended cube action for the player on roll given their win
-  // probability (issue #14). Uses the classic cubeless money-game reference
-  // points: a take point of 25% (so the opponent passes once the doubler is
-  // above ~75%) and a doubling window that opens around 70%.
+  /// The recommended cube action for the player on roll given their win
+  /// probability (issue #14). Uses the classic cubeless money-game reference
+  /// points: a take point of 25% (so the opponent passes once the doubler is
+  /// above ~75%) and a doubling window that opens around 70%.
   static CubeAction cubeAction(double winProbability) {
     const doublePoint = 0.70;
     const passPoint = 0.75;
@@ -303,8 +374,8 @@ class GammonRules {
     return CubeAction.doublePass;
   }
 
-  // True when the two players' checkers have passed each other so no further
-  // hits are possible: a pure race. Used to offer auto bear-off (issue #11).
+  /// True when the two players' checkers have passed each other so no further
+  /// hits are possible: a pure race. Used to offer auto bear-off (issue #11).
   static bool isRace(List<List<int>> board) {
     // any checker on the bar means contact is still possible
     if (board[0].any((p) => playerFor(p) == GammonPlayer.two)) return false;
@@ -327,9 +398,9 @@ class GammonRules {
     return p1Max < p2Min;
   }
 
-  // Greedy bear-off choice for a single die (issue #11): bear a checker off if
-  // possible, clearing the highest such point; otherwise advance the rearmost
-  // checker. Returns null when the die has no legal play.
+  /// Greedy bear-off choice for a single die (issue #11): bear a checker off if
+  /// possible, clearing the highest such point; otherwise advance the rearmost
+  /// checker. Returns null when the die has no legal play.
   static GammonMove? greedyMoveForDie(
     List<List<int>> board,
     GammonPlayer? player,
@@ -355,10 +426,10 @@ class GammonRules {
   static List<List<int>> _copyBoard(List<List<int>> board) =>
       List<List<int>>.generate(board.length, (i) => List<int>.from(board[i]));
 
-  // The maximum number of dice (single hops) that can be legally played this
-  // turn, considering every move ordering. For non-doubles this is 0, 1, or 2;
-  // for doubles up to 4. Used to enforce the rule that a player must play as
-  // many dice as possible (issue #4).
+  /// The maximum number of dice (single hops) that can be legally played this
+  /// turn, considering every move ordering. For non-doubles this is 0, 1, or 2;
+  /// for doubles up to 4. Used to enforce the rule that a player must play as
+  /// many dice as possible (issue #4).
   static int maxPlayableDice(
     List<List<int>> board,
     GammonPlayer? player,
@@ -396,10 +467,10 @@ class GammonRules {
     return remaining;
   }
 
-  // Like [getAllLegalMoves], but restricted to the moves a player is actually
-  // allowed to make under the forced-move rules: a player must use as many dice
-  // as possible, and when only one of two different dice can be played, must
-  // play the larger one (issue #4).
+  /// Like [getAllLegalMoves], but restricted to the moves a player is actually
+  /// allowed to make under the forced-move rules: a player must use as many
+  /// dice as possible, and when only one of two different dice can be played,
+  /// must play the larger one (issue #4).
   static Map<int, List<GammonMove>> getForcedLegalMoves(
     List<List<int>> board,
     GammonPlayer? player,
@@ -449,7 +520,8 @@ class GammonRules {
     return result;
   }
 
-  // calculate legal moves for all pips
+  /// Every legal move this turn, keyed by the from-pip (issue #4 unconstrained:
+  /// see [getForcedLegalMoves] for the must-use-most-dice variant).
   static Map<int, List<GammonMove>> getAllLegalMoves(
     List<List<int>> board,
     GammonPlayer? player,
@@ -468,6 +540,8 @@ class GammonRules {
     return legalMovesForPips;
   }
 
+  /// Every legal move starting from [fromStartPipNo] for [player] with [rolls]
+  /// (including multi-hop combinations of the dice).
   static List<GammonMove> getLegalMoves(
     List<List<int>> board,
     int fromStartPipNo,
@@ -524,7 +598,7 @@ class GammonRules {
     return legalMoves.toList();
   }
 
-  // count how many opponent blots a move hits along the way
+  /// Count how many opponent blots [move] hits along the way.
   static int hitCountForMove(List<List<int>> board, GammonMove move) {
     final deltas = checkLegalMove(board, move);
     return deltas
@@ -533,11 +607,11 @@ class GammonRules {
         .length;
   }
 
-  // Among [moves] that go from [fromPipNo] to [toPipNo], return the hops of the
-  // one that hits the most opponent blots along the way. When the destination
-  // can be reached via several hop orderings (e.g. 8->5->4 vs 8->7->4), this
-  // prefers an ordering that hits rather than picking an arbitrary first one.
-  // Returns null if no matching move exists (issue #9).
+  /// Among [moves] that go from [fromPipNo] to [toPipNo], return the hops of
+  /// the one that hits the most opponent blots along the way. When the
+  /// destination can be reached via several hop orderings (e.g. 8->5->4 vs
+  /// 8->7->4), this prefers an ordering that hits rather than an arbitrary one.
+  /// Returns null if no matching move exists (issue #9).
   static List<int>? preferredHops(
     List<List<int>> board,
     Iterable<GammonMove> moves, {
@@ -555,6 +629,8 @@ class GammonRules {
     return matching.first.hops;
   }
 
+  /// Whether [move] is legal, returned as its per-hop deltas (empty if not).
+  /// Checks against a copy, so [board] is not mutated.
   static List<List<GammonDelta>> checkLegalMove(
     List<List<int>> board,
     GammonMove move,
@@ -567,7 +643,8 @@ class GammonRules {
     return applyMove(tempBoard, move);
   }
 
-  // can the piece can be moved without hitting?
+  /// Whether [player] can move a checker from [fromPipNo] to [toPipNo] without
+  /// hitting (destination empty or own; bar checkers must come in first).
   static bool canMove(
     GammonPlayer player,
     int fromPipNo,
@@ -592,7 +669,8 @@ class GammonRules {
     return false;
   }
 
-  // move the piece without hitting
+  /// Move a checker from [fromPipNo] to [toPipNo] (no hit), mutating [board]
+  /// and returning the resulting delta. Asserts the move is legal.
   static GammonDelta move(
     List<List<int>> board,
     GammonPlayer player,
@@ -614,7 +692,8 @@ class GammonRules {
     );
   }
 
-  // can the piece can be hit?
+  /// Whether moving from [fromPipNo] to [toPipNo] would hit an opponent blot
+  /// (a single opposing checker) on the destination pip.
   static bool canHit(
     List<List<int>> board,
     GammonPlayer player,
@@ -639,7 +718,8 @@ class GammonRules {
     return false;
   }
 
-  // hit a lone piece
+  /// Hit the opponent blot on [toPipNo]: move our checker there and send the
+  /// hit checker to the bar, mutating [board]. Returns the move + bar deltas.
   static List<GammonDelta> hit(
     List<List<int>> board,
     GammonPlayer player,
@@ -676,7 +756,8 @@ class GammonRules {
   static final _playerHomeBoardPipNos = [1.rangeTo(6), 19.rangeTo(24)];
   static final _playerNonHomeBoardPipNos = [7.rangeTo(24), 1.rangeTo(18)];
 
-  // can bear the piece off?
+  /// Whether [player] may bear a checker off from [fromPipNo] to [toPipNo]
+  /// (all checkers home, and either an exact roll or no checker further back).
   static bool canBearOff(
     List<List<int>> board,
     GammonPlayer player,
@@ -713,7 +794,8 @@ class GammonRules {
     return true;
   }
 
-  // bear off the piece
+  /// Bear a checker off from [fromPipNo], mutating [board] and returning the
+  /// bearoff delta. Asserts the bear-off is legal.
   static GammonDelta bearOff(
     List<List<int>> board,
     GammonPlayer player,

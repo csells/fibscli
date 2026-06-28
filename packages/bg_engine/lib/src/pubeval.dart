@@ -1,18 +1,19 @@
 import 'rules.dart';
 
-// Tesauro's `pubeval` — the public-domain backgammon position evaluator he
-// released in 1993 as a benchmark opponent (roughly 1650 FIBS strength). It is
-// a linear evaluation over a 122-feature encoding, with separate weight vectors
-// for contact and pure-race positions. We use it to pick moves: enumerate the
-// legal full turns, evaluate each resulting position from our perspective, and
-// take the best.
-//
-// The weight arrays and the `setx`/`pubeval` logic are ported verbatim from the
-// canonical pubeval.c. The only adaptation is `_posFor`, which maps the
-// engine's canonical board (lib/model.dart: index 0 = player1 off / player2
-// bar; 1..24 points; 25 = player1 bar / player2 off; negative ids = player1/X
-// moving 24->1, positive ids = player2/O moving 1->24) into pubeval's
-// `pos[0..27]` array, always from the on-roll player's point of view.
+/// Tesauro's `pubeval` — the public-domain backgammon position evaluator he
+/// released in 1993 as a benchmark opponent (roughly 1650 FIBS strength). It is
+/// a linear evaluation over a 122-feature encoding, with separate weight
+/// vectors for contact and pure-race positions. We use it to pick moves:
+/// enumerate the
+/// legal full turns, evaluate each resulting position from our perspective, and
+/// take the best.
+///
+/// The weight arrays and the `setx`/`pubeval` logic are ported verbatim from the
+/// canonical pubeval.c. The only adaptation is `_posFor`, which maps the
+/// engine's canonical board (index 0 = player1 off / player2 bar; 1..24 points;
+/// 25 = player1 bar / player2 off; negative ids = player1/X moving 24->1,
+/// positive ids = player2/O moving 1->24) into pubeval's `pos[0..27]` array,
+/// always from the on-roll player's point of view.
 class PubEval {
   PubEval._();
 
@@ -268,7 +269,10 @@ class PubEval {
     -2.75800,
   ];
 
+  /// The 122 pure-race feature weights (exposed for tests/inspection).
   static List<double> get raceWeights => _wr;
+
+  /// The 122 contact-position feature weights (exposed for tests/inspection).
   static List<double> get contactWeights => _wc;
 
   // pubeval's setx(): encode pos[] into the 122-element feature vector.
@@ -336,8 +340,8 @@ class PubEval {
     return pos;
   }
 
-  // True when the two sides can no longer hit each other (a pure race), so the
-  // race weights apply. Anyone on the bar means contact.
+  /// True when the two sides can no longer hit each other (a pure race), so the
+  /// race weights apply. Anyone on the bar means contact.
   static bool isRace(List<List<int>> board) {
     final xBar = _count(board[25], GammonPlayer.one);
     final oBar = _count(board[0], GammonPlayer.two);
@@ -353,7 +357,7 @@ class PubEval {
     return xBack <= oBack; // disengaged -> race
   }
 
-  // Evaluate [board] from [me]'s perspective (higher is better for [me]).
+  /// Evaluate [board] from [me]'s perspective (higher is better for [me]).
   static double eval(List<List<int>> board, GammonPlayer me) =>
       _pubeval(isRace(board), _posFor(board, me));
 }
