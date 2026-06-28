@@ -32,6 +32,20 @@ void main() {
     expect(fibs.roll, throwsA(isA<FibsStateError>()));
   });
 
+  test('a refresh board after we roll does not let us roll again', () async {
+    // FIBS may resend an "our turn, no dice" board while we await YouRoll; it
+    // must not reset _rolling, or we'd roll a second time ("already rolled").
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake); // our turn, no dice
+    fibs.roll();
+    expect(fibs.canRoll, isFalse);
+
+    fake.feed(boardLine(turn: '1')); // same state, still no dice
+    await Future<void>.delayed(Duration.zero);
+    expect(fibs.canRoll, isFalse); // still awaiting our dice -> no second roll
+    expect(fibs.roll, throwsA(isA<FibsStateError>()));
+  });
+
   test('our dice arriving (FIBS_YouRoll) enables exactly one move', () async {
     final fake = FakeTransport();
     final fibs = await _inGame(fake);

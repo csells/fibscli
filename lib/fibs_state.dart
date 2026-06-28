@@ -215,11 +215,15 @@ class FibsState extends ChangeNotifier {
         _doubleOffered = false; // a fresh board supersedes a pending offer
         _resumeRequestFrom = null; // we're in a game now
         _mustJoin = false;
-        // a fresh board is the authoritative state: clear our in-flight flags
-        _rolling = false;
-        _committedTurn = false;
+        _committedTurn = false; // this board is the response to our move
+        // Clear "we rolled, awaiting our dice" ONLY when the turn has passed or
+        // this board actually carries our dice. A refresh board that still
+        // shows our turn with no dice must NOT reset it, or canRoll flips back
+        // true and we roll again ("you already rolled").
+        final notOurTurn = _board!.turnPlayer != myColor;
+        if (notOurTurn || _board!.activeDice.isNotEmpty) _rolling = false;
         // our rolled dice only apply while it's our turn; clear once it isn't
-        if (_board!.turnPlayer != myColor) _myDice = [];
+        if (notOurTurn) _myDice = [];
         notifyListeners();
 
       // the opponent doubled us
