@@ -29,8 +29,12 @@ Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`) an
 
 ## FIBS networking is live in the UI
 
-`lib/main.dart`'s `LandingPage` offers two paths: the standalone **Local game**
-(`GamePlayPage`) and **Play a bot (FIBS)** (`FibsPage`). `lib/fibs_page.dart` is
+`lib/main.dart`'s `LandingPage` offers three paths: **Local 2-player**
+(`GamePlayPage`, hot-seat), **Play vs Computer** (an AI picker over
+`AiRegistry.available` → `GamePlayPage` with an `aiSide`/`BgAiPlayer`, driven by
+`lib/local_ai_driver.dart`'s `positionFromState`/`playAiTurn`), and **Play a bot
+(FIBS)** (`FibsPage`). The AI abstraction (`BgAiPlayer`, `PubevalAiPlayer`,
+`AiRegistry`) lives in `packages/bg_engine`; see the spec. `lib/fibs_page.dart` is
 the working FIBS client UI — login (with optional autologin from `--dart-define`
 `fibs_uname`/`fibs_pword`), the live bot list (invite / watch), tap-to-move
 play, resume of saved matches, and the doubling cube. It drives

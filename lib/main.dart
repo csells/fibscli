@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:bg_engine/bg_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -110,10 +111,19 @@ class LandingPage extends StatelessWidget {
             width: 240,
             child: FilledButton.icon(
               icon: const Icon(Icons.casino),
-              label: const Text('Local game'),
+              label: const Text('Local 2-player'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const GamePlayPage()),
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: 240,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.psychology),
+              label: const Text('Play vs Computer'),
+              onPressed: () => unawaited(_playVsComputer(context)),
             ),
           ),
           const SizedBox(height: 16),
@@ -131,4 +141,33 @@ class LandingPage extends StatelessWidget {
       ),
     ),
   );
+
+  // Let the user pick an AI engine, then start a 1-player game with the
+  // computer playing player two.
+  Future<void> _playVsComputer(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    final factory = await showDialog<BgAiPlayerFactory>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Choose your opponent'),
+        children: [
+          for (final f in AiRegistry.available)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, f),
+              child: ListTile(
+                title: Text(f.name),
+                subtitle: f.description == null ? null : Text(f.description!),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (factory == null) return;
+    await navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            GamePlayPage(aiSide: GammonPlayer.two, ai: factory.create()),
+      ),
+    );
+  }
 }

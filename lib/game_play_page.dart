@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart' as ul;
 
 import 'animated_layouts.dart';
 import 'dice.dart';
+import 'local_ai_driver.dart';
 import 'main.dart';
 import 'model.dart';
 import 'pieces.dart';
@@ -15,7 +16,14 @@ import 'pips.dart';
 import 'tinystate.dart';
 
 class GamePlayPage extends StatefulWidget {
-  const GamePlayPage({super.key});
+  const GamePlayPage({super.key, this.aiSide, this.ai});
+
+  /// When non-null, the computer plays this side using [ai] (1-player mode).
+  /// Null means the standard 2-player hot-seat game.
+  final GammonPlayer? aiSide;
+
+  /// The AI engine driving [aiSide] (ignored when [aiSide] is null).
+  final BgAiPlayer? ai;
 
   @override
   _GamePlayPageState createState() => _GamePlayPageState();
@@ -99,7 +107,11 @@ class _GamePlayPageState extends State<GamePlayPage> {
           ),
           body: FutureBuilder2<SharedPreferences>(
             future: _prefsFuture,
-            data: (context, prefs) => GameView(controller: _controller),
+            data: (context, prefs) => GameView(
+              controller: _controller,
+              aiSide: widget.aiSide,
+              ai: widget.ai,
+            ),
           ),
         ),
       );
@@ -154,9 +166,15 @@ class GameViewController extends ChangeNotifier {
 }
 
 class GameView extends StatefulWidget {
-  GameView({super.key, GameViewController? controller})
+  GameView({super.key, GameViewController? controller, this.aiSide, this.ai})
     : controller = controller ?? GameViewController();
   final GameViewController controller;
+
+  /// When non-null, the computer plays this side using [ai].
+  final GammonPlayer? aiSide;
+
+  /// The AI engine driving [aiSide].
+  final BgAiPlayer? ai;
 
   @override
   _GameViewState createState() => _GameViewState();
@@ -168,6 +186,11 @@ class _GameViewState extends State<GameView> {
   int? _fromPipNo;
   final _pieceLayouts = <int?, List<PieceLayout>>{};
   final _pieceDelays = <int?, Duration>{};
+  // 1-player mode: guards re-entrancy while the AI plays, and signals when the
+  // current move's animation has fully finished (so AI moves are sequenced on
+  // real animation completion, not fragile fixed timers).
+  var _aiBusy = false;
+  Completer<void>? _animDone;
 
   @override
   void initState() {
@@ -210,6 +233,34 @@ class _GameViewState extends State<GameView> {
     widget.controller.canUndo = true;
     _game!.addListener(_gameChanged);
     _reset();
+    unawaited(_maybePlayAi()); // the AI may be on roll first
+  }
+
+  // 1-player mode: when it becomes the AI side's turn, play a full turn with
+  // human-style pacing, animating each move and committing at the end. A no-op
+  // in 2-player mode (widget.ai == null) and re-entrancy-guarded by _aiBusy.
+  Future<void> _maybePlayAi() async {
+    if (widget.ai == null || _aiBusy) return;
+    if (_game == null || _game!.gameOver) return;
+    if (_game!.turnPlayer != widget.aiSide) return;
+    _aiBusy = true;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      if (!mounted || _game == null || _game!.gameOver) return;
+      if (_game!.turnPlayer != widget.aiSide) return;
+      final turn = await widget.ai!.chooseTurn(positionFromState(_game!));
+      for (final move in turn.moves) {
+        if (!mounted || _game!.gameOver) break;
+        await _applyMoveAnimated(move);
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+      if (mounted && _game != null && !_game!.gameOver) {
+        _game!.commitTurn();
+        _reset();
+      }
+    } finally {
+      _aiBusy = false;
+    }
   }
 
   Future<void> _gameChanged() async {
@@ -239,7 +290,7 @@ class _GameViewState extends State<GameView> {
             transformAlignment: Alignment.center,
             child: FittedBox(
               child: IgnorePointer(
-                ignoring: _game!.gameOver,
+                ignoring: _game!.gameOver || _aiBusy,
                 child: Stack(
                   children: [
                     // frame
@@ -482,28 +533,38 @@ class _GameViewState extends State<GameView> {
 
     // if this is a legal move, do the move
     if (hops != null) {
-      final initialBoard = List<List<int>>.generate(
-        _game!.board.length,
-        (i) => List<int>.from(_game!.board[i]),
-      );
       final move = GammonMove(
         fromPipNo: _fromPipNo!,
         toPipNo: toEndPipNo,
         hops: hops,
       );
-      final deltasForHops = _game!.applyMove(move: move);
-
-      // convert game states for each hop into a sequence of layouts (and hit
-      // delays) for each affected piece
-      assert(deltasForHops.length == hops.length);
-      assert(_pieceLayouts.isEmpty);
-      final anim = MoveAnimation.forMove(initialBoard, deltasForHops);
-      _pieceLayouts.addAll(anim.layouts);
-      _pieceDelays.addAll(anim.delays);
+      unawaited(_applyMoveAnimated(move));
     }
 
     _reset();
     return hops != null;
+  }
+
+  // Apply [move] to the game and animate it; returns a future that completes
+  // when the move's piece animation has fully finished. Shared by tap-to-move
+  // (fire-and-forget) and the AI driver (awaited, to sequence its moves).
+  Future<void> _applyMoveAnimated(GammonMove move) {
+    final initialBoard = List<List<int>>.generate(
+      _game!.board.length,
+      (i) => List<int>.from(_game!.board[i]),
+    );
+    final deltasForHops = _game!.applyMove(move: move);
+
+    // convert game states for each hop into a sequence of layouts (and hit
+    // delays) for each affected piece
+    assert(deltasForHops.length == move.hops.length);
+    assert(_pieceLayouts.isEmpty);
+    final anim = MoveAnimation.forMove(initialBoard, deltasForHops);
+    if (anim.layouts.isEmpty) return Future<void>.value();
+    _animDone = Completer<void>();
+    _pieceLayouts.addAll(anim.layouts);
+    _pieceDelays.addAll(anim.delays);
+    return _animDone!.future;
   }
 
   void _reset() {
@@ -515,10 +576,12 @@ class _GameViewState extends State<GameView> {
   }
 
   void _tapDice() {
+    if (_aiBusy) return; // the AI is on roll; ignore taps
     // can't go to the next turn until there are no more available dice
     if (_game!.dice.every((d) => !d.available)) {
       _game!.commitTurn();
       _reset();
+      unawaited(_maybePlayAi()); // turn may now be the AI's
     }
   }
 
@@ -551,7 +614,11 @@ class _GameViewState extends State<GameView> {
 
     // the last piece has been animated, so draw the final state of the board
     // w/ labels, on edge, etc.
-    if (_pieceLayouts.isEmpty) setState(() {});
+    if (_pieceLayouts.isEmpty) {
+      setState(() {});
+      _animDone?.complete();
+      _animDone = null;
+    }
   }
 }
 
