@@ -4,7 +4,10 @@ This file is the canonical shared project instructions for Codex, Claude Code, a
 
 ## What this is
 
-A Flutter app (`fibscli`) that is currently a standalone, single-player backgammon game. The long-term goal is an [FIBS](http://fibs.com) (First Internet Backgammon Server) web client, but FIBS networking is not wired into the live UI yet — see below.
+A Flutter app (`fibscli`): a standalone single-player backgammon game **and** a
+working [FIBS](http://fibs.com) (First Internet Backgammon Server) web client.
+The local game and the live FIBS client (login, bot list, play vs bots over a
+websocat proxy) are both reachable from the landing page — see below.
 
 ## Commands
 
@@ -22,9 +25,55 @@ This repo is a self-contained **Dart pub workspace** — it builds standalone wi
 
 Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`) and keeps its **own** strict `analysis_options.yaml` — every package is an equal peer under the same lint rules. `flutter pub get` at the root resolves the whole workspace; there is a single root `pubspec.lock` and a single `.dart_tool/`. The vendored sources are copied verbatim, so `packages/fibscli_lib` carries two pre-existing `discarded_futures` infos from upstream that are intentionally left as-is.
 
-## FIBS networking is stubbed out in the UI
+## FIBS networking is live in the UI
 
-`lib/main.dart` routes only to `GamePlayPage`; the login/who-list flow (`LoginPage`, `WhoPage`) is commented out in the `Navigator` pages list. `lib/fibs_state.dart` (`FibsState`, hardcoded to `localhost:8080`), `lib/login.dart`, and `lib/who_page.dart` exist but are not reachable in the running app. FIBS connectivity relies on a [websocat](https://github.com/vi/websocat) websocket→telnet proxy (see README) — this is future work, not current behavior.
+`lib/main.dart`'s `LandingPage` offers two paths: the standalone **Local game**
+(`GamePlayPage`) and **Play a bot (FIBS)** (`FibsPage`). `lib/fibs_page.dart` is
+the working FIBS client UI — login (with optional autologin from `--dart-define`
+`fibs_uname`/`fibs_pword`), the live bot list (invite / watch), tap-to-move
+play, resume of saved matches, and the doubling cube. It drives
+`lib/fibs_state.dart` (`FibsState`, default `localhost:8080`) over a
+[websocat](https://github.com/vi/websocat) websocket→telnet proxy (see README).
+Move generation lives in `lib/fibs_play.dart`, scored by the ported
+`lib/pubeval.dart` evaluator. The older `lib/login.dart` / `lib/who_page.dart`
+are superseded by `FibsPage` and dormant.
+
+## FIBS testing etiquette (be a gentle citizen)
+
+Live testing hits the **real, shared** FIBS server. Be gentle — these are not
+suggestions:
+
+- **One connection per session.** Log in once, do everything you need on that
+  single connection, log out once. Never run back-to-back login/logout cycles.
+  FIBS throttles abusive reconnects (you'll see empty who-lists / missing
+  pushes), and that throttling is a hard **stop sign** — stop immediately, don't
+  push through it.
+- **Iterate offline first.** Get the flow, coordinates, and parsing right
+  against fakes or a captured trace before touching the live server, so a live
+  run is **one clean pass**, not many. The widget tests inject a `FakeTransport`
+  and `test/fibs_play_state_test.dart` scripts raw cookies; the offline replay
+  (`tmp/replay_validate_test.dart`) re-checks generated moves against a captured
+  `tmp/game_trace.txt` with no server at all.
+- **Finish every match you start; never kill mid-game.** Resign + `leave`
+  cleanly, or don't start it. A dropped connection orphans the opponent and
+  saves the match. Resuming a saved match is supported
+  (`FibsState.resumeSavedMatch` / `joinGame`) but it is *recovery*, not a
+  workflow — don't rely on it to paper over abrupt exits.
+- **Never spam commands.** `FibsState`'s `roll`/`move`/`offerDouble`/
+  `acceptDouble`/`rejectDouble` throw `FibsStateError` when issued in the wrong
+  state (rather than silently dropping), and `canRoll`/`canMoveNow` flip false
+  the instant you act, so a correct driver can't double-send. Keep it that way.
+- **Bots only; weak bots for rated play.** Only invite/accept from bots
+  (detected by client string + a known-bot allowlist). For games meant to be
+  won, stick to the weak **BlunderBot** family — wildbg / MonteCarlo / GammonBot
+  are 1800-2100+ and just feed rated losses.
+
+The live driver `tmp/play_game_test.dart` (gitignored) exercises this end to
+end: it drives the app's own `FibsState` **event-driven (no polling)** with
+human-paced delays, resumes saved matches first, plays weak bots, and logs out
+cleanly. Run it via `flutter test tmp/play_game_test.dart` with the websocat
+proxy up. Credentials live in `.env` (`fibs_uname` / `fibs_pword`) — never
+logged, printed, or committed.
 
 ## Architecture
 
