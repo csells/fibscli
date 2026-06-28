@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'fibs_board.dart';
 import 'fibs_move.dart';
 import 'fibs_play.dart';
+import 'fibs_transport.dart';
 import 'main.dart';
 import 'model.dart';
 import 'tinystate.dart';
@@ -40,11 +41,14 @@ class FibsState extends ChangeNotifier {
   // The proxy host/port the websocat bridge listens on (see README). Defaults
   // to the local bridge; overridable so tooling can target 127.0.0.1 directly.
   FibsState({String proxy = 'localhost', int port = 8080})
-      : _conn = FibsConnection(proxy, port);
+      : _conn = FibsConnectionTransport(FibsConnection(proxy, port));
+
+  // Inject a transport (e.g. a fake) to drive the state without a live server.
+  FibsState.withTransport(this._conn);
 
   final whoInfos = NotifierList<WhoInfo>();
   final messages = NotifierList<FibsMessage>();
-  final FibsConnection _conn;
+  final FibsTransport _conn;
   String? _user;
 
   // the most recent board state of the game being watched/played, mapped into

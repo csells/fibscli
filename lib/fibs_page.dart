@@ -18,6 +18,9 @@ class FibsPage extends StatelessWidget {
   Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
         notifier: App.fibs,
         builder: (context, fibs, child) {
+          // This picks WHICH view to show. Each view listens to FibsState
+          // itself (via its own ChangeNotifierBuilder) so it refreshes on
+          // every board update even though it's a const child here.
           if (!fibs.loggedIn) return const _LoginView();
           if (fibs.gameState != null) {
             // playing if we're one of the players, otherwise just watching
@@ -149,7 +152,10 @@ class _BotListView extends StatelessWidget {
   const _BotListView();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      ChangeNotifierBuilder<FibsState>(notifier: App.fibs, builder: _build);
+
+  Widget _build(BuildContext context, FibsState fibs, Widget? child) {
     final free = App.fibs.availableBots; // invite these
     final playing = App.fibs.watchableBots; // watch these
     return Scaffold(
@@ -237,18 +243,21 @@ class _WatchView extends StatelessWidget {
   const _WatchView();
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: Colors.green,
-        appBar: AppBar(
-          title: const Text('Watching'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: App.fibs.stopWatching,
+  Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
+        notifier: App.fibs,
+        builder: (context, fibs, child) => Scaffold(
+          backgroundColor: Colors.green,
+          appBar: AppBar(
+            title: const Text('Watching'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: App.fibs.stopWatching,
+            ),
           ),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(8),
-          child: ReadOnlyBoardView(game: App.fibs.gameState!),
+          body: Padding(
+            padding: const EdgeInsets.all(8),
+            child: ReadOnlyBoardView(game: fibs.gameState!),
+          ),
         ),
       );
 }
@@ -276,14 +285,19 @@ class _PlayViewState extends State<_PlayView> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final fibs = App.fibs;
+  Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
+        notifier: App.fibs,
+        builder: (context, fibs, child) => _buildBoard(context, fibs),
+      );
+
+  Widget _buildBoard(BuildContext context, FibsState fibs) {
     final me = fibs.myColor!;
     final barPip = GammonRules.barPipNoFor(me);
     final offPip = GammonRules.offPipNoFor(me);
-    final opponent =
-        fibs.board!.player1Name == fibs.user ? fibs.board!.player2Name : fibs
-            .board!.player1Name;
+    // FIBS names us player1 "You" in our own game; the opponent is the other
+    final b = fibs.board!;
+    final p1IsUs = b.player1Name == 'You' || b.player1Name == fibs.user;
+    final opponent = p1IsUs ? b.player2Name : b.player1Name;
 
     return Scaffold(
       backgroundColor: Colors.green,

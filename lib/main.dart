@@ -14,7 +14,8 @@ class App extends StatefulWidget {
   const App({super.key});
 
   static const title = 'Backgammon';
-  static final fibs = FibsState();
+  // mutable so tests can swap in a fake-backed FibsState before pumping the UI
+  static FibsState fibs = FibsState();
   static final prefs = ValueNotifier<SharedPreferences?>(null);
 
   @override
