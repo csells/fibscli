@@ -196,6 +196,16 @@ class FibsState extends ChangeNotifier {
         final d2 = int.parse(cm.crumbs!['die2']!);
         _myDice = d1 == d2 ? [d1, d1, d1, d1] : [d1, d2];
         _rolling = false; // our dice arrived; now we may move
+        // A YouRoll proves it's OUR turn. FIBS sometimes sends it WITHOUT a
+        // fresh board (e.g. when it auto-rolls for us after the opponent
+        // dances), leaving the last board showing the opponent on roll -- which
+        // would wrongly make the move generator play the opponent's checkers.
+        // Reconcile the board's turn to ours.
+        final me = myColor;
+        if (me != null && _board != null && _board!.turnPlayer != me) {
+          _board = _board!.copyWith(turnColor: me == GammonPlayer.one ? -1 : 1);
+          _gameState = _board!.toGammonState();
+        }
         notifyListeners();
 
       // gameplay: track the live board (render + play state)

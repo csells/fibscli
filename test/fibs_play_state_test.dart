@@ -3,16 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_transport.dart';
 
-// our own game, our turn; player1 is the literal "You" (player1Color 1 == O).
-// p1dice '0:0' => no dice yet (canRoll); a real roll => canMoveNow.
-String boardLine({String p1dice = '0:0'}) =>
+// our own game; player1 is the literal "You" (player1Color 1 == O). turn '1'
+// is our turn, '-1' the opponent's. p1dice '0:0' => no dice yet.
+String boardLine({String p1dice = '0:0', String turn = '1'}) =>
     'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
-    ':2:0:1:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
+    ':2:0:$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
 
-Future<FibsState> _inGame(FakeTransport fake, {String p1dice = '0:0'}) async {
+Future<FibsState> _inGame(FakeTransport fake,
+    {String p1dice = '0:0', String turn = '1'}) async {
   final fibs = FibsState.withTransport(fake);
   await fibs.login(user: 'joe_grammer', pass: 'x');
-  fake.feed(boardLine(p1dice: p1dice));
+  fake.feed(boardLine(p1dice: p1dice, turn: turn));
   await Future<void>.delayed(Duration.zero);
   return fibs;
 }
@@ -47,6 +48,24 @@ void main() {
     // second move can't be sent into a turn we already played
     expect(fibs.canMoveNow, isFalse);
     expect(fibs.playFirstLegalMove, throwsA(isA<FibsStateError>()));
+  });
+
+  test('a YouRoll with no fresh board still makes it our turn', () async {
+    // FIBS auto-rolls for us after the opponent dances and sends YouRoll
+    // WITHOUT a board, leaving the last board showing the opponent on roll.
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake, turn: '-1'); // board says opponent's turn
+    expect(fibs.isMyTurn, isFalse);
+    expect(fibs.canMoveNow, isFalse);
+
+    fake.feed('You roll 3 and 1'); // our dice arrive, but no new board
+    await Future<void>.delayed(Duration.zero);
+
+    // the roll proves it's our turn: we must be able to move OUR checkers
+    expect(fibs.isMyTurn, isTrue);
+    expect(fibs.canMoveNow, isTrue);
+    final cmd = fibs.playFirstLegalMove();
+    expect(cmd, isNotNull);
   });
 
   test('moving when it is not our turn throws (loud, not a silent no-op)',

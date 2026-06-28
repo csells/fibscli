@@ -73,6 +73,27 @@ class FibsBoard {
   final String player2Name;
   final int canMove; // 0..4 checkers the player on roll may move
 
+  // A copy with selected fields overridden. Used to reconcile the turn when
+  // FIBS sends FIBS_YouRoll without a fresh board (e.g. after the opponent
+  // dances, FIBS auto-rolls for us): the roll proves it's our turn even though
+  // the last board still shows the opponent on roll.
+  FibsBoard copyWith({int? turnColor}) => FibsBoard(
+        points: points,
+        turnColor: turnColor ?? this.turnColor,
+        player1Color: player1Color,
+        direction: direction,
+        player1Dice: player1Dice,
+        player2Dice: player2Dice,
+        cube: cube,
+        player1Off: player1Off,
+        player2Off: player2Off,
+        player1Bar: player1Bar,
+        player2Bar: player2Bar,
+        player1Name: player1Name,
+        player2Name: player2Name,
+        canMove: canMove,
+      );
+
   // The color (and hence GammonPlayer) that [me] plays, by matching the board's
   // player names. In our OWN game FIBS names player1 the literal "You"; when
   // watching it's the real player name (and we match neither -> null).
