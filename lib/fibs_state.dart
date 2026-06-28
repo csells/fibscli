@@ -11,6 +11,14 @@ import 'main.dart';
 import 'model.dart';
 import 'tinystate.dart';
 
+// Thrown when a play command is issued in a state FIBS isn't ready for. We
+// surface these loudly rather than silently dropping the command -- a dropped
+// command hides the real bug (sending at the wrong time) and is impossible to
+// diagnose, whereas an exception points straight at the offending caller.
+class FibsStateError extends StateError {
+  FibsStateError(super.message);
+}
+
 class FibsMessage {
   FibsMessage(this.cookie, this.from, this.message);
   final FibsCookie cookie;
@@ -83,6 +91,15 @@ class FibsState extends ChangeNotifier {
   // always re-send the board with our dice after a roll, so we track them here.
   var _myDice = <int>[];
 
+  // transient "command in flight" flags so canRoll/canMoveNow stop being true
+  // the instant we act (FIBS has moreboards off, so it does NOT echo a board
+  // after our own roll/move). Without these, a caller would see the same
+  // actionable state and fire the command again -> server-rejected junk.
+  // _rolling: we sent `roll`, awaiting our dice (FIBS_YouRoll clears it).
+  // _committedTurn: we sent a whole move, awaiting the next board.
+  var _rolling = false;
+  var _committedTurn = false;
+
   String? get user => _user;
   bool get connected => _conn.connected;
 
@@ -104,11 +121,13 @@ class FibsState extends ChangeNotifier {
     return isMyTurn ? _myDice : const [];
   }
 
-  // it's our turn and we have dice and checkers we may move
-  bool get canMoveNow => isMyTurn && _effectiveDice.isNotEmpty;
+  // it's our turn and we have dice and we haven't already committed this turn
+  bool get canMoveNow =>
+      isMyTurn && _effectiveDice.isNotEmpty && !_committedTurn;
 
-  // it's our turn but no dice yet -> we must roll (or double)
-  bool get canRoll => isMyTurn && _effectiveDice.isEmpty;
+  // it's our turn, no dice yet, and we haven't already rolled -> we must roll
+  bool get canRoll =>
+      isMyTurn && _effectiveDice.isEmpty && !_rolling && !_committedTurn;
 
   // A bot is identified by its reported CLIENT string, not its name. Live FIBS
   // data shows bots self-report a bot-framework client while humans report GUI
@@ -176,6 +195,7 @@ class FibsState extends ChangeNotifier {
         final d1 = int.parse(cm.crumbs!['die1']!);
         final d2 = int.parse(cm.crumbs!['die2']!);
         _myDice = d1 == d2 ? [d1, d1, d1, d1] : [d1, d2];
+        _rolling = false; // our dice arrived; now we may move
         notifyListeners();
 
       // gameplay: track the live board (render + play state)
@@ -185,6 +205,9 @@ class FibsState extends ChangeNotifier {
         _doubleOffered = false; // a fresh board supersedes a pending offer
         _resumeRequestFrom = null; // we're in a game now
         _mustJoin = false;
+        // a fresh board is the authoritative state: clear our in-flight flags
+        _rolling = false;
+        _committedTurn = false;
         // our rolled dice only apply while it's our turn; clear once it isn't
         if (_board!.turnPlayer != myColor) _myDice = [];
         notifyListeners();
@@ -239,9 +262,6 @@ class FibsState extends ChangeNotifier {
     _conn.send('invite ${bot.user} $matchLength');
   }
 
-  // ask FIBS for our unfinished saved matches (populates [savedMatches])
-  void showSavedGames() => _conn.send('show savedgames');
-
   // resume an unfinished match with [opponent]: inviting a player we have a
   // saved match with makes FIBS reload it instead of starting a new game. Good
   // citizenship (and connection-drop recovery) -- always finish saved matches.
@@ -255,17 +275,26 @@ class FibsState extends ChangeNotifier {
     _resumeRequestFrom = null;
   }
 
-  // Only roll when it's actually our turn to roll. These guards are
-  // defense-in-depth: never send a command the server would reject as junk.
+  // Roll the dice. Throws if it isn't our turn to roll (so a mis-timed call is
+  // a loud bug, not a silently dropped command).
   void roll() {
-    if (canRoll) _conn.send('roll');
+    if (!canRoll) {
+      throw FibsStateError('roll: not our turn to roll '
+          '(isMyTurn=$isMyTurn rolling=$_rolling dice=$_effectiveDice)');
+    }
+    _rolling = true; // canRoll is now false until our dice arrive
+    _conn.send('roll');
   }
 
-  // move one checker one die at a time; the server validates (tap-to-move)
+  // move one checker one die at a time; the server validates (tap-to-move).
+  // Throws if it isn't our turn to move.
   void move(int fromPip, int toPip) {
-    final me = myColor;
-    if (me == null || !canMoveNow) return;
-    _conn.send(fibsRawMove(fromPip, toPip, me));
+    if (!canMoveNow) {
+      throw FibsStateError('move: not our turn to move '
+          '(isMyTurn=$isMyTurn dice=$_effectiveDice '
+          'committed=$_committedTurn)');
+    }
+    _conn.send(fibsRawMove(fromPip, toPip, myColor!));
   }
 
   // Play a legal move for us automatically (drives an assisted/auto game).
@@ -273,27 +302,43 @@ class FibsState extends ChangeNotifier {
   // command sent, or null if there's nothing to play. Bots-only, so safe to
   // automate.
   String? playFirstLegalMove() {
-    if (_board == null || !canMoveNow) return null;
+    if (!canMoveNow) {
+      throw FibsStateError('playFirstLegalMove: not our turn to move '
+          '(isMyTurn=$isMyTurn dice=$_effectiveDice '
+          'committed=$_committedTurn)');
+    }
     // FIBS wants the whole turn in one command; pick the best complete turn
     final cmd = FibsPlay.bestTurnCommand(_board!, dice: _effectiveDice) ??
         FibsPlay.fullTurnCommand(_board!, dice: _effectiveDice);
+    // null == a legitimate dance (we have dice but no legal move): send nothing
+    // and let FIBS auto-pass. That is NOT an error, so don't throw.
     if (cmd == null) return null;
+    _committedTurn = true; // canMoveNow is now false until the next board
     _conn.send(cmd);
     return cmd;
   }
 
   void offerDouble() {
-    if (canRoll) _conn.send('double'); // double is offered before rolling
+    if (!canRoll) {
+      throw FibsStateError('offerDouble: can only double on our turn before '
+          'rolling (isMyTurn=$isMyTurn dice=$_effectiveDice)');
+    }
+    _committedTurn = true; // we've acted this turn; await the response
+    _conn.send('double');
   }
 
   void acceptDouble() {
-    if (!_doubleOffered) return;
+    if (!_doubleOffered) {
+      throw FibsStateError('acceptDouble: no double has been offered');
+    }
     _conn.send('accept');
     _doubleOffered = false;
   }
 
   void rejectDouble() {
-    if (!_doubleOffered) return;
+    if (!_doubleOffered) {
+      throw FibsStateError('rejectDouble: no double has been offered');
+    }
     _conn.send('reject');
     _doubleOffered = false;
   }
@@ -305,6 +350,8 @@ class FibsState extends ChangeNotifier {
     _board = null;
     _gameState = null;
     _myDice = [];
+    _rolling = false;
+    _committedTurn = false;
     notifyListeners();
   }
 
@@ -359,9 +406,10 @@ class FibsState extends ChangeNotifier {
     // raw board frames are required for parsing; moreboards is toggled on from
     // CLIP_OWN_INFO below so FIBS sends a board after every roll/move
     _conn.send('set boardstyle 3');
-    // surface any unfinished matches so we can resume them (a dropped
-    // connection -- ours or the opponent's -- saves the match)
-    _conn.send('show savedgames');
+    // FIBS automatically lists our unfinished saved matches right after login
+    // (the FIBS_SavedMatch lines handled in _streamItem), so there's no command
+    // to send -- a dropped connection (ours or the opponent's) saves the match
+    // and we resume it by re-inviting.
     notifyListeners();
   }
 
@@ -382,6 +430,8 @@ class FibsState extends ChangeNotifier {
     _savedMatches.clear();
     _resumeRequestFrom = null;
     _mustJoin = false;
+    _rolling = false;
+    _committedTurn = false;
     notifyListeners();
   }
 
