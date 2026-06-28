@@ -39,10 +39,23 @@ class _Creds {
   static String _obscure(String s) => base64.encode(utf8.encode(s));
   static String _reveal(String s) => utf8.decode(base64.decode(s));
 
-  static String? user() => App.prefs.value?.getString('user');
+  // Credentials can be baked in at build time via --dart-define for an
+  // automated / kiosk client (e.g. the browser e2e), so no human has to type
+  // them. Empty -- and therefore ignored -- in a normal build. dart-define is
+  // the intended mechanism for this, hence the local lint override.
+  // ignore: do_not_use_environment
+  static const _envUser = String.fromEnvironment('fibs_uname');
+  // ignore: do_not_use_environment
+  static const _envPass = String.fromEnvironment('fibs_pword');
+  static bool get hasConfig => _envUser.isNotEmpty && _envPass.isNotEmpty;
+
+  static String? user() =>
+      App.prefs.value?.getString('user') ??
+      (_envUser.isEmpty ? null : _envUser);
   static String? pass() {
     final p = App.prefs.value?.getString('pass');
-    return p == null ? null : _reveal(p);
+    if (p != null) return _reveal(p);
+    return _envPass.isEmpty ? null : _envPass;
   }
 
   static bool remember() => App.prefs.value?.getBool('remember') ?? false;
@@ -73,6 +86,17 @@ class _LoginViewState extends State<_LoginView> {
   var _remember = _Creds.remember();
   var _busy = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // auto-connect when credentials were provided at build time (--dart-define)
+    // so an automated / kiosk client connects without a human typing them
+    if (_Creds.hasConfig && !App.fibs.loggedIn) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => unawaited(_login()));
+    }
+  }
 
   Future<void> _login() async {
     setState(() {

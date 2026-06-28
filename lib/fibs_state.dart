@@ -425,6 +425,11 @@ class FibsState extends ChangeNotifier {
     // raw board frames are required for parsing; moreboards is toggled on from
     // CLIP_OWN_INFO below so FIBS sends a board after every roll/move
     _conn.send('set boardstyle 3');
+    // Explicitly request the who-list. FIBS pushes it automatically on a fresh
+    // login, but not reliably on a quick reconnect -- asking for it makes the
+    // bot list populate every time instead of sometimes hanging on "waiting for
+    // the who-list".
+    _conn.send('who');
     // FIBS automatically lists our unfinished saved matches right after login
     // (the FIBS_SavedMatch lines handled in _streamItem), so there's no command
     // to send -- a dropped connection (ours or the opponent's) saves the match
