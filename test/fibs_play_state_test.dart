@@ -70,10 +70,10 @@ void main() {
   test(
     'a fresh our-turn board clears stale rolled dice (must roll again)',
     () async {
-      // FIBS often reports the opponent's play as text then jumps straight to our
-      // next roll board with NO opponent-turn board in between. The board is
-      // authoritative: stale dice from our last turn must be dropped, or we'd try
-      // to move ("you have to roll the dice before moving").
+      // FIBS often reports the opponent's play as text then jumps straight to
+      // our next roll board with NO opponent-turn board in between. The board
+      // is authoritative: stale dice from our last turn must be dropped, or
+      // we'd try to move ("you have to roll the dice before moving").
       final fake = FakeTransport();
       final fibs = await _inGame(fake); // our turn, no dice
       fibs.roll();

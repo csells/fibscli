@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,7 +7,18 @@ import 'fibs_state.dart';
 import 'game_play_page.dart';
 import 'tinystate.dart';
 
-void main() => runApp(const App());
+Future<void> main() async {
+  await bootstrap();
+  runApp(const App());
+}
+
+// Load persisted state before any UI builds, so App.prefs is non-null whenever
+// a widget reads it. The login view relies on this to read remembered
+// credentials synchronously (no load-race retry needed).
+Future<void> bootstrap() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  App.prefs.value = await SharedPreferences.getInstance();
+}
 
 class App extends StatefulWidget {
   const App({super.key});
@@ -28,12 +37,9 @@ class _AppState extends State<App> {
   void initState() {
     super.initState();
 
-    unawaited(
-      SharedPreferences.getInstance().then((prefs) => App.prefs.value = prefs),
-    );
-
-    // On web, send FIBS a courtesy `bye` when the tab closes. Best-effort: a
-    // dropped connection ends the session regardless (see app_close_web.dart).
+    // SharedPreferences are already loaded by bootstrap(); just wire up the
+    // tab-close handler. On web, send FIBS a courtesy `bye` when the tab
+    // closes — best-effort: a dropped connection ends the session regardless.
     onAppClose(() {
       if (App.fibs.loggedIn) App.fibs.send('bye');
     });

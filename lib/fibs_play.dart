@@ -76,11 +76,7 @@ class FibsPlay {
       }
     }
     if (chosen.isEmpty) return null;
-    // each commandFor yields "move a-b ..."; merge into one command
-    final parts = chosen.map(
-      (m) => commandFor(fb, m).substring('move '.length),
-    );
-    return 'move ${parts.join(' ')}';
+    return _mergeTurn(fb, chosen);
   }
 
   // The best complete legal turn as one FIBS `move` command, chosen by
@@ -91,8 +87,9 @@ class FibsPlay {
     if (d.isEmpty || fb.turnPlayer == null) return null;
     final player = fb.turnPlayer!;
 
-    final turns = <List<GammonMove>>[];
-    final endScores = <double>[];
+    List<GammonMove>? bestTurn;
+    var bestScore = double.negativeInfinity;
+    var leaves = 0; // complete turns evaluated, capped so doubles can't explode
     final seen = <String>{};
 
     void dfs(
@@ -103,13 +100,16 @@ class FibsPlay {
       final forced = GammonRules.getForcedLegalMoves(board, player, remaining);
       if (forced.isEmpty) {
         if (path.isNotEmpty) {
-          turns.add(List.of(path));
-          endScores.add(PubEval.eval(board, player));
+          leaves++;
+          final score = PubEval.eval(board, player);
+          if (score > bestScore) {
+            bestScore = score;
+            bestTurn = List.of(path);
+          }
         }
         return;
       }
-      // cap the search so doubles can't explode
-      if (turns.length > 4000) return;
+      if (leaves > 4000) return;
       for (final moves in forced.values) {
         for (final m in moves) {
           final next = List<List<int>>.generate(
@@ -131,16 +131,14 @@ class FibsPlay {
     }
 
     dfs(_canonicalBoard(fb), d, []);
-    if (turns.isEmpty) return null;
+    return bestTurn == null ? null : _mergeTurn(fb, bestTurn!);
+  }
 
-    var best = 0;
-    for (var i = 1; i < turns.length; ++i) {
-      if (endScores[i] > endScores[best]) best = i;
-    }
-    final parts = turns[best].map(
-      (m) => commandFor(fb, m).substring('move '.length),
-    );
-    return 'move ${parts.join(' ')}';
+  // Render a chosen turn (a list of single-hop moves) as one FIBS `move`
+  // command, e.g. "move 24-18 13-11".
+  static String _mergeTurn(FibsBoard fb, Iterable<GammonMove> moves) {
+    final hops = moves.map((m) => commandFor(fb, m).substring('move '.length));
+    return 'move ${hops.join(' ')}';
   }
 
   static String _sig(List<List<int>> board) {

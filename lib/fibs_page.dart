@@ -97,35 +97,17 @@ class _LoginViewState extends State<_LoginView> {
   @override
   void initState() {
     super.initState();
-    _autologinIfReady();
-    // SharedPreferences may still be loading; if so, retry (and backfill the
-    // prefilled fields) once it arrives so remembered creds can auto-connect.
-    if (App.prefs.value == null) App.prefs.addListener(_onPrefsLoaded);
-  }
-
-  void _onPrefsLoaded() {
-    if (App.prefs.value == null) return;
-    App.prefs.removeListener(_onPrefsLoaded);
-    if (!mounted) return;
-    setState(() {
-      if (_user.text.isEmpty) _user.text = _Creds.user() ?? '';
-      if (_pass.text.isEmpty) _pass.text = _Creds.pass() ?? '';
-      _remember = _Creds.remember();
-    });
-    _autologinIfReady();
-  }
-
-  // connect on our own when we have usable creds (baked-in or remembered)
-  void _autologinIfReady() {
-    if (App.fibs.loggedIn || _busy || !_Creds.shouldAutologin) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !App.fibs.loggedIn && !_busy) unawaited(_login());
-    });
+    // prefs are loaded before any UI (see bootstrap), so creds are available
+    // synchronously here -- connect on our own when we have usable ones.
+    if (!App.fibs.loggedIn && !_busy && _Creds.shouldAutologin) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !App.fibs.loggedIn && !_busy) unawaited(_login());
+      });
+    }
   }
 
   @override
   void dispose() {
-    App.prefs.removeListener(_onPrefsLoaded);
     _user.dispose();
     _pass.dispose();
     super.dispose();
