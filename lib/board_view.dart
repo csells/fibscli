@@ -7,12 +7,26 @@ import 'pieces.dart';
 import 'pip_count.dart';
 import 'pips.dart';
 
-// A non-interactive render of a [GammonState]: the same board the local game
-// draws, but with no gestures, highlights, or animation. Used to show a live
-// FIBS game we're watching (milestone 1).
+// A render of a [GammonState]: the same board the local game draws. Read-only
+// when watching (milestone 1); when [onTapPip] is supplied it overlays tap
+// targets for playing a FIBS game via tap-to-move (milestone 2). Points report
+// their pip number; the bar reports [myBarPip] and our off tray [myOffPip].
 class ReadOnlyBoardView extends StatelessWidget {
-  const ReadOnlyBoardView({required this.game, super.key});
+  const ReadOnlyBoardView({
+    required this.game,
+    super.key,
+    this.onTapPip,
+    this.selectedPip,
+    this.myBarPip,
+    this.myOffPip,
+  });
   final GammonState game;
+  final void Function(int pipNo)? onTapPip;
+  final int? selectedPip;
+  final int? myBarPip; // 25 (X) or 0 (O) — where our hit checkers wait
+  final int? myOffPip; // 0 (X, bottom tray) or 25 (O, top tray)
+
+  bool get _interactive => onTapPip != null;
 
   @override
   Widget build(BuildContext context) => FittedBox(
@@ -102,7 +116,40 @@ class ReadOnlyBoardView extends StatelessWidget {
                 rect: layout.rect,
                 child: PipCountView(layout: layout),
               ),
+
+            // tap targets for playing (milestone 2)
+            if (_interactive) ...[
+              // the 24 points
+              for (final layout in PipLayout.layouts!)
+                _tapZone(layout.rect, layout.pipNo),
+              // the bar (center) -> our bar pip
+              if (myBarPip != null)
+                _tapZone(const Rect.fromLTWH(236, 20, 48, 380), myBarPip!),
+              // our off tray (bottom for X, top for O) -> our off pip
+              if (myOffPip != null)
+                _tapZone(
+                  myOffPip == 0
+                      ? const Rect.fromLTWH(520, 216, 32, 183)
+                      : const Rect.fromLTWH(520, 20, 32, 183),
+                  myOffPip!,
+                ),
+            ],
           ],
+        ),
+      );
+
+  Widget _tapZone(Rect rect, int pipNo) => Positioned.fromRect(
+        rect: rect,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => onTapPip!(pipNo),
+          child: selectedPip == pipNo
+              ? DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.yellow, width: 3),
+                  ),
+                )
+              : null,
         ),
       );
 }
