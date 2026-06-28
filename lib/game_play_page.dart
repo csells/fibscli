@@ -30,12 +30,13 @@ class _GamePlayPageState extends State<GamePlayPage> {
   void initState() {
     super.initState();
 
-    // ignore: discarded_futures
-    _prefsFuture.then((prefs) {
-      _prefs = prefs;
-      _controller.reversed = prefs.getBool('reversed') ?? false;
-      _controller.addListener(_savePrefs);
-    });
+    unawaited(
+      _prefsFuture.then((prefs) {
+        _prefs = prefs;
+        _controller.reversed = prefs.getBool('reversed') ?? false;
+        _controller.addListener(_savePrefs);
+      }),
+    );
   }
 
   void _savePrefs() {
@@ -119,9 +120,11 @@ class GameViewController extends ChangeNotifier {
   bool _reversed = false;
   var _canUndo = true;
   var _canAutoBearOff = false;
-  late void Function() _onUndo;
-  late void Function() _onNewGame;
-  late void Function() _onAutoBearOff;
+  // command hooks the GameView injects; invoked by the matching methods below
+  late void Function() onUndo;
+  late void Function() onNewGame;
+  late void Function() onAutoBearOff;
+  late void Function() onShowOdds;
 
   bool get reversed => _reversed;
   set reversed(bool reversed) {
@@ -144,23 +147,10 @@ class GameViewController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ignore: avoid_setters_without_getters
-  set onUndo(void Function() onUndo) => _onUndo = onUndo;
-  void undo() => _onUndo();
-
-  // ignore: avoid_setters_without_getters
-  set onNewGame(void Function() onNewGame) => _onNewGame = onNewGame;
-  void newGame() => _onNewGame();
-
-  // ignore: avoid_setters_without_getters
-  set onAutoBearOff(void Function() onAutoBearOff) =>
-      _onAutoBearOff = onAutoBearOff;
-  void autoBearOff() => _onAutoBearOff();
-
-  late void Function() _onShowOdds;
-  // ignore: avoid_setters_without_getters
-  set onShowOdds(void Function() onShowOdds) => _onShowOdds = onShowOdds;
-  void showOdds() => _onShowOdds();
+  void undo() => onUndo();
+  void newGame() => onNewGame();
+  void autoBearOff() => onAutoBearOff();
+  void showOdds() => onShowOdds();
 }
 
 class GameView extends StatefulWidget {

@@ -132,38 +132,36 @@ class FibsBotPlayer {
           _fibs.canMoveNow);
 
   void _handleCookie(CookieMessage cm) {
-    switch (cm.cookie) {
-      case FibsCookie.FIBS_Board:
-        // A board during normal play means we're in a match. But FIBS also
-        // sends a FINAL board after a win/loss; the betweenMatches guard keeps
-        // us from clearing matchOver on that one and firing a stray command.
-        if (!_betweenMatches) _matchOver = false;
-        _resetStall();
-        _scheduleAct();
-      case FibsCookie.FIBS_YouRoll:
-        _resetStall();
-        _scheduleAct();
-      case FibsCookie.CLIP_WHO_END:
-        _burstDone = true; // safe to invite a fresh bot now
-        _scheduleAct();
-      case FibsCookie.FIBS_AcceptRejectDouble:
-      case FibsCookie.FIBS_ResumeMatchRequest:
-      case FibsCookie.FIBS_JoinNextGame:
-      case FibsCookie.FIBS_SavedMatch:
-      case FibsCookie.CLIP_WHO_INFO:
-        _scheduleAct();
-      case FibsCookie.FIBS_YouWinMatch:
-        _matchOver = true;
-        _winnerIsMe = true;
-        _onMatchOver();
-      case FibsCookie.FIBS_PlayerWinsMatch:
-        _matchOver = true;
-        _winnerIsMe = false;
-        _onMatchOver();
-      // ignore: no_default_cases
-      default:
-        break;
+    final c = cm.cookie;
+    if (c == FibsCookie.FIBS_Board) {
+      // A board during normal play means we're in a match. But FIBS also sends
+      // a FINAL board after a win/loss; the betweenMatches guard keeps us from
+      // clearing matchOver on that one and firing a stray command.
+      if (!_betweenMatches) _matchOver = false;
+      _resetStall();
+      _scheduleAct();
+    } else if (c == FibsCookie.FIBS_YouRoll) {
+      _resetStall();
+      _scheduleAct();
+    } else if (c == FibsCookie.CLIP_WHO_END) {
+      _burstDone = true; // safe to invite a fresh bot now
+      _scheduleAct();
+    } else if (c == FibsCookie.FIBS_AcceptRejectDouble ||
+        c == FibsCookie.FIBS_ResumeMatchRequest ||
+        c == FibsCookie.FIBS_JoinNextGame ||
+        c == FibsCookie.FIBS_SavedMatch ||
+        c == FibsCookie.CLIP_WHO_INFO) {
+      _scheduleAct();
+    } else if (c == FibsCookie.FIBS_YouWinMatch) {
+      _matchOver = true;
+      _winnerIsMe = true;
+      _onMatchOver();
+    } else if (c == FibsCookie.FIBS_PlayerWinsMatch) {
+      _matchOver = true;
+      _winnerIsMe = false;
+      _onMatchOver();
     }
+    // any other cookie: ignored
   }
 
   void _resetStall() {

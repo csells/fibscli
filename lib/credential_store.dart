@@ -35,9 +35,12 @@ class FlutterSecretStore implements SecretStore {
 class SecureCredentialStore {
   SecureCredentialStore(this._prefs, this._secret);
 
-  // ignore: do_not_use_environment -- dart-define is the intended kiosk seam
-  static const _envUser = String.fromEnvironment('fibs_uname');
+  // dart-define is the intended compile-time seam for kiosk/e2e autologin.
+  // There is no non-environment way to read a --dart-define value, so this
+  // suppression is unavoidable (not a fixable smell) and stays justified.
   // ignore: do_not_use_environment
+  static const _envUser = String.fromEnvironment('fibs_uname');
+  // ignore: do_not_use_environment -- see _envUser: unavoidable dart-define seam
   static const _envPass = String.fromEnvironment('fibs_pword');
 
   static const _userKey = 'user';

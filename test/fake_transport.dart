@@ -35,4 +35,7 @@ class FakeTransport implements FibsTransport {
     final m = CookieMonster()..messageState = CookieMonsterState.FIBS_RUN_STATE;
     _ctrl.add(m.eatCookie(raw));
   }
+
+  // simulate a mid-session transport failure on the cookie stream
+  void feedError(Object error, [StackTrace? st]) => _ctrl.addError(error, st);
 }

@@ -19,9 +19,10 @@ websocat proxy) are both reachable from the landing page — see below.
 
 ## Monorepo workspace
 
-This repo is a self-contained **Dart pub workspace** — it builds standalone with no sibling repos. The root `pubspec.yaml` lists `workspace:` members and the two former path-dependency siblings are vendored under `packages/`:
+This repo is a self-contained **Dart pub workspace** — it builds standalone with no sibling repos. The root `pubspec.yaml` lists `workspace:` members:
 
-- `packages/fibscli_lib/` — FIBS protocol/networking (CLIP cookies, `FibsConnection`, websocket proxy). Used only by the dormant FIBS UI (`lib/fibs_state.dart`).
+- `packages/bg_engine/` — the **pure-Dart backgammon engine**: rules + move generation (`GammonRules`, `GammonMove`, `GammonPlayer`, `GammonDelta`, `DoublingCube`, `CubeAction`), the `pubeval` evaluator, and the exact `RaceEval` race solver — all extracted out of `lib/model.dart`. No Flutter dependency (uses `package:meta`/`package:collection` for `@immutable`/list-equality). The app's `lib/model.dart` keeps `GammonState`/`GammonStats` (the `ChangeNotifier` UI state) and **re-exports** `package:bg_engine/bg_engine.dart`, so existing `import 'model.dart'` callers see the rule types unchanged. The pluggable AI-player abstraction (`BgAiPlayer`) and its implementations live here too. See `specs/architecture/0001-game-modes-and-ai-players.md`.
+- `packages/fibscli_lib/` — FIBS protocol/networking (CLIP cookies, `FibsConnection`, websocket proxy). Used only by the FIBS UI (`lib/fibs_state.dart`).
 - `packages/fibsboard/` (dev dep) — board-from-ASCII helpers (`boardFromLines`/`linesFromBoard`) used by the full-board scenario tests.
 
 Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`) and keeps its **own** strict `analysis_options.yaml` — every package is an equal peer under the same lint rules. `flutter pub get` at the root resolves the whole workspace; there is a single root `pubspec.lock` and a single `.dart_tool/`. The vendored sources are copied verbatim, so `packages/fibscli_lib` carries two pre-existing `discarded_futures` infos from upstream that are intentionally left as-is.
@@ -44,10 +45,18 @@ Remembered credentials use `lib/credential_store.dart`: the username lives in
 `SharedPreferences`, the password ONLY in platform secure storage
 (`flutter_secure_storage`, via the `SecretStore` adapter — Keychain / Keystore
 / libsecret / Credential Manager / Web Crypto). `bootstrap()` in `main.dart`
-loads prefs + creds before any UI builds; tests inject their own `App.creds`.
-Logging goes through `package:logging` (`setupLogging` in `lib/logging.dart`);
-cookie tracing logs only the cookie **type**, never crumbs/raw, so other users'
-PII (who-list emails, chat) never reaches the log.
+loads prefs + creds before any UI builds (tolerating a secure-storage failure so
+a locked keychain degrades to the login screen instead of crashing); tests
+inject their own `App.creds`. `main()` installs **global error handlers**
+(`runZonedGuarded` + `FlutterError.onError`) that route every uncaught error to
+the log. `FibsState` does **not** depend on credentials or `main.dart` (no import
+cycle): explicit logout runs an injected `onLogout` hook (wired in `bootstrap` to
+`App.creds.forget`) and tears the connection down (cancel subscription +
+`close`); its cookie stream has an `onError`. Bot detection lives in
+`lib/bot_policy.dart` (`BotPolicy`, pure). Logging goes through `package:logging`
+(`setupLogging` in `lib/logging.dart`); cookie tracing logs only the cookie
+**type**, never crumbs/raw, so other users' PII (who-list emails, chat) never
+reaches the log.
 
 ## FIBS testing etiquette (be a gentle citizen)
 

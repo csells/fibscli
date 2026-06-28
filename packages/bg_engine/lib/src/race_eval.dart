@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'model.dart';
+import 'rules.dart';
 
 // Exact race evaluation, ported from the algorithm in race2.c
 // (https://bkgm.com/rgb/rgb.cgi?view+787, linked from issue #14).

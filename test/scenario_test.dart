@@ -1,7 +1,6 @@
 import 'package:fibsboard/fibsboard.dart' as fb;
 import 'package:fibscli/dice.dart';
 import 'package:fibscli/model.dart';
-import 'package:fibscli/race_eval.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'board_builder.dart';

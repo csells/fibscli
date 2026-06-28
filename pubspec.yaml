@@ -6,11 +6,13 @@ publish_to: none
 workspace:
   - packages/fibscli_lib
   - packages/fibsboard
+  - packages/bg_engine
 
 environment:
   sdk: ^3.12.0
 
 dependencies:
+  bg_engine: ^0.1.0
   cupertino_icons: ^1.0.1+1
   dartx: ^1.2.0
   fibscli_lib: ^0.1.0

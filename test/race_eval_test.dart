@@ -1,5 +1,4 @@
 import 'package:fibscli/model.dart';
-import 'package:fibscli/race_eval.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'board_builder.dart';

@@ -53,9 +53,12 @@ void main() {
     expect(App.fibs.loggedIn, isFalse); // login screen waits for the user
   });
 
-  testWidgets('explicit logout forgets the remembered password', (
-    tester,
-  ) async {
+  // Pure credential-flow logic (no widget pumped), so a plain test() in a real
+  // async zone -- not the testWidgets FakeAsync zone, where the secure-storage
+  // platform-channel reply and the stream-subscription cancel never settle
+  // without a pump. The logout teardown itself is covered by fibs_logout_test.
+  test('explicit logout forgets the remembered password', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
     final secret = await _installCreds(
       user: 'joe',
       password: 'hunter2',
@@ -66,6 +69,8 @@ void main() {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake);
     App.fibs = fibs;
+    fibs.onLogout = () =>
+        App.creds.forget(); // wired by bootstrap in production
     await fibs.login(user: 'joe', pass: 'hunter2');
 
     await fibs.logout();

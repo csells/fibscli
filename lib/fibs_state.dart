@@ -1,12 +1,14 @@
+import 'dart:async';
+
 import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
+import 'bot_policy.dart';
 import 'fibs_board.dart';
 import 'fibs_move.dart';
 import 'fibs_play.dart';
 import 'fibs_transport.dart';
-import 'main.dart';
 import 'model.dart';
 import 'tinystate.dart';
 
@@ -29,21 +31,15 @@ class FibsMessage {
   @override
   String toString() => '$from $_cookieName "$message"';
 
-  String get _cookieName {
-    switch (cookie) {
-      case FibsCookie.CLIP_KIBITZES:
-        return 'kibitzes';
-      case FibsCookie.CLIP_SAYS:
-        return 'says';
-      case FibsCookie.CLIP_SHOUTS:
-        return 'shouts';
-      case FibsCookie.CLIP_WHISPERS:
-        return 'whispers';
-      // ignore: no_default_cases
-      default:
-        throw Exception('unreachable');
-    }
-  }
+  // the chat-style cookies a FibsMessage is ever built from -> a display verb
+  static const _cookieNames = <FibsCookie, String>{
+    FibsCookie.CLIP_KIBITZES: 'kibitzes',
+    FibsCookie.CLIP_SAYS: 'says',
+    FibsCookie.CLIP_SHOUTS: 'shouts',
+    FibsCookie.CLIP_WHISPERS: 'whispers',
+  };
+
+  String get _cookieName => _cookieNames[cookie] ?? cookie.name;
 }
 
 class FibsState extends ChangeNotifier {
@@ -58,7 +54,14 @@ class FibsState extends ChangeNotifier {
   final whoInfos = NotifierList<WhoInfo>();
   final messages = NotifierList<FibsMessage>();
   final FibsTransport _conn;
+  StreamSubscription<CookieMessage>? _sub;
   String? _user;
+
+  // Called on EXPLICIT logout only (not tab-close or a dropped connection), so
+  // the app can run end-of-session cleanup (e.g. forgetting a remembered
+  // password) without FibsState having to know about credentials. Injected by
+  // the app in bootstrap; null in tests that don't care.
+  Future<void> Function()? onLogout;
 
   // the most recent board state of the game being watched/played, mapped into
   // the game model for read-only rendering (null when not in a game)
@@ -129,40 +132,11 @@ class FibsState extends ChangeNotifier {
   bool get canRoll =>
       isMyTurn && _effectiveDice.isEmpty && !_rolling && !_committedTurn;
 
-  // A bot is identified by its reported CLIENT string, not its name. Live FIBS
-  // data shows bots self-report a bot-framework client while humans report GUI
-  // clients (3DFiBs, MGOnline, Padgammon, FIBzilla, ...). Name is unreliable
-  // both ways: it misses bots like octopus/pubeval/wildbg and wrongly flags
-  // TourneyBot (a tournament organizer). This is precision-first so we never
-  // invite a human; it deliberately excludes bots that report no client (e.g.
-  // MonteCarlo, client '-') -- add such names to [_knownBotNames] only once
-  // confirmed.
-  static const _botClients = <String>{
-    'ParlorBot', // GammonBot / BlunderBot family
-    'Computer_player', // octopus, pubeval, PureTD
-    'bot_1p_matches_only', // wildbg, udacity_capstone
-  };
-  // Belt-and-suspenders for bots that might report no client (FIBS has no
-  // protocol "isBot" flag). The client allowlist above already auto-catches the
-  // whole live roster; these are confirmed exact bot names (from the live
-  // who-list plus research against the fibs.com/bots.html and ParlorBot
-  // rosters) so a known bot is still caught if its client field is missing.
-  // MonteCarlo is the key case: a 1-point-match bot that reports no client.
-  // Numbered variants (BlunderBot_IX, GammonBot_XV, ...) are covered by the
-  // client allowlist, so only base/singleton names are listed. Names are unique
-  // on FIBS, so exact-name matching never catches a human.
-  static const _knownBotNames = <String>{
-    'MonteCarlo',
-    'BlunderBot',
-    'GammonBot',
-    'octopus',
-    'pubeval',
-    'PureTD',
-    'wildbg',
-  };
-
+  // Whether a who-list entry is a bot. The detection policy (allowlists +
+  // precision-first rationale) lives in BotPolicy so it can evolve without
+  // touching this connection/state machine.
   static bool isBot(WhoInfo who) =>
-      _botClients.contains(who.client) || _knownBotNames.contains(who.user);
+      BotPolicy.isBot(client: who.client, user: who.user);
 
   // optional observer of every incoming cookie (debugging / diagnostics)
   void Function(CookieMessage cm)? cookieObserver;
@@ -173,104 +147,106 @@ class FibsState extends ChangeNotifier {
     // local trace via cookieObserver (e.g. the live e2e), never the app log.
     _log.finer(cm.cookie.name);
     cookieObserver?.call(cm);
+    // Dispatch by cookie; any other gameplay/lobby chatter is ignored (no
+    // handler) rather than crashing the stream.
+    _handlers[cm.cookie]?.call(cm);
+  }
 
-    switch (cm.cookie) {
-      // who
-      case FibsCookie.CLIP_WHO_INFO:
-        _addWho(WhoInfo.from(cm));
-      case FibsCookie.CLIP_LOGOUT:
-        _removeWho(cm.crumbs!['name']!);
-
-      // messages
-      case FibsCookie.CLIP_KIBITZES:
-      case FibsCookie.CLIP_MESSAGE:
-      case FibsCookie.CLIP_SAYS:
-      case FibsCookie.CLIP_SHOUTS:
-      case FibsCookie.CLIP_WHISPERS:
-        messages.add(
-          FibsMessage(cm.cookie, cm.crumbs!['name']!, cm.crumbs!['message']!),
-        );
-
-      // we rolled: capture our dice (FIBS may not re-send the board with them)
-      case FibsCookie.FIBS_YouRoll:
-        final d1 = int.parse(cm.crumbs!['die1']!);
-        final d2 = int.parse(cm.crumbs!['die2']!);
-        _myDice = d1 == d2 ? [d1, d1, d1, d1] : [d1, d2];
-        _rolling = false; // our dice arrived; now we may move
-        // A YouRoll proves it's OUR turn. FIBS sometimes sends it WITHOUT a
-        // fresh board (e.g. when it auto-rolls for us after the opponent
-        // dances), leaving the last board showing the opponent on roll -- which
-        // would wrongly make the move generator play the opponent's checkers.
-        // Reconcile the board's turn to ours.
-        final me = myColor;
-        if (me != null && _board != null && _board!.turnPlayer != me) {
-          _board = _board!.copyWith(turnColor: me == GammonPlayer.one ? -1 : 1);
-          _gameState = _board!.toGammonState();
-        }
-        notifyListeners();
-
-      // gameplay: track the live board (render + play state)
-      case FibsCookie.FIBS_Board:
-        _board = FibsBoard.fromCrumbs(cm.crumbs!);
-        _gameState = _board!.toGammonState();
-        _doubleOffered = false; // a fresh board supersedes a pending offer
-        _resumeRequestFrom = null; // we're in a game now
-        _mustJoin = false;
-        _committedTurn = false; // this board is the response to our move
-        // A board is the AUTHORITATIVE dice state: its activeDice are our dice
-        // for this turn (empty => we must roll). So drop any dice we captured
-        // from a bare YouRoll -- otherwise stale dice from a prior turn make us
-        // try to move on a fresh "your turn, no dice" board ("you have to roll
-        // the dice before moving"). FIBS often reports the opponent's play as
-        // text (PlayerMoves) and jumps straight to our roll board with no
-        // intervening opponent-turn board, so we can't rely on a turn flip.
-        _myDice = [];
-        // Clear "we rolled, awaiting our dice" only when the turn has passed or
-        // this board carries our dice; a same-state refresh keeps us awaiting
-        // YouRoll so we don't roll twice.
-        final notOurTurn = _board!.turnPlayer != myColor;
-        if (notOurTurn || _board!.activeDice.isNotEmpty) _rolling = false;
-        notifyListeners();
-
-      // the opponent doubled us
-      case FibsCookie.FIBS_AcceptRejectDouble:
-        _doubleOffered = true;
-        notifyListeners();
-
-      // saved (unfinished) matches: a `show savedgames` listing, one per line
-      case FibsCookie.FIBS_SavedMatch:
-        final opp = cm.crumbs!['player1'];
-        if (opp != null && opp.isNotEmpty) {
-          _savedMatches.add(opp);
-          notifyListeners();
-        }
-      case FibsCookie.FIBS_NoSavedGames:
-        _savedMatches.clear();
-        notifyListeners();
-
-      // resume flow: an opponent asks to resume a saved match with us
-      case FibsCookie.FIBS_ResumeMatchRequest:
-        _resumeRequestFrom = cm.crumbs!['name'];
-        notifyListeners();
+  // Cookie -> handler. A map (not a switch) so there's no enum default to
+  // suppress and each concern reads as its own small unit.
+  late final Map<FibsCookie, void Function(CookieMessage)> _handlers = {
+    FibsCookie.CLIP_WHO_INFO: (cm) => _addWho(WhoInfo.from(cm)),
+    FibsCookie.CLIP_LOGOUT: (cm) => _removeWho(cm.crumbs!['name']!),
+    FibsCookie.CLIP_KIBITZES: _onChatMessage,
+    FibsCookie.CLIP_MESSAGE: _onChatMessage,
+    FibsCookie.CLIP_SAYS: _onChatMessage,
+    FibsCookie.CLIP_SHOUTS: _onChatMessage,
+    FibsCookie.CLIP_WHISPERS: _onChatMessage,
+    FibsCookie.FIBS_YouRoll: _onYouRoll,
+    FibsCookie.FIBS_Board: _onBoard,
+    FibsCookie.FIBS_AcceptRejectDouble: (cm) {
+      _doubleOffered = true; // the opponent doubled us
+      notifyListeners();
+    },
+    FibsCookie.FIBS_SavedMatch: _onSavedMatch,
+    FibsCookie.FIBS_NoSavedGames: (cm) {
+      _savedMatches.clear();
+      notifyListeners();
+    },
+    FibsCookie.FIBS_ResumeMatchRequest: (cm) {
+      // an opponent asks to resume a saved match with us
+      _resumeRequestFrom = cm.crumbs!['name'];
+      notifyListeners();
+    },
+    FibsCookie.FIBS_JoinNextGame: (cm) {
       // FIBS asks us to type 'join' (load a resumed match / start next game)
-      case FibsCookie.FIBS_JoinNextGame:
-        _mustJoin = true;
-        notifyListeners();
-      // resume confirmed ("...running match was loaded"); a board will follow.
-      // The opponent is no longer a pending saved match.
-      case FibsCookie.FIBS_ResumeMatchAck0:
-        _savedMatches.remove(cm.crumbs!['opponent']);
-        notifyListeners();
-      case FibsCookie.FIBS_ResumeMatchAck5:
-        _savedMatches.remove(cm.crumbs!['opponent']);
-        notifyListeners();
+      _mustJoin = true;
+      notifyListeners();
+    },
+    // resume confirmed ("...running match was loaded"); a board will follow.
+    FibsCookie.FIBS_ResumeMatchAck0: _onResumeAck,
+    FibsCookie.FIBS_ResumeMatchAck5: _onResumeAck,
+  };
 
-      // any other gameplay/lobby chatter is fine to ignore for now rather than
-      // crash the stream (previously this threw)
-      // ignore: no_default_cases
-      default:
-        break;
+  void _onChatMessage(CookieMessage cm) => messages.add(
+    FibsMessage(cm.cookie, cm.crumbs!['name']!, cm.crumbs!['message']!),
+  );
+
+  // we rolled: capture our dice (FIBS may not re-send the board with them)
+  void _onYouRoll(CookieMessage cm) {
+    final d1 = int.parse(cm.crumbs!['die1']!);
+    final d2 = int.parse(cm.crumbs!['die2']!);
+    _myDice = d1 == d2 ? [d1, d1, d1, d1] : [d1, d2];
+    _rolling = false; // our dice arrived; now we may move
+    // A YouRoll proves it's OUR turn. FIBS sometimes sends it WITHOUT a fresh
+    // board (e.g. when it auto-rolls for us after the opponent dances), leaving
+    // the last board showing the opponent on roll -- which would wrongly make
+    // the move generator play the opponent's checkers. Reconcile to our turn.
+    final me = myColor;
+    if (me != null && _board != null && _board!.turnPlayer != me) {
+      _board = _board!.copyWith(turnColor: me == GammonPlayer.one ? -1 : 1);
+      _gameState = _board!.toGammonState();
     }
+    notifyListeners();
+  }
+
+  // gameplay: track the live board (render + play state)
+  void _onBoard(CookieMessage cm) {
+    _board = FibsBoard.fromCrumbs(cm.crumbs!);
+    _gameState = _board!.toGammonState();
+    _doubleOffered = false; // a fresh board supersedes a pending offer
+    _resumeRequestFrom = null; // we're in a game now
+    _mustJoin = false;
+    _committedTurn = false; // this board is the response to our move
+    // A board is the AUTHORITATIVE dice state: its activeDice are our dice for
+    // this turn (empty => we must roll). So drop any dice we captured from a
+    // bare YouRoll -- otherwise stale dice from a prior turn make us try to
+    // move on a fresh "your turn, no dice" board ("you have to roll the dice
+    // before moving"). FIBS often reports the opponent's play as text
+    // (PlayerMoves) and jumps straight to our roll board with no intervening
+    // opponent-turn board, so we can't rely on a turn flip.
+    _myDice = [];
+    // Clear "we rolled, awaiting our dice" only when the turn has passed or
+    // this board carries our dice; a same-state refresh keeps us awaiting
+    // YouRoll so we don't roll twice.
+    final notOurTurn = _board!.turnPlayer != myColor;
+    if (notOurTurn || _board!.activeDice.isNotEmpty) _rolling = false;
+    notifyListeners();
+  }
+
+  // saved (unfinished) matches: a `show savedgames` listing, one per line
+  void _onSavedMatch(CookieMessage cm) {
+    final opp = cm.crumbs!['player1'];
+    if (opp != null && opp.isNotEmpty) {
+      _savedMatches.add(opp);
+      notifyListeners();
+    }
+  }
+
+  // resume confirmed: the opponent is no longer a pending saved match
+  void _onResumeAck(CookieMessage cm) {
+    _savedMatches.remove(cm.crumbs!['opponent']);
+    notifyListeners();
   }
 
   // --- play actions (bots only) ---------------------------------------------
@@ -420,7 +396,11 @@ class FibsState extends ChangeNotifier {
   Future<void> login({required String user, required String pass}) async {
     assert(!loggedIn);
 
-    _conn.stream.listen(_streamItem, onDone: _reset);
+    _sub = _conn.stream.listen(
+      _streamItem,
+      onError: _onStreamError,
+      onDone: _reset,
+    );
     final cookie = await _conn
         .login(user, pass)
         .timeout(
@@ -454,10 +434,22 @@ class FibsState extends ChangeNotifier {
 
   Future<void> logout() async {
     if (loggedIn) _conn.send('bye');
-    // an explicit logout means "don't auto-reconnect": forget the remembered
-    // password so the next launch shows the login screen instead of signing
-    // back in. (Closing the tab is a different thing -- it keeps remember.)
-    await App.creds.forget();
+    // an explicit logout means "don't auto-reconnect": let the app forget the
+    // remembered password so the next launch shows the login screen instead of
+    // signing back in. (Closing the tab is a different thing -- it keeps
+    // remember -- so this hook fires only here, never on tab-close/drop.)
+    await onLogout?.call();
+    await _sub?.cancel();
+    _sub = null;
+    await _conn
+        .close(); // actually tear the connection down (no lingering socket)
+    _reset();
+  }
+
+  // A mid-session transport failure: surface it to the log and reset the
+  // session rather than letting it escape as an unhandled async error.
+  void _onStreamError(Object error, StackTrace stackTrace) {
+    _log.warning('FIBS stream error', error, stackTrace);
     _reset();
   }
 

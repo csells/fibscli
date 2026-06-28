@@ -1,6 +1,5 @@
 import 'fibs_board.dart';
 import 'model.dart';
-import 'pubeval.dart';
 
 // Legal-move generation for a live FIBS game, so an autonomous/assisted player
 // can pick legal moves. The engine (GammonRules) has a fixed orientation

@@ -1,4 +1,4 @@
-import 'model.dart';
+import 'rules.dart';
 
 // Tesauro's `pubeval` — the public-domain backgammon position evaluator he
 // released in 1993 as a benchmark opponent (roughly 1650 FIBS strength). It is

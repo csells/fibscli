@@ -1,7 +1,6 @@
 import 'package:fibscli/fibs_board.dart';
 import 'package:fibscli/fibs_play.dart';
 import 'package:fibscli/model.dart';
-import 'package:fibscli/pubeval.dart';
 import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter_test/flutter_test.dart';
 

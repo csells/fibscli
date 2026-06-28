@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartx/dartx.dart';
 import 'package:flutter/widgets.dart';
 
@@ -54,15 +56,13 @@ class _AnimatedPieceState extends State<AnimatedPiece>
     // (issue #5); during the delay it stays at its first layout
     void start() {
       if (!mounted) return;
-      // ignore: discarded_futures
-      _controller.forward().then((_) => widget.onEnd());
+      unawaited(_controller.forward().then((_) => widget.onEnd()));
     }
 
     if (widget.delay == Duration.zero) {
       start();
     } else {
-      // ignore: discarded_futures
-      Future<void>.delayed(widget.delay, start);
+      unawaited(Future<void>.delayed(widget.delay, start));
     }
   }
 

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_close_stub.dart' if (dart.library.html) 'app_close_web.dart';
@@ -10,20 +13,40 @@ import 'logging.dart';
 import 'tinystate.dart';
 
 Future<void> main() async {
-  await bootstrap();
-  runApp(const App());
+  // Route every uncaught error -- framework and async -- to the log instead of
+  // letting it vanish. setupLogging() (in bootstrap) sends these to dev.log.
+  final log = Logger('app');
+  FlutterError.onError = (details) =>
+      log.severe('flutter error', details.exception, details.stack);
+  await runZonedGuarded(() async {
+    await bootstrap();
+    runApp(const App());
+  }, (error, stack) => log.severe('uncaught error', error, stack));
 }
 
 // Load persisted state before any UI builds, so App.prefs / App.creds are
 // populated whenever a widget reads them. The login view relies on this to read
 // remembered credentials synchronously (no load-race retry needed).
-Future<void> bootstrap() async {
+Future<void> bootstrap({
+  SecretStore secretStore = const FlutterSecretStore(),
+}) async {
   WidgetsFlutterBinding.ensureInitialized();
   setupLogging();
   final prefs = await SharedPreferences.getInstance();
   App.prefs.value = prefs;
-  App.creds = SecureCredentialStore(prefs, const FlutterSecretStore());
-  await App.creds.load();
+  App.creds = SecureCredentialStore(prefs, secretStore);
+  try {
+    await App.creds.load();
+  } on Object catch (ex, st) {
+    // Secure-storage reads can fail (locked keychain, missing libsecret, web
+    // crypto hiccup) and may surface as either an Exception or an Error, so
+    // catch broadly: degrade to the login screen rather than crashing at
+    // startup -- the user can still type their credentials.
+    Logger('bootstrap').warning('credential load failed', ex, st);
+  }
+  // Wire end-of-session cleanup without FibsState depending on credentials:
+  // an explicit logout forgets the remembered password.
+  App.fibs.onLogout = () => App.creds.forget();
 }
 
 class App extends StatefulWidget {
