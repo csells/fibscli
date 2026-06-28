@@ -63,7 +63,11 @@ class FibsState extends ChangeNotifier {
     'Computer_player', // octopus, pubeval, PureTD
     'bot_1p_matches_only', // wildbg, udacity_capstone
   };
-  static const _knownBotNames = <String>{};
+  // Confirmed bots that report no client ('-'). FIBS has no protocol "isBot"
+  // flag, so for these the community relies on the curated fibs.com/bots.html
+  // list. MonteCarlo is a long-standing 1-point-match bot (confirmed via
+  // research); names are unique on FIBS so matching the exact name is safe.
+  static const _knownBotNames = <String>{'MonteCarlo'};
 
   static bool isBot(WhoInfo who) =>
       _botClients.contains(who.client) || _knownBotNames.contains(who.user);

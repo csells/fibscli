@@ -37,8 +37,11 @@ void main() {
       expect(
           FibsState.isBot(who('TourneyBot', client: '=NTTourney1rganizer2')),
           isFalse);
-      // an account that reports no client is treated as unknown (excluded)
-      expect(FibsState.isBot(who('MonteCarlo', client: '-')), isFalse);
+      // MonteCarlo reports no client but is a confirmed bot on the curated
+      // known-names list
+      expect(FibsState.isBot(who('MonteCarlo', client: '-')), isTrue);
+      // an unknown account that reports no client is still excluded
+      expect(FibsState.isBot(who('randomdude', client: '-')), isFalse);
     });
 
     test('availableBots = free bot-client accounts (no humans, no busy bots)',
