@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:developer' as dev;
 import 'dart:typed_data';
 
-import 'package:web_socket_channel/io.dart';
+// The cross-platform entry point: WebSocketChannel.connect picks the dart:io or
+// dart:html implementation via conditional compilation, so the same code runs
+// on native (desktop/mobile) and on the web.
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'cookie_monster.dart';
-// import 'package:web_socket_channel/status.dart' as wsStatus;
 
 enum _LoginState {
   prelogin,
@@ -28,7 +30,7 @@ class FibsConnection {
   final String _proxy;
   final int _port;
   final _streamController = StreamController<CookieMessage>();
-  IOWebSocketChannel? _channel;
+  WebSocketChannel? _channel;
   final _monster = CookieMonster();
   Completer<FibsCookie>? _loginCompleter;
   _LoginState? _loginState;
@@ -53,11 +55,13 @@ class FibsConnection {
   Future<FibsCookie> login(String user, String pass) {
     assert(!connected);
 
-    _channel = IOWebSocketChannel.connect('ws://$_proxy:$_port');
+    _channel = WebSocketChannel.connect(Uri.parse('ws://$_proxy:$_port'));
 
     _channel!.stream.listen(
-      (dynamic bytes) {
-        final message = String.fromCharCodes(bytes as Uint8List);
+      (dynamic frame) {
+        // native delivers binary frames as bytes; the web may deliver a String
+        // or a ByteBuffer, so decode whatever the platform hands us
+        final message = _decodeFrame(frame);
         dev.log('stream.message: $message');
         final cms = _receive(message).toList();
 
@@ -124,6 +128,16 @@ class FibsConnection {
     assert(!s.endsWith('\n'));
     dev.log('SEND: $s');
     _channel!.sink.add('$s\n');
+  }
+
+  // Normalize a websocket frame to text. Native (dart:io) yields Uint8List for
+  // binary frames; the web (dart:html) may yield a String or a ByteBuffer.
+  static String _decodeFrame(dynamic frame) {
+    if (frame is String) return frame;
+    if (frame is Uint8List) return String.fromCharCodes(frame);
+    if (frame is ByteBuffer) return String.fromCharCodes(frame.asUint8List());
+    if (frame is List<int>) return String.fromCharCodes(frame);
+    return frame.toString();
   }
 
   Iterable<CookieMessage> _receive(String message) sync* {
