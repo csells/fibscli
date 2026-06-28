@@ -216,14 +216,19 @@ class FibsState extends ChangeNotifier {
         _resumeRequestFrom = null; // we're in a game now
         _mustJoin = false;
         _committedTurn = false; // this board is the response to our move
-        // Clear "we rolled, awaiting our dice" ONLY when the turn has passed or
-        // this board actually carries our dice. A refresh board that still
-        // shows our turn with no dice must NOT reset it, or canRoll flips back
-        // true and we roll again ("you already rolled").
+        // A board is the AUTHORITATIVE dice state: its activeDice are our dice
+        // for this turn (empty => we must roll). So drop any dice we captured
+        // from a bare YouRoll -- otherwise stale dice from a prior turn make us
+        // try to move on a fresh "your turn, no dice" board ("you have to roll
+        // the dice before moving"). FIBS often reports the opponent's play as
+        // text (PlayerMoves) and jumps straight to our roll board with no
+        // intervening opponent-turn board, so we can't rely on a turn flip.
+        _myDice = [];
+        // Clear "we rolled, awaiting our dice" only when the turn has passed or
+        // this board carries our dice; a same-state refresh keeps us awaiting
+        // YouRoll so we don't roll twice.
         final notOurTurn = _board!.turnPlayer != myColor;
         if (notOurTurn || _board!.activeDice.isNotEmpty) _rolling = false;
-        // our rolled dice only apply while it's our turn; clear once it isn't
-        if (notOurTurn) _myDice = [];
         notifyListeners();
 
       // the opponent doubled us

@@ -64,6 +64,27 @@ void main() {
     expect(fibs.playFirstLegalMove, throwsA(isA<FibsStateError>()));
   });
 
+  test('a fresh our-turn board clears stale rolled dice (must roll again)',
+      () async {
+    // FIBS often reports the opponent's play as text then jumps straight to our
+    // next roll board with NO opponent-turn board in between. The board is
+    // authoritative: stale dice from our last turn must be dropped, or we'd try
+    // to move ("you have to roll the dice before moving").
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake); // our turn, no dice
+    fibs.roll();
+    fake.feed('You roll 6 and 4');
+    await Future<void>.delayed(Duration.zero);
+    fibs.playFirstLegalMove();
+    expect(fibs.canMoveNow, isFalse); // committed
+
+    // our next turn arrives as a fresh board with no dice
+    fake.feed(boardLine(turn: '1'));
+    await Future<void>.delayed(Duration.zero);
+    expect(fibs.canMoveNow, isFalse); // stale 6,4 dropped -> nothing to move
+    expect(fibs.canRoll, isTrue); // we must roll fresh
+  });
+
   test('a YouRoll with no fresh board still makes it our turn', () async {
     // FIBS auto-rolls for us after the opponent dances and sends YouRoll
     // WITHOUT a board, leaving the last board showing the opponent on roll.
