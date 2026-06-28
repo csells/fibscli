@@ -64,6 +64,21 @@ class FibsState extends ChangeNotifier {
   var _doubleOffered = false;
   bool get doubleOffered => _doubleOffered;
 
+  // opponents we have an unfinished, saved match with (from `show savedgames`).
+  // A dropped connection (ours or theirs) saves the match; we can resume it.
+  final _savedMatches = <String>{};
+  List<String> get savedMatches => _savedMatches.toList(growable: false);
+
+  // set when an opponent asks to resume a saved match with us (they invited);
+  // we accept by calling [joinGame]. Cleared once a board arrives.
+  String? _resumeRequestFrom;
+  String? get resumeRequestFrom => _resumeRequestFrom;
+
+  // set between games of a match (or to load a resumed match) when FIBS asks us
+  // to type 'join' to continue. Cleared once a board arrives.
+  var _mustJoin = false;
+  bool get mustJoin => _mustJoin;
+
   // the dice we rolled this turn, captured from FIBS_YouRoll. FIBS doesn't
   // always re-send the board with our dice after a roll, so we track them here.
   var _myDice = <int>[];
@@ -168,6 +183,8 @@ class FibsState extends ChangeNotifier {
         _board = FibsBoard.fromCrumbs(cm.crumbs!);
         _gameState = _board!.toGammonState();
         _doubleOffered = false; // a fresh board supersedes a pending offer
+        _resumeRequestFrom = null; // we're in a game now
+        _mustJoin = false;
         // our rolled dice only apply while it's our turn; clear once it isn't
         if (_board!.turnPlayer != myColor) _myDice = [];
         notifyListeners();
@@ -175,6 +192,34 @@ class FibsState extends ChangeNotifier {
       // the opponent doubled us
       case FibsCookie.FIBS_AcceptRejectDouble:
         _doubleOffered = true;
+        notifyListeners();
+
+      // saved (unfinished) matches: a `show savedgames` listing, one per line
+      case FibsCookie.FIBS_SavedMatch:
+        final opp = cm.crumbs!['player1'];
+        if (opp != null && opp.isNotEmpty) {
+          _savedMatches.add(opp);
+          notifyListeners();
+        }
+      case FibsCookie.FIBS_NoSavedGames:
+        _savedMatches.clear();
+        notifyListeners();
+
+      // resume flow: an opponent asks to resume a saved match with us
+      case FibsCookie.FIBS_ResumeMatchRequest:
+        _resumeRequestFrom = cm.crumbs!['name'];
+        notifyListeners();
+      // FIBS asks us to type 'join' (load a resumed match / start next game)
+      case FibsCookie.FIBS_JoinNextGame:
+        _mustJoin = true;
+        notifyListeners();
+      // resume confirmed ("...running match was loaded"); a board will follow.
+      // The opponent is no longer a pending saved match.
+      case FibsCookie.FIBS_ResumeMatchAck0:
+        _savedMatches.remove(cm.crumbs!['opponent']);
+        notifyListeners();
+      case FibsCookie.FIBS_ResumeMatchAck5:
+        _savedMatches.remove(cm.crumbs!['opponent']);
         notifyListeners();
 
       // any other gameplay/lobby chatter is fine to ignore for now rather than
@@ -194,12 +239,32 @@ class FibsState extends ChangeNotifier {
     _conn.send('invite ${bot.user} $matchLength');
   }
 
-  void roll() => _conn.send('roll');
+  // ask FIBS for our unfinished saved matches (populates [savedMatches])
+  void showSavedGames() => _conn.send('show savedgames');
+
+  // resume an unfinished match with [opponent]: inviting a player we have a
+  // saved match with makes FIBS reload it instead of starting a new game. Good
+  // citizenship (and connection-drop recovery) -- always finish saved matches.
+  void resumeSavedMatch(String opponent) => _conn.send('invite $opponent');
+
+  // continue a resumed/next game when FIBS asks us to type 'join' (also accepts
+  // an opponent's resume request tracked in [resumeRequestFrom])
+  void joinGame() {
+    _conn.send('join');
+    _mustJoin = false;
+    _resumeRequestFrom = null;
+  }
+
+  // Only roll when it's actually our turn to roll. These guards are
+  // defense-in-depth: never send a command the server would reject as junk.
+  void roll() {
+    if (canRoll) _conn.send('roll');
+  }
 
   // move one checker one die at a time; the server validates (tap-to-move)
   void move(int fromPip, int toPip) {
     final me = myColor;
-    if (me == null) return;
+    if (me == null || !canMoveNow) return;
     _conn.send(fibsRawMove(fromPip, toPip, me));
   }
 
@@ -217,13 +282,18 @@ class FibsState extends ChangeNotifier {
     return cmd;
   }
 
-  void offerDouble() => _conn.send('double');
+  void offerDouble() {
+    if (canRoll) _conn.send('double'); // double is offered before rolling
+  }
+
   void acceptDouble() {
+    if (!_doubleOffered) return;
     _conn.send('accept');
     _doubleOffered = false;
   }
 
   void rejectDouble() {
+    if (!_doubleOffered) return;
     _conn.send('reject');
     _doubleOffered = false;
   }
@@ -289,6 +359,9 @@ class FibsState extends ChangeNotifier {
     // raw board frames are required for parsing; moreboards is toggled on from
     // CLIP_OWN_INFO below so FIBS sends a board after every roll/move
     _conn.send('set boardstyle 3');
+    // surface any unfinished matches so we can resume them (a dropped
+    // connection -- ours or the opponent's -- saves the match)
+    _conn.send('show savedgames');
     notifyListeners();
   }
 
@@ -306,6 +379,9 @@ class FibsState extends ChangeNotifier {
     _gameState = null;
     _myDice = [];
     _doubleOffered = false;
+    _savedMatches.clear();
+    _resumeRequestFrom = null;
+    _mustJoin = false;
     notifyListeners();
   }
 

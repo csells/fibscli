@@ -1,41 +1,11 @@
-import 'dart:async';
-
 import 'package:fibscli/board_view.dart';
 import 'package:fibscli/fibs_page.dart';
 import 'package:fibscli/fibs_state.dart';
-import 'package:fibscli/fibs_transport.dart';
 import 'package:fibscli/main.dart';
-import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// A scripted transport: feed cookies in, capture commands sent out.
-class FakeTransport implements FibsTransport {
-  final _ctrl = StreamController<CookieMessage>.broadcast();
-  final sent = <String>[];
-  var _connected = false;
-
-  @override
-  Future<FibsCookie> login(String user, String pass) async {
-    _connected = true;
-    return FibsCookie.CLIP_WELCOME;
-  }
-
-  @override
-  void send(String s) => sent.add(s);
-  @override
-  Stream<CookieMessage> get stream => _ctrl.stream;
-  @override
-  Future<void> close() async => _connected = false;
-  @override
-  bool get connected => _connected;
-
-  // feed a parsed cookie as if it arrived from FIBS (run state)
-  void feed(String raw) {
-    final m = CookieMonster()..messageState = CookieMonsterState.FIBS_RUN_STATE;
-    _ctrl.add(m.eatCookie(raw));
-  }
-}
+import 'fake_transport.dart';
 
 // our own game: player1 is the literal "You"; an opening position, our turn (O)
 String boardLine({String turn = '1', String p1dice = '6:3'}) =>
