@@ -17,6 +17,7 @@ class FibsBoard {
     required this.points,
     required this.turnColor,
     required this.player1Color,
+    required this.direction,
     required this.player1Dice,
     required this.player2Dice,
     required this.cube,
@@ -36,6 +37,7 @@ class FibsBoard {
       points: crumbs['board']!.split(':').map(int.parse).toList(),
       turnColor: int.parse(crumbs['turnColor']!),
       player1Color: int.parse(crumbs['player1Color']!),
+      direction: int.parse(crumbs['direction']!),
       player1Dice: dice('player1Dice'),
       player2Dice: dice('player2Dice'),
       cube: int.parse(crumbs['doublingCube']!),
@@ -52,6 +54,12 @@ class FibsBoard {
   final List<int> points; // 26 cells, FIBS frame (positive = O, negative = X)
   final int turnColor; // -1 X to move, 1 O to move, 0 game over
   final int player1Color; // -1 if player1 is X, 1 if player1 is O
+  final int direction; // player1's movement: +1 plays 1->24, -1 plays 24->1
+
+  // The frame matches the engine convention (negative=X moves toward 1, home
+  // 1-6; positive=O moves toward 24, home 19-24) exactly when player1's color
+  // and direction agree; otherwise the board is mirrored (pos i <-> 25-i).
+  bool get isMirrored => player1Color != direction;
   final List<int> player1Dice;
   final List<int> player2Dice;
   final int cube;
