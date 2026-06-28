@@ -48,4 +48,20 @@ void main() {
       expect(fibsMoveCommand(move), 'move bar-4');
     });
   });
+
+  group('fibsRawMove (tap-to-move, milestone 2)', () {
+    test('a plain point-to-point move', () {
+      expect(fibsRawMove(13, 9, GammonPlayer.one), 'move 13-9');
+    });
+
+    test('X bar/off keywords', () {
+      expect(fibsRawMove(25, 22, GammonPlayer.one), 'move bar-22'); // X bar=25
+      expect(fibsRawMove(3, 0, GammonPlayer.one), 'move 3-off'); //    X off=0
+    });
+
+    test('O bar/off keywords', () {
+      expect(fibsRawMove(0, 4, GammonPlayer.two), 'move bar-4'); //    O bar=0
+      expect(fibsRawMove(22, 25, GammonPlayer.two), 'move 22-off'); // O off=25
+    });
+  });
 }

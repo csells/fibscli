@@ -35,3 +35,18 @@ String fibsMoveCommand(GammonMove move) {
 
   return 'move ${hops.join(' ')}';
 }
+
+// A single-die FIBS move from one absolute pip to another, for tap-to-move
+// (the player moves one checker one die at a time and the server validates).
+// [player] is the mover, used to render the bar/off keywords correctly.
+String fibsRawMove(int fromPip, int toPip, GammonPlayer player) {
+  final barPip = GammonRules.barPipNoFor(player);
+  final offPip = GammonRules.offPipNoFor(player);
+  String label(int pip) {
+    if (pip == barPip) return 'bar';
+    if (pip == offPip) return 'off';
+    return '$pip';
+  }
+
+  return 'move ${label(fromPip)}-${label(toPip)}';
+}

@@ -4,6 +4,7 @@ import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/material.dart';
 
 import 'fibs_board.dart';
+import 'fibs_move.dart';
 import 'main.dart';
 import 'model.dart';
 import 'tinystate.dart';
@@ -47,8 +48,32 @@ class FibsState extends ChangeNotifier {
   GammonState? _gameState;
   GammonState? get gameState => _gameState;
 
+  // the raw FIBS board snapshot behind _gameState (turn, dice, names, canMove)
+  FibsBoard? _board;
+  FibsBoard? get board => _board;
+
+  // set when the opponent doubles us and we must accept or reject
+  var _doubleOffered = false;
+  bool get doubleOffered => _doubleOffered;
+
   String? get user => _user;
   bool get connected => _conn.connected;
+
+  // --- play state (only meaningful when we are a player, not just watching) --
+
+  GammonPlayer? get myColor => _board == null || _user == null
+      ? null
+      : _board!.colorFor(_user!);
+
+  bool get isMyTurn =>
+      _board != null && myColor != null && _board!.turnPlayer == myColor;
+
+  // it's our turn and we have dice and checkers we may move
+  bool get canMoveNow => isMyTurn && _board!.activeDice.isNotEmpty &&
+      _board!.canMove > 0;
+
+  // it's our turn but no dice yet -> we must roll (or double)
+  bool get canRoll => isMyTurn && _board!.activeDice.isEmpty;
 
   // A bot is identified by its reported CLIENT string, not its name. Live FIBS
   // data shows bots self-report a bot-framework client while humans report GUI
@@ -107,9 +132,16 @@ class FibsState extends ChangeNotifier {
           cm.crumbs!['message']!,
         ));
 
-      // gameplay: render the live board read-only (milestone 1)
+      // gameplay: track the live board (render + play state)
       case FibsCookie.FIBS_Board:
-        _gameState = FibsBoard.fromCrumbs(cm.crumbs!).toGammonState();
+        _board = FibsBoard.fromCrumbs(cm.crumbs!);
+        _gameState = _board!.toGammonState();
+        _doubleOffered = false; // a fresh board supersedes a pending offer
+        notifyListeners();
+
+      // the opponent doubled us
+      case FibsCookie.FIBS_AcceptRejectDouble:
+        _doubleOffered = true;
         notifyListeners();
 
       // any other gameplay/lobby chatter is fine to ignore for now rather than
@@ -118,6 +150,44 @@ class FibsState extends ChangeNotifier {
       default:
         break;
     }
+  }
+
+  // --- play actions (bots only) ---------------------------------------------
+
+  // invite a bot to a match (precision-first: only bots). Default to a short
+  // 3-point match so the doubling cube matters but games finish quickly.
+  void invite(WhoInfo bot, {int matchLength = 3}) {
+    assert(isBot(bot), 'bots only');
+    _conn.send('invite ${bot.user} $matchLength');
+  }
+
+  void roll() => _conn.send('roll');
+
+  // move one checker one die at a time; the server validates (tap-to-move)
+  void move(int fromPip, int toPip) {
+    final me = myColor;
+    if (me == null) return;
+    _conn.send(fibsRawMove(fromPip, toPip, me));
+  }
+
+  void offerDouble() => _conn.send('double');
+  void acceptDouble() {
+    _conn.send('accept');
+    _doubleOffered = false;
+  }
+
+  void rejectDouble() {
+    _conn.send('reject');
+    _doubleOffered = false;
+  }
+
+  void resign() => _conn.send('resign n'); // resign a normal loss
+
+  void leaveGame() {
+    _conn.send('leave');
+    _board = null;
+    _gameState = null;
+    notifyListeners();
   }
 
   // bots that are free to play (invite targets): bot client, ready, not in a
@@ -136,6 +206,7 @@ class FibsState extends ChangeNotifier {
 
   void watch(WhoInfo who) {
     assert(isBot(who), 'bots only');
+    _board = null;
     _gameState = null;
     _conn.send('watch ${who.user}');
     notifyListeners();
@@ -143,6 +214,7 @@ class FibsState extends ChangeNotifier {
 
   void stopWatching() {
     _conn.send('unwatch');
+    _board = null;
     _gameState = null;
     notifyListeners();
   }
@@ -177,7 +249,9 @@ class FibsState extends ChangeNotifier {
     whoInfos.clear();
     messages.clear();
     _user = null;
+    _board = null;
     _gameState = null;
+    _doubleOffered = false;
     notifyListeners();
   }
 
@@ -195,8 +269,6 @@ class FibsState extends ChangeNotifier {
     }
   }
 
-  void invite(WhoInfo who, int matchLength) =>
-      _conn.send('invite ${who.user} $matchLength');
   void send(String cmd) => _conn.send(cmd);
 }
 

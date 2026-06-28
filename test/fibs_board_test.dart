@@ -87,6 +87,14 @@ void main() {
           GammonPlayer.one);
     });
 
+    test('colorFor maps each player name to its color (player1=X here)', () {
+      final board = FibsBoard.fromCrumbs(parse(fibsBoardLine(opening)).crumbs!);
+      // helper builds xplayer=player1 (color -1 = X), oplayer=player2 (O)
+      expect(board.colorFor('xplayer'), GammonPlayer.one); // X
+      expect(board.colorFor('oplayer'), GammonPlayer.two); // O
+      expect(board.colorFor('a-spectator'), isNull);
+    });
+
     int countOn(List<List<int>> board, int pip, GammonPlayer player) =>
         board[pip].where((id) => GammonRules.playerFor(id) == player).length;
 

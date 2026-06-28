@@ -24,6 +24,9 @@ class FibsBoard {
     required this.player2Off,
     required this.player1Bar,
     required this.player2Bar,
+    required this.player1Name,
+    required this.player2Name,
+    required this.canMove,
   });
 
   factory FibsBoard.fromCrumbs(Map<String, String> crumbs) {
@@ -40,6 +43,9 @@ class FibsBoard {
       player2Off: int.parse(crumbs['player2Home']!),
       player1Bar: int.parse(crumbs['player1Bar']!),
       player2Bar: int.parse(crumbs['player2Bar']!),
+      player1Name: crumbs['player1']!,
+      player2Name: crumbs['player2']!,
+      canMove: int.parse(crumbs['canMove']!),
     );
   }
 
@@ -55,6 +61,22 @@ class FibsBoard {
   final int player2Off;
   final int player1Bar;
   final int player2Bar;
+  final String player1Name; // the client/"you" in this board frame
+  final String player2Name;
+  final int canMove; // 0..4 checkers the player on roll may move
+
+  // The color (and hence GammonPlayer) that [me] plays, by matching the board's
+  // player names. player1 is the frame's "you", with color player1Color.
+  GammonPlayer? colorFor(String me) {
+    if (me == player1Name) {
+      return player1Color == -1 ? GammonPlayer.one : GammonPlayer.two;
+    }
+    if (me == player2Name) {
+      // player2 is the opposite color of player1
+      return player1Color == -1 ? GammonPlayer.two : GammonPlayer.one;
+    }
+    return null; // we're only watching, not playing
+  }
 
   bool get _player1IsX => player1Color == -1;
 
