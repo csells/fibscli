@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_close_stub.dart' if (dart.library.html) 'app_close_web.dart';
 import 'fibs_page.dart';
 import 'fibs_state.dart';
 import 'game_play_page.dart';
@@ -30,6 +31,12 @@ class _AppState extends State<App> {
     unawaited(
       SharedPreferences.getInstance().then((prefs) => App.prefs.value = prefs),
     );
+
+    // On web, send FIBS a courtesy `bye` when the tab closes. Best-effort: a
+    // dropped connection ends the session regardless (see app_close_web.dart).
+    onAppClose(() {
+      if (App.fibs.loggedIn) App.fibs.send('bye');
+    });
   }
 
   @override

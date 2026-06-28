@@ -439,7 +439,15 @@ class FibsState extends ChangeNotifier {
 
   Future<void> logout() async {
     if (loggedIn) _conn.send('bye');
-    await App.prefs.value!.setBool('autologin', false);
+    // an explicit logout means "don't auto-reconnect": forget the remembered
+    // password so the next launch shows the login screen instead of signing
+    // back in. (Closing the tab is a different thing -- it keeps remember.)
+    final prefs = App.prefs.value;
+    if (prefs != null) {
+      await prefs.setBool('autologin', false);
+      await prefs.setBool('remember', false);
+      await prefs.remove('pass');
+    }
     _reset();
   }
 

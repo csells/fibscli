@@ -60,6 +60,12 @@ class _Creds {
 
   static bool remember() => App.prefs.value?.getBool('remember') ?? false;
 
+  // Connect without the user clicking: either creds were baked in at build time
+  // (--dart-define), or they checked "remember my password" on a prior session
+  // (so we have saved creds to reconnect with on app launch).
+  static bool get shouldAutologin =>
+      hasConfig || (remember() && user() != null && pass() != null);
+
   static Future<void> save(String user, String pass,
       {required bool remember}) async {
     final prefs = App.prefs.value!;
@@ -90,12 +96,38 @@ class _LoginViewState extends State<_LoginView> {
   @override
   void initState() {
     super.initState();
-    // auto-connect when credentials were provided at build time (--dart-define)
-    // so an automated / kiosk client connects without a human typing them
-    if (_Creds.hasConfig && !App.fibs.loggedIn) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => unawaited(_login()));
-    }
+    _autologinIfReady();
+    // SharedPreferences may still be loading; if so, retry (and backfill the
+    // prefilled fields) once it arrives so remembered creds can auto-connect.
+    if (App.prefs.value == null) App.prefs.addListener(_onPrefsLoaded);
+  }
+
+  void _onPrefsLoaded() {
+    if (App.prefs.value == null) return;
+    App.prefs.removeListener(_onPrefsLoaded);
+    if (!mounted) return;
+    setState(() {
+      if (_user.text.isEmpty) _user.text = _Creds.user() ?? '';
+      if (_pass.text.isEmpty) _pass.text = _Creds.pass() ?? '';
+      _remember = _Creds.remember();
+    });
+    _autologinIfReady();
+  }
+
+  // connect on our own when we have usable creds (baked-in or remembered)
+  void _autologinIfReady() {
+    if (App.fibs.loggedIn || _busy || !_Creds.shouldAutologin) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !App.fibs.loggedIn && !_busy) unawaited(_login());
+    });
+  }
+
+  @override
+  void dispose() {
+    App.prefs.removeListener(_onPrefsLoaded);
+    _user.dispose();
+    _pass.dispose();
+    super.dispose();
   }
 
   Future<void> _login() async {
