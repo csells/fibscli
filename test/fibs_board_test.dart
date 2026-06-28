@@ -99,6 +99,33 @@ void main() {
       expect(countOn(board, 0, GammonPlayer.two), 1);
     });
 
+    test('a real captured server frame maps to a valid 15-vs-15 board', () {
+      // captured live from FIBS watching BlunderBot_IX vs cosmicrocker.
+      // player1Color is 1 here (player1 is O), which exercises the color-aware
+      // routing of the off/bar count fields — a flat player1=X assumption
+      // produces an invalid 14/16 board.
+      const frame = 'board:BlunderBot_IX:cosmicrocker:3:1:1:0:1:4:1:0:3:1:0:0'
+          ':0:0:0:0:0:0:0:0:0:0:-4:-2:-2:-1:0:0:0:-1:0:0:0:0:2:0:1:0:1:-1:0:25'
+          ':5:6:0:0:2:1:0:0';
+      final cm = parse(frame);
+      expect(cm.cookie, FibsCookie.FIBS_Board);
+      final board = FibsBoard.fromCrumbs(cm.crumbs!).toGammonState().board;
+
+      var x = 0;
+      var o = 0;
+      for (final pip in board) {
+        for (final id in pip) {
+          if (GammonRules.playerFor(id) == GammonPlayer.one) {
+            x++;
+          } else {
+            o++;
+          }
+        }
+      }
+      expect(x, 15, reason: 'X (player1, negative) checkers');
+      expect(o, 15, reason: 'O (player2, positive) checkers');
+    });
+
     test('borne-off counts land in the off trays', () {
       final cm = parse(fibsBoardLine(opening, xOff: 3, oOff: 2));
       final board = FibsBoard.fromCrumbs(cm.crumbs!).toGammonState().board;

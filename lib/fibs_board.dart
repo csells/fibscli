@@ -16,13 +16,14 @@ class FibsBoard {
   FibsBoard({
     required this.points,
     required this.turnColor,
-    required this.xDice,
-    required this.oDice,
+    required this.player1Color,
+    required this.player1Dice,
+    required this.player2Dice,
     required this.cube,
-    required this.xOff,
-    required this.oOff,
-    required this.xBar,
-    required this.oBar,
+    required this.player1Off,
+    required this.player2Off,
+    required this.player1Bar,
+    required this.player2Bar,
   });
 
   factory FibsBoard.fromCrumbs(Map<String, String> crumbs) {
@@ -31,35 +32,47 @@ class FibsBoard {
     return FibsBoard(
       points: crumbs['board']!.split(':').map(int.parse).toList(),
       turnColor: int.parse(crumbs['turnColor']!),
-      xDice: dice('player1Dice'),
-      oDice: dice('player2Dice'),
+      player1Color: int.parse(crumbs['player1Color']!),
+      player1Dice: dice('player1Dice'),
+      player2Dice: dice('player2Dice'),
       cube: int.parse(crumbs['doublingCube']!),
-      xOff: int.parse(crumbs['player1Home']!),
-      oOff: int.parse(crumbs['player2Home']!),
-      xBar: int.parse(crumbs['player1Bar']!),
-      oBar: int.parse(crumbs['player2Bar']!),
+      player1Off: int.parse(crumbs['player1Home']!),
+      player2Off: int.parse(crumbs['player2Home']!),
+      player1Bar: int.parse(crumbs['player1Bar']!),
+      player2Bar: int.parse(crumbs['player2Bar']!),
     );
   }
 
   final List<int> points; // 26 cells, FIBS frame (positive = O, negative = X)
   final int turnColor; // -1 X to move, 1 O to move, 0 game over
-  final List<int> xDice; // player1 (X) dice
-  final List<int> oDice; // player2 (O) dice
+  final int player1Color; // -1 if player1 is X, 1 if player1 is O
+  final List<int> player1Dice;
+  final List<int> player2Dice;
   final int cube;
-  final int xOff; // X checkers borne off
-  final int oOff; // O checkers borne off
-  final int xBar; // X checkers on the bar
-  final int oBar; // O checkers on the bar
+  // off/bar counts are keyed to player1/player2, NOT to color, so they must be
+  // routed to X or O using player1Color.
+  final int player1Off;
+  final int player2Off;
+  final int player1Bar;
+  final int player2Bar;
+
+  bool get _player1IsX => player1Color == -1;
+
+  int get xOff => _player1IsX ? player1Off : player2Off;
+  int get oOff => _player1IsX ? player2Off : player1Off;
+  int get xBar => _player1IsX ? player1Bar : player2Bar;
+  int get oBar => _player1IsX ? player2Bar : player1Bar;
 
   GammonPlayer? get turnPlayer => turnColor == -1
-      ? GammonPlayer.one
+      ? GammonPlayer.one // X
       : turnColor == 1
-          ? GammonPlayer.two
+          ? GammonPlayer.two // O
           : null;
 
-  // the dice of whoever is on roll (empty until someone has rolled)
+  // the dice of whoever is on roll (the player whose color == turnColor),
+  // empty until someone has rolled
   List<int> get activeDice {
-    final dice = turnColor == -1 ? xDice : oDice;
+    final dice = turnColor == player1Color ? player1Dice : player2Dice;
     return dice.any((d) => d == 0) ? const [] : dice;
   }
 
