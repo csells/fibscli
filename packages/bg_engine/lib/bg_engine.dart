@@ -4,6 +4,7 @@ library;
 
 export 'src/ai/ai_registry.dart';
 export 'src/ai/bg_ai_player.dart';
+export 'src/ai/gnubg_ai_player.dart';
 export 'src/ai/pubeval_ai_player.dart';
 export 'src/pubeval.dart';
 export 'src/race_eval.dart';
