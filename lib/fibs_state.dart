@@ -205,8 +205,9 @@ class FibsState extends ChangeNotifier {
   // automate.
   String? playFirstLegalMove() {
     if (_board == null || !canMoveNow) return null;
-    // FIBS wants the whole turn in one command, so play a complete legal turn
-    final cmd = FibsPlay.fullTurnCommand(_board!, dice: _effectiveDice);
+    // FIBS wants the whole turn in one command; pick the best complete turn
+    final cmd = FibsPlay.bestTurnCommand(_board!, dice: _effectiveDice) ??
+        FibsPlay.fullTurnCommand(_board!, dice: _effectiveDice);
     if (cmd == null) return null;
     _conn.send(cmd);
     return cmd;
