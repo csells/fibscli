@@ -12,11 +12,18 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: GamePlayPage(aiSide: GammonPlayer.two, ai: PubevalAiPlayer()),
+        home: GamePlayPage(
+          aiSide: GammonPlayer.two,
+          ai: PubevalAiPlayer(),
+          // zero pacing so the AI turn (if it's on roll) completes during
+          // pumpAndSettle and leaves no pending timer -> deterministic.
+          aiThinkDelay: Duration.zero,
+          aiMoveDelay: Duration.zero,
+        ),
       ),
     );
     // let the opening roll resolve and, if the AI is on roll, play its turn
-    await tester.pumpAndSettle(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
     expect(find.byType(GameView), findsOneWidget);
     expect(tester.takeException(), isNull); // no crash driving the AI side

@@ -16,7 +16,13 @@ import 'pips.dart';
 import 'tinystate.dart';
 
 class GamePlayPage extends StatefulWidget {
-  const GamePlayPage({super.key, this.aiSide, this.ai});
+  const GamePlayPage({
+    super.key,
+    this.aiSide,
+    this.ai,
+    this.aiThinkDelay = const Duration(milliseconds: 600),
+    this.aiMoveDelay = const Duration(milliseconds: 250),
+  });
 
   /// When non-null, the computer plays this side using [ai] (1-player mode).
   /// Null means the standard 2-player hot-seat game.
@@ -24,6 +30,12 @@ class GamePlayPage extends StatefulWidget {
 
   /// The AI engine driving [aiSide] (ignored when [aiSide] is null).
   final BgAiPlayer? ai;
+
+  /// Pause before the AI starts moving (overridable for tests).
+  final Duration aiThinkDelay;
+
+  /// Pause between the AI's individual checker moves (overridable for tests).
+  final Duration aiMoveDelay;
 
   @override
   _GamePlayPageState createState() => _GamePlayPageState();
@@ -111,6 +123,8 @@ class _GamePlayPageState extends State<GamePlayPage> {
               controller: _controller,
               aiSide: widget.aiSide,
               ai: widget.ai,
+              aiThinkDelay: widget.aiThinkDelay,
+              aiMoveDelay: widget.aiMoveDelay,
             ),
           ),
         ),
@@ -166,8 +180,14 @@ class GameViewController extends ChangeNotifier {
 }
 
 class GameView extends StatefulWidget {
-  GameView({super.key, GameViewController? controller, this.aiSide, this.ai})
-    : controller = controller ?? GameViewController();
+  GameView({
+    super.key,
+    GameViewController? controller,
+    this.aiSide,
+    this.ai,
+    this.aiThinkDelay = const Duration(milliseconds: 600),
+    this.aiMoveDelay = const Duration(milliseconds: 250),
+  }) : controller = controller ?? GameViewController();
   final GameViewController controller;
 
   /// When non-null, the computer plays this side using [ai].
@@ -175,6 +195,12 @@ class GameView extends StatefulWidget {
 
   /// The AI engine driving [aiSide].
   final BgAiPlayer? ai;
+
+  /// Pause before the AI starts moving.
+  final Duration aiThinkDelay;
+
+  /// Pause between the AI's individual checker moves.
+  final Duration aiMoveDelay;
 
   @override
   _GameViewState createState() => _GameViewState();
@@ -245,14 +271,14 @@ class _GameViewState extends State<GameView> {
     if (_game!.turnPlayer != widget.aiSide) return;
     _aiBusy = true;
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 600));
+      await _pace(widget.aiThinkDelay);
       if (!mounted || _game == null || _game!.gameOver) return;
       if (_game!.turnPlayer != widget.aiSide) return;
       final turn = await widget.ai!.chooseTurn(positionFromState(_game!));
       for (final move in turn.moves) {
         if (!mounted || _game!.gameOver) break;
         await _applyMoveAnimated(move);
-        await Future<void>.delayed(const Duration(milliseconds: 250));
+        await _pace(widget.aiMoveDelay);
       }
       if (mounted && _game != null && !_game!.gameOver) {
         _game!.commitTurn();
@@ -262,6 +288,11 @@ class _GameViewState extends State<GameView> {
       _aiBusy = false;
     }
   }
+
+  // Pace the AI: a real delay when positive, but a plain microtask when zero so
+  // a zero-paced AI (in tests) leaves no pending timer to trip teardown.
+  Future<void> _pace(Duration d) =>
+      d > Duration.zero ? Future<void>.delayed(d) : Future<void>.value();
 
   Future<void> _gameChanged() async {
     if (!_game!.gameOver) return;

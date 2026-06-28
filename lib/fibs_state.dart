@@ -6,11 +6,16 @@ import 'package:logging/logging.dart';
 
 import 'bot_policy.dart';
 import 'fibs_board.dart';
+import 'fibs_lobby.dart';
 import 'fibs_move.dart';
 import 'fibs_play.dart';
 import 'fibs_transport.dart';
 import 'model.dart';
 import 'tinystate.dart';
+
+// WhoInfo/FibsLobby moved to fibs_lobby.dart; re-export so importers of
+// fibs_state (the UI, tests) still see WhoInfo unchanged.
+export 'fibs_lobby.dart' show FibsLobby, WhoInfo;
 
 final _log = Logger('fibs');
 
@@ -51,7 +56,9 @@ class FibsState extends ChangeNotifier {
   // Inject a transport (e.g. a fake) to drive the state without a live server.
   FibsState.withTransport(this._conn);
 
-  final whoInfos = NotifierList<WhoInfo>();
+  // the FIBS lobby roster (who-list + bot-only invite/watch queries)
+  final lobby = FibsLobby();
+  NotifierList<WhoInfo> get whoInfos => lobby.entries;
   final messages = NotifierList<FibsMessage>();
   final FibsTransport _conn;
   StreamSubscription<CookieMessage>? _sub;
@@ -155,8 +162,8 @@ class FibsState extends ChangeNotifier {
   // Cookie -> handler. A map (not a switch) so there's no enum default to
   // suppress and each concern reads as its own small unit.
   late final Map<FibsCookie, void Function(CookieMessage)> _handlers = {
-    FibsCookie.CLIP_WHO_INFO: (cm) => _addWho(WhoInfo.from(cm)),
-    FibsCookie.CLIP_LOGOUT: (cm) => _removeWho(cm.crumbs!['name']!),
+    FibsCookie.CLIP_WHO_INFO: (cm) => lobby.upsert(WhoInfo.from(cm)),
+    FibsCookie.CLIP_LOGOUT: (cm) => lobby.remove(cm.crumbs!['name']!),
     FibsCookie.CLIP_KIBITZES: _onChatMessage,
     FibsCookie.CLIP_MESSAGE: _onChatMessage,
     FibsCookie.CLIP_SAYS: _onChatMessage,
@@ -360,19 +367,9 @@ class FibsState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // bots that are free to play (invite targets): bot client, ready, not in a
-  // game. Precision-first so we only ever invite a bot, never a human.
-  List<WhoInfo> get availableBots => [
-    for (final who in whoInfos)
-      if (isBot(who) && who.ready && who.opponent.isEmpty) who,
-  ];
-
-  // bots currently in a game that can be watched (their opponent may be human,
-  // which is fine for watching)
-  List<WhoInfo> get watchableBots => [
-    for (final who in whoInfos)
-      if (isBot(who) && who.opponent.isNotEmpty) who,
-  ];
+  // free bot invite targets / watchable in-game bots (delegated to the lobby)
+  List<WhoInfo> get availableBots => lobby.availableBots;
+  List<WhoInfo> get watchableBots => lobby.watchableBots;
 
   void watch(WhoInfo who) {
     assert(isBot(who), 'bots only');
@@ -454,7 +451,7 @@ class FibsState extends ChangeNotifier {
   }
 
   void _reset() {
-    whoInfos.clear();
+    lobby.clear();
     messages.clear();
     _user = null;
     _board = null;
@@ -469,118 +466,5 @@ class FibsState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _addWho(WhoInfo whoInfo) {
-    _removeWho(whoInfo.user);
-    whoInfos.add(whoInfo);
-  }
-
-  void _removeWho(String user) {
-    for (var i = 0; i != whoInfos.length; ++i) {
-      if (whoInfos[i].user == user) {
-        whoInfos.removeAt(i);
-        break;
-      }
-    }
-  }
-
   void send(String cmd) => _conn.send(cmd);
-}
-
-// flutter: {
-//  cookie: FibsCookie.CLIP_WHO_INFO,
-//
-//  crumbs: {
-//    name: chris,
-//    opponent: -,
-//    watching: -,
-//    ready: 1,
-//    away: 0,
-//    rating: 1500.0,
-//    experience: 0,
-//    idle: 0,
-//    login: 1601853512515,
-//    hostName: localhost,
-//    client: flutter-fibs,
-//    email: -
-//  }
-//
-// name: 	The login name for the user this line is referring to.
-//
-// opponent: 	The login name of the person the user is currently playing
-//  against, or a hyphen if they are not playing anyone.
-//
-// watching: 	The login name of the person the user is currently watching,
-//  or a hyphen if they are not watching anyone.
-//
-// ready: 	1 if the user is ready to start playing, 0 if not.
-//  Note that the ready status can be set to 1 even while the user is playing
-//  a game and thus, technically unavailable. Refer to Toggle Ready.
-//
-// away: 	1 for yes, 0 for no. Refer to Away.
-//
-// rating: 	The user's rating as a number with two decimal places.
-//
-// experience: 	The user's experience.
-//
-// idle: 	The number of seconds the user has been idle.
-//
-// login: 	The time the user logged in as the number of seconds since
-//  midnight, January 1, 1970 UTC.
-//
-// hostname: 	The host name or IP address the user is logged in from.
-//  Note that the host name can change from an IP address to a host name due
-//  to the way FIBS host name resolving works.
-//
-// client: 	The client the user is using (see login) or a hyphen if not
-//  specified. See notes below.
-//
-// email: 	The user's email address, or a hyphen if not specified.
-//  Refer to Address.
-class WhoInfo {
-  WhoInfo({
-    required this.user,
-    required this.opponent,
-    required this.watching,
-    required this.ready,
-    required this.away,
-    required this.rating,
-    required this.experience,
-    required this.lastActive,
-    required this.lastLogin,
-    required this.hostname,
-    required this.client,
-    required this.email,
-  });
-
-  factory WhoInfo.from(CookieMessage cm) {
-    assert(cm.cookie == FibsCookie.CLIP_WHO_INFO);
-    return WhoInfo(
-      user: cm.crumbs!['name']!,
-      opponent: CookieMonster.parseOptional(cm.crumbs!['opponent']!) ?? '',
-      watching: CookieMonster.parseOptional(cm.crumbs!['watching']!) ?? '',
-      ready: CookieMonster.parseBool(cm.crumbs!['ready']),
-      away: CookieMonster.parseBool(cm.crumbs!['away']),
-      rating: double.parse(cm.crumbs!['rating']!),
-      experience: int.parse(cm.crumbs!['experience']!),
-      lastActive: DateTime.now().add(
-        Duration(seconds: int.parse(cm.crumbs!['idle']!)),
-      ),
-      lastLogin: CookieMonster.parseTimestamp(cm.crumbs!['login']!),
-      hostname: cm.crumbs!['hostname'] ?? '',
-      client: CookieMonster.parseOptional(cm.crumbs!['client']!) ?? '',
-      email: CookieMonster.parseOptional(cm.crumbs!['email']!) ?? '',
-    );
-  }
-  final String user;
-  final String opponent;
-  final String watching;
-  final bool ready;
-  final bool away;
-  final double rating;
-  final int experience;
-  final DateTime lastActive;
-  final DateTime lastLogin;
-  final String hostname;
-  final String client;
-  final String email;
 }
