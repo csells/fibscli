@@ -1,4 +1,3 @@
-import 'dice.dart';
 import 'fibs_board.dart';
 import 'model.dart';
 
@@ -13,8 +12,9 @@ class FibsPlay {
   // FIBS pos <-> engine pos under the frame's orientation (self-inverse)
   static int _pos(FibsBoard fb, int p) => fb.isMirrored ? 25 - p : p;
 
-  // Build the position in the engine's canonical frame from a FIBS board.
-  static GammonState _canonicalState(FibsBoard fb, List<int> dice) {
+  // Build the position in the engine's canonical frame from a FIBS board, as a
+  // mutable board the engine can apply moves to.
+  static List<List<int>> _canonicalBoard(FibsBoard fb) {
     final board = List<List<int>>.generate(26, (_) => <int>[]);
     var nx = 0;
     var no = 0;
@@ -35,24 +35,47 @@ class FibsPlay {
     place(0, fb.oBar);
     place(0, -fb.xOff);
     place(25, fb.oOff);
-
-    return GammonState.from(
-      board: board,
-      dice: dice.map(DieState.new).toList(),
-      turnPlayer: fb.turnPlayer,
-    );
+    return board;
   }
 
-  // Every legal move for the on-roll player, as FIBS `move` commands.
+  // Every individual legal move for the on-roll player, as FIBS `move` commands
+  // (used for highlighting/validation, not for committing a turn).
   static List<String> legalMoveCommands(FibsBoard fb, {List<int>? dice}) {
     final d = dice ?? fb.activeDice;
     if (d.isEmpty || fb.turnPlayer == null) return const [];
-    final game = _canonicalState(fb, d);
-    final byPip = GammonRules.getForcedLegalMoves(game.board, fb.turnPlayer, d);
+    final byPip =
+        GammonRules.getForcedLegalMoves(_canonicalBoard(fb), fb.turnPlayer, d);
     return [
       for (final moves in byPip.values)
         for (final m in moves) commandFor(fb, m),
     ];
+  }
+
+  // A COMPLETE legal turn for the on-roll player as one FIBS `move` command --
+  // FIBS requires the whole turn at once (e.g. "move 24-18 13-11"), not one die
+  // at a time. Greedily plays forced-legal moves until the dice are spent.
+  static String? fullTurnCommand(FibsBoard fb, {List<int>? dice}) {
+    final remaining = List<int>.of(dice ?? fb.activeDice);
+    if (remaining.isEmpty || fb.turnPlayer == null) return null;
+    final board = _canonicalBoard(fb);
+    final player = fb.turnPlayer!;
+
+    final chosen = <GammonMove>[];
+    while (remaining.isNotEmpty) {
+      final byPip = GammonRules.getForcedLegalMoves(board, player, remaining);
+      if (byPip.isEmpty) break;
+      final move = byPip.values.first.first;
+      GammonRules.applyMove(board, move);
+      chosen.add(move);
+      for (final hop in move.hops) {
+        remaining.remove(hop.abs());
+      }
+    }
+    if (chosen.isEmpty) return null;
+    // each commandFor yields "move a-b ..."; merge into one command
+    final parts =
+        chosen.map((m) => commandFor(fb, m).substring('move '.length));
+    return 'move ${parts.join(' ')}';
   }
 
   // Translate one canonical GammonMove into a FIBS `move` command, mapping each

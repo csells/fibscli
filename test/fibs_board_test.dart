@@ -95,6 +95,13 @@ void main() {
       expect(board.colorFor('a-spectator'), isNull);
     });
 
+    test('colorFor treats the literal "You" as us in our own game', () {
+      // in our own game FIBS names player1 "You" regardless of our username
+      final line = fibsBoardLine(opening).replaceFirst('xplayer', 'You');
+      final board = FibsBoard.fromCrumbs(parse(line).crumbs!);
+      expect(board.colorFor('joe_grammer'), GammonPlayer.one); // player1=X
+    });
+
     int countOn(List<List<int>> board, int pip, GammonPlayer player) =>
         board[pip].where((id) => GammonRules.playerFor(id) == player).length;
 

@@ -37,5 +37,16 @@ void main() {
         expect(c, startsWith('move '));
       }
     });
+
+    test('fullTurnCommand spends both dice in one command', () {
+      final fb = parseBoard(beforeBlunderMove);
+      final cmd = FibsPlay.fullTurnCommand(fb, dice: const [4, 2])!;
+      expect(cmd, startsWith('move '));
+      final pairs = cmd.substring('move '.length).split(' ');
+      expect(pairs.length, greaterThanOrEqualTo(2)); // both dice used
+      for (final p in pairs) {
+        expect(p, matches(RegExp(r'^(bar|off|\d+)-(bar|off|\d+)$')));
+      }
+    });
   });
 }

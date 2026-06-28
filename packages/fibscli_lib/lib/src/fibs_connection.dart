@@ -32,6 +32,10 @@ class FibsConnection {
   final _streamController = StreamController<CookieMessage>();
   WebSocketChannel? _channel;
   final _monster = CookieMonster();
+  // Carries an incomplete trailing line between websocket frames. FIBS lines
+  // can be split across frames (TCP boundaries / a slow server), so we must
+  // only parse complete, newline-terminated lines and buffer the remainder.
+  String _residual = '';
   Completer<FibsCookie>? _loginCompleter;
   _LoginState? _loginState;
 
@@ -55,6 +59,7 @@ class FibsConnection {
   Future<FibsCookie> login(String user, String pass) {
     assert(!connected);
 
+    _residual = ''; // start with a clean line buffer
     _channel = WebSocketChannel.connect(Uri.parse('ws://$_proxy:$_port'));
 
     _channel!.stream.listen(
@@ -143,8 +148,15 @@ class FibsConnection {
   Iterable<CookieMessage> _receive(String message) sync* {
     dev.log('RECEIVE: $message');
 
-    final lines = message.split('\n');
-    for (final line in lines) {
+    // Prepend any partial line from the previous frame, then split on newlines.
+    // In the run state (who-list, boards), hold back an incomplete trailing
+    // line so it can be completed by the next frame; during login the prompt
+    // ("login: ") has no trailing newline and must be processed immediately.
+    final parts = (_residual + message).split('\n');
+    final buffering =
+        _monster.messageState == CookieMonsterState.FIBS_RUN_STATE;
+    _residual = buffering ? parts.removeLast() : '';
+    for (final line in parts) {
       final cm = _monster.eatCookie(line.replaceAll('\r', ''));
       _streamController.add(cm);
       yield cm;

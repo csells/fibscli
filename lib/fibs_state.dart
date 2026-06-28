@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'fibs_board.dart';
 import 'fibs_move.dart';
+import 'fibs_play.dart';
 import 'main.dart';
 import 'model.dart';
 import 'tinystate.dart';
@@ -36,7 +37,10 @@ class FibsMessage {
 }
 
 class FibsState extends ChangeNotifier {
-  FibsState() : _conn = FibsConnection('localhost', 8080);
+  // The proxy host/port the websocat bridge listens on (see README). Defaults
+  // to the local bridge; overridable so tooling can target 127.0.0.1 directly.
+  FibsState({String proxy = 'localhost', int port = 8080})
+      : _conn = FibsConnection(proxy, port);
 
   final whoInfos = NotifierList<WhoInfo>();
   final messages = NotifierList<FibsMessage>();
@@ -56,6 +60,10 @@ class FibsState extends ChangeNotifier {
   var _doubleOffered = false;
   bool get doubleOffered => _doubleOffered;
 
+  // the dice we rolled this turn, captured from FIBS_YouRoll. FIBS doesn't
+  // always re-send the board with our dice after a roll, so we track them here.
+  var _myDice = <int>[];
+
   String? get user => _user;
   bool get connected => _conn.connected;
 
@@ -68,12 +76,20 @@ class FibsState extends ChangeNotifier {
   bool get isMyTurn =>
       _board != null && myColor != null && _board!.turnPlayer == myColor;
 
+  // the dice we have to play: the board's dice if present (e.g. the opening),
+  // otherwise the dice we just rolled (FIBS_YouRoll)
+  List<int> get _effectiveDice {
+    if (_board == null) return const [];
+    final boardDice = _board!.activeDice;
+    if (boardDice.isNotEmpty) return boardDice;
+    return isMyTurn ? _myDice : const [];
+  }
+
   // it's our turn and we have dice and checkers we may move
-  bool get canMoveNow => isMyTurn && _board!.activeDice.isNotEmpty &&
-      _board!.canMove > 0;
+  bool get canMoveNow => isMyTurn && _effectiveDice.isNotEmpty;
 
   // it's our turn but no dice yet -> we must roll (or double)
-  bool get canRoll => isMyTurn && _board!.activeDice.isEmpty;
+  bool get canRoll => isMyTurn && _effectiveDice.isEmpty;
 
   // A bot is identified by its reported CLIENT string, not its name. Live FIBS
   // data shows bots self-report a bot-framework client while humans report GUI
@@ -110,8 +126,12 @@ class FibsState extends ChangeNotifier {
   static bool isBot(WhoInfo who) =>
       _botClients.contains(who.client) || _knownBotNames.contains(who.user);
 
+  // optional observer of every incoming cookie (debugging / diagnostics)
+  void Function(CookieMessage cm)? cookieObserver;
+
   void _streamItem(CookieMessage cm) {
     dev.log(cm.toString());
+    cookieObserver?.call(cm);
 
     switch (cm.cookie) {
       // who
@@ -132,11 +152,20 @@ class FibsState extends ChangeNotifier {
           cm.crumbs!['message']!,
         ));
 
+      // we rolled: capture our dice (FIBS may not re-send the board with them)
+      case FibsCookie.FIBS_YouRoll:
+        final d1 = int.parse(cm.crumbs!['die1']!);
+        final d2 = int.parse(cm.crumbs!['die2']!);
+        _myDice = d1 == d2 ? [d1, d1, d1, d1] : [d1, d2];
+        notifyListeners();
+
       // gameplay: track the live board (render + play state)
       case FibsCookie.FIBS_Board:
         _board = FibsBoard.fromCrumbs(cm.crumbs!);
         _gameState = _board!.toGammonState();
         _doubleOffered = false; // a fresh board supersedes a pending offer
+        // our rolled dice only apply while it's our turn; clear once it isn't
+        if (_board!.turnPlayer != myColor) _myDice = [];
         notifyListeners();
 
       // the opponent doubled us
@@ -170,6 +199,19 @@ class FibsState extends ChangeNotifier {
     _conn.send(fibsRawMove(fromPip, toPip, me));
   }
 
+  // Play a legal move for us automatically (drives an assisted/auto game).
+  // Picks the first legal move from the engine and sends it; returns the
+  // command sent, or null if there's nothing to play. Bots-only, so safe to
+  // automate.
+  String? playFirstLegalMove() {
+    if (_board == null || !canMoveNow) return null;
+    // FIBS wants the whole turn in one command, so play a complete legal turn
+    final cmd = FibsPlay.fullTurnCommand(_board!, dice: _effectiveDice);
+    if (cmd == null) return null;
+    _conn.send(cmd);
+    return cmd;
+  }
+
   void offerDouble() => _conn.send('double');
   void acceptDouble() {
     _conn.send('accept');
@@ -187,6 +229,7 @@ class FibsState extends ChangeNotifier {
     _conn.send('leave');
     _board = null;
     _gameState = null;
+    _myDice = [];
     notifyListeners();
   }
 
@@ -208,6 +251,7 @@ class FibsState extends ChangeNotifier {
     assert(isBot(who), 'bots only');
     _board = null;
     _gameState = null;
+    _myDice = [];
     _conn.send('watch ${who.user}');
     notifyListeners();
   }
@@ -216,6 +260,7 @@ class FibsState extends ChangeNotifier {
     _conn.send('unwatch');
     _board = null;
     _gameState = null;
+    _myDice = [];
     notifyListeners();
   }
 
@@ -236,6 +281,9 @@ class FibsState extends ChangeNotifier {
     }
 
     _user = user;
+    // raw board frames are required for parsing; moreboards is toggled on from
+    // CLIP_OWN_INFO below so FIBS sends a board after every roll/move
+    _conn.send('set boardstyle 3');
     notifyListeners();
   }
 
@@ -251,6 +299,7 @@ class FibsState extends ChangeNotifier {
     _user = null;
     _board = null;
     _gameState = null;
+    _myDice = [];
     _doubleOffered = false;
     notifyListeners();
   }

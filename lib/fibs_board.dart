@@ -74,12 +74,13 @@ class FibsBoard {
   final int canMove; // 0..4 checkers the player on roll may move
 
   // The color (and hence GammonPlayer) that [me] plays, by matching the board's
-  // player names. player1 is the frame's "you", with color player1Color.
+  // player names. In our OWN game FIBS names player1 the literal "You"; when
+  // watching it's the real player name (and we match neither -> null).
   GammonPlayer? colorFor(String me) {
-    if (me == player1Name) {
+    if (player1Name == 'You' || player1Name == me) {
       return player1Color == -1 ? GammonPlayer.one : GammonPlayer.two;
     }
-    if (me == player2Name) {
+    if (player2Name == 'You' || player2Name == me) {
       // player2 is the opposite color of player1
       return player1Color == -1 ? GammonPlayer.two : GammonPlayer.one;
     }
