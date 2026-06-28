@@ -63,11 +63,24 @@ class FibsState extends ChangeNotifier {
     'Computer_player', // octopus, pubeval, PureTD
     'bot_1p_matches_only', // wildbg, udacity_capstone
   };
-  // Confirmed bots that report no client ('-'). FIBS has no protocol "isBot"
-  // flag, so for these the community relies on the curated fibs.com/bots.html
-  // list. MonteCarlo is a long-standing 1-point-match bot (confirmed via
-  // research); names are unique on FIBS so matching the exact name is safe.
-  static const _knownBotNames = <String>{'MonteCarlo'};
+  // Belt-and-suspenders for bots that might report no client (FIBS has no
+  // protocol "isBot" flag). The client allowlist above already auto-catches the
+  // whole live roster; these are confirmed exact bot names (from the live
+  // who-list plus research against the fibs.com/bots.html and ParlorBot
+  // rosters) so a known bot is still caught if its client field is missing.
+  // MonteCarlo is the key case: a 1-point-match bot that reports no client.
+  // Numbered variants (BlunderBot_IX, GammonBot_XV, ...) are covered by the
+  // client allowlist, so only base/singleton names are listed. Names are unique
+  // on FIBS, so exact-name matching never catches a human.
+  static const _knownBotNames = <String>{
+    'MonteCarlo',
+    'BlunderBot',
+    'GammonBot',
+    'octopus',
+    'pubeval',
+    'PureTD',
+    'wildbg',
+  };
 
   static bool isBot(WhoInfo who) =>
       _botClients.contains(who.client) || _knownBotNames.contains(who.user);
