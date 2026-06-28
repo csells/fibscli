@@ -50,8 +50,23 @@ class FibsState extends ChangeNotifier {
   String? get user => _user;
   bool get connected => _conn.connected;
 
-  // FIBS users whose name marks them as a bot (the existing heuristic)
-  static bool isBot(String user) => user.contains('Bot');
+  // A bot is identified by its reported CLIENT string, not its name. Live FIBS
+  // data shows bots self-report a bot-framework client while humans report GUI
+  // clients (3DFiBs, MGOnline, Padgammon, FIBzilla, ...). Name is unreliable
+  // both ways: it misses bots like octopus/pubeval/wildbg and wrongly flags
+  // TourneyBot (a tournament organizer). This is precision-first so we never
+  // invite a human; it deliberately excludes bots that report no client (e.g.
+  // MonteCarlo, client '-') -- add such names to [_knownBotNames] only once
+  // confirmed.
+  static const _botClients = <String>{
+    'ParlorBot', // GammonBot / BlunderBot family
+    'Computer_player', // octopus, pubeval, PureTD
+    'bot_1p_matches_only', // wildbg, udacity_capstone
+  };
+  static const _knownBotNames = <String>{};
+
+  static bool isBot(WhoInfo who) =>
+      _botClients.contains(who.client) || _knownBotNames.contains(who.user);
 
   void _streamItem(CookieMessage cm) {
     dev.log(cm.toString());
@@ -88,20 +103,22 @@ class FibsState extends ChangeNotifier {
     }
   }
 
-  // bots in the who-list that are currently free to play (not already in a game)
+  // bots that are free to play (invite targets): bot client, ready, not in a
+  // game. Precision-first so we only ever invite a bot, never a human.
   List<WhoInfo> get availableBots => [
         for (final who in whoInfos)
-          if (isBot(who.user) && who.ready && who.opponent.isEmpty) who,
+          if (isBot(who) && who.ready && who.opponent.isEmpty) who,
       ];
 
-  // bots currently in a game that can be watched
+  // bots currently in a game that can be watched (their opponent may be human,
+  // which is fine for watching)
   List<WhoInfo> get watchableBots => [
         for (final who in whoInfos)
-          if (isBot(who.user) && who.opponent.isNotEmpty) who,
+          if (isBot(who) && who.opponent.isNotEmpty) who,
       ];
 
   void watch(WhoInfo who) {
-    assert(isBot(who.user), 'bots only');
+    assert(isBot(who), 'bots only');
     _gameState = null;
     _conn.send('watch ${who.user}');
     notifyListeners();
