@@ -1,7 +1,6 @@
-import 'dart:developer' as dev;
-
 import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 
 import 'fibs_board.dart';
 import 'fibs_move.dart';
@@ -10,6 +9,8 @@ import 'fibs_transport.dart';
 import 'main.dart';
 import 'model.dart';
 import 'tinystate.dart';
+
+final _log = Logger('fibs');
 
 // Thrown when a play command is issued in a state FIBS isn't ready for. We
 // surface these loudly rather than silently dropping the command -- a dropped
@@ -167,7 +168,10 @@ class FibsState extends ChangeNotifier {
   void Function(CookieMessage cm)? cookieObserver;
 
   void _streamItem(CookieMessage cm) {
-    dev.log(cm.toString());
+    // log only the cookie TYPE -- the crumbs/raw carry other users' PII
+    // (who-list emails, chat text). Full content goes only to the opt-in,
+    // local trace via cookieObserver (e.g. the live e2e), never the app log.
+    _log.finer(cm.cookie.name);
     cookieObserver?.call(cm);
 
     switch (cm.cookie) {
@@ -453,12 +457,7 @@ class FibsState extends ChangeNotifier {
     // an explicit logout means "don't auto-reconnect": forget the remembered
     // password so the next launch shows the login screen instead of signing
     // back in. (Closing the tab is a different thing -- it keeps remember.)
-    final prefs = App.prefs.value;
-    if (prefs != null) {
-      await prefs.setBool('autologin', false);
-      await prefs.setBool('remember', false);
-      await prefs.remove('pass');
-    }
+    await App.creds.forget();
     _reset();
   }
 

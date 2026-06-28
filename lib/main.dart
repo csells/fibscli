@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_close_stub.dart' if (dart.library.html) 'app_close_web.dart';
+import 'credential_store.dart';
 import 'fibs_page.dart';
 import 'fibs_state.dart';
 import 'game_play_page.dart';
+import 'logging.dart';
 import 'tinystate.dart';
 
 Future<void> main() async {
@@ -12,12 +14,16 @@ Future<void> main() async {
   runApp(const App());
 }
 
-// Load persisted state before any UI builds, so App.prefs is non-null whenever
-// a widget reads it. The login view relies on this to read remembered
-// credentials synchronously (no load-race retry needed).
+// Load persisted state before any UI builds, so App.prefs / App.creds are
+// populated whenever a widget reads them. The login view relies on this to read
+// remembered credentials synchronously (no load-race retry needed).
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-  App.prefs.value = await SharedPreferences.getInstance();
+  setupLogging();
+  final prefs = await SharedPreferences.getInstance();
+  App.prefs.value = prefs;
+  App.creds = SecureCredentialStore(prefs, const FlutterSecretStore());
+  await App.creds.load();
 }
 
 class App extends StatefulWidget {
@@ -27,6 +33,9 @@ class App extends StatefulWidget {
   // mutable so tests can swap in a fake-backed FibsState before pumping the UI
   static FibsState fibs = FibsState();
   static final prefs = ValueNotifier<SharedPreferences?>(null);
+  // remembered credentials (password in platform secure storage). Set in
+  // bootstrap before any UI builds; tests inject their own.
+  static late SecureCredentialStore creds;
 
   @override
   _AppState createState() => _AppState();

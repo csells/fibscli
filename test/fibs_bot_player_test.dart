@@ -52,20 +52,22 @@ void main() {
     player.stop('test');
   });
 
-  test('never invites a strong bot — asks for the who-list and waits',
-      () async {
-    final fake = FakeTransport();
-    final player = await _player(fake);
-    unawaited(player.run());
+  test(
+    'never invites a strong bot — asks for the who-list and waits',
+    () async {
+      final fake = FakeTransport();
+      final player = await _player(fake);
+      unawaited(player.run());
 
-    fake.feed(whoInfo('wildbg', client: 'bot_1p_matches_only', rating: 1835));
-    fake.feed('6'); // CLIP_WHO_END
-    await pumpEventQueue();
+      fake.feed(whoInfo('wildbg', client: 'bot_1p_matches_only', rating: 1835));
+      fake.feed('6'); // CLIP_WHO_END
+      await pumpEventQueue();
 
-    expect(fake.sent.where((c) => c.startsWith('invite')), isEmpty);
-    expect(fake.sent, contains('who'));
-    player.stop('test');
-  });
+      expect(fake.sent.where((c) => c.startsWith('invite')), isEmpty);
+      expect(fake.sent, contains('who'));
+      player.stop('test');
+    },
+  );
 
   test('rolls when it is our turn with no dice', () async {
     final fake = FakeTransport();

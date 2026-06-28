@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.4
+      - run: flutter pub get
+      # Format + analyze OUR code strictly (infos fatal). The vendored packages/
+      # are upstream copies with their own (documented) analyzer state, so they
+      # are intentionally excluded from this gate.
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze (strict)
+        run: dart analyze --fatal-infos lib test
+      - name: Test
+        run: flutter test

@@ -96,11 +96,13 @@ class FibsBotPlayer {
     _timers.add(Timer(deadline, () => _finish('deadline')));
     // stop sign: if we can't even get a game going, give up rather than sit on
     // a connection hammering `who` (e.g. the server is throttling us)
-    _timers.add(Timer(noGameTimeout, () {
-      if (wins + losses == 0 && !_inGame) {
-        _finish('no game started — backing off the server');
-      }
-    }));
+    _timers.add(
+      Timer(noGameTimeout, () {
+        if (wins + losses == 0 && !_inGame) {
+          _finish('no game started — backing off the server');
+        }
+      }),
+    );
     return _done.future;
   }
 
@@ -179,15 +181,17 @@ class FibsBotPlayer {
     if (!_hasGameAction && _inGame) return; // opponent's turn -> wait
     if (!_inGame && (_pendingInvite || _betweenMatches)) return;
     _acting = true;
-    unawaited(Future(() async {
-      try {
-        await _pace();
-        if (!_done.isCompleted) _doOneAction();
-      } finally {
-        _acting = false;
-      }
-      if (_hasGameAction) _scheduleAct();
-    }));
+    unawaited(
+      Future(() async {
+        try {
+          await _pace();
+          if (!_done.isCompleted) _doOneAction();
+        } finally {
+          _acting = false;
+        }
+        if (_hasGameAction) _scheduleAct();
+      }),
+    );
   }
 
   void _doOneAction() {
@@ -248,10 +252,12 @@ class FibsBotPlayer {
     invites++;
     _pendingInvite = true;
     // if the invite doesn't become a game in time, allow another attempt
-    _timers.add(Timer(inviteRetry, () {
-      _pendingInvite = false;
-      if (!_inGame) _scheduleAct();
-    }));
+    _timers.add(
+      Timer(inviteRetry, () {
+        _pendingInvite = false;
+        if (!_inGame) _scheduleAct();
+      }),
+    );
   }
 
   void _askWho() {
@@ -278,9 +284,11 @@ class FibsBotPlayer {
     // lingers in FibsState) until the next match's first board clears it.
     _betweenMatches = true;
     _pendingInvite = false;
-    _timers.add(Timer(betweenMatchesPause, () {
-      _betweenMatches = false;
-      _scheduleAct();
-    }));
+    _timers.add(
+      Timer(betweenMatchesPause, () {
+        _betweenMatches = false;
+        _scheduleAct();
+      }),
+    );
   }
 }

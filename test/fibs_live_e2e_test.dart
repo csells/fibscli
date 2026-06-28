@@ -30,8 +30,11 @@ Map<String, String> _env() {
     final t = line.trim();
     if (t.isEmpty || !t.contains('=')) continue;
     final i = t.indexOf('=');
-    m[t.substring(0, i).trim().toLowerCase()] =
-        t.substring(i + 1).trim().replaceAll('"', '').replaceAll("'", '');
+    m[t.substring(0, i).trim().toLowerCase()] = t
+        .substring(i + 1)
+        .trim()
+        .replaceAll('"', '')
+        .replaceAll("'", '');
   }
   return m;
 }

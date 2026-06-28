@@ -1,13 +1,15 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 
 import 'board_view.dart';
 import 'fibs_state.dart';
 import 'main.dart';
 import 'model.dart';
 import 'tinystate.dart';
+
+final _log = Logger('fibs.login');
 
 // The FIBS "play a bot" flow: connect, then watch a bot game (milestone 1).
 // Bots-only throughout — the who-list only ever shows bots.
@@ -31,55 +33,6 @@ class FibsPage extends StatelessWidget {
   );
 }
 
-// ---- credentials persistence (obscured, opt-in) --------------------------
-
-class _Creds {
-  static String _obscure(String s) => base64.encode(utf8.encode(s));
-  static String _reveal(String s) => utf8.decode(base64.decode(s));
-
-  // Credentials can be baked in at build time via --dart-define for an
-  // automated / kiosk client (e.g. the browser e2e), so no human has to type
-  // them. Empty -- and therefore ignored -- in a normal build. dart-define is
-  // the intended mechanism for this, hence the local lint override.
-  // ignore: do_not_use_environment
-  static const _envUser = String.fromEnvironment('fibs_uname');
-  // ignore: do_not_use_environment
-  static const _envPass = String.fromEnvironment('fibs_pword');
-  static bool get hasConfig => _envUser.isNotEmpty && _envPass.isNotEmpty;
-
-  static String? user() =>
-      App.prefs.value?.getString('user') ??
-      (_envUser.isEmpty ? null : _envUser);
-  static String? pass() {
-    final p = App.prefs.value?.getString('pass');
-    if (p != null) return _reveal(p);
-    return _envPass.isEmpty ? null : _envPass;
-  }
-
-  static bool remember() => App.prefs.value?.getBool('remember') ?? false;
-
-  // Connect without the user clicking: either creds were baked in at build time
-  // (--dart-define), or they checked "remember my password" on a prior session
-  // (so we have saved creds to reconnect with on app launch).
-  static bool get shouldAutologin =>
-      hasConfig || (remember() && user() != null && pass() != null);
-
-  static Future<void> save(
-    String user,
-    String pass, {
-    required bool remember,
-  }) async {
-    final prefs = App.prefs.value!;
-    await prefs.setString('user', user);
-    await prefs.setBool('remember', remember);
-    if (remember) {
-      await prefs.setString('pass', _obscure(pass));
-    } else {
-      await prefs.remove('pass');
-    }
-  }
-}
-
 class _LoginView extends StatefulWidget {
   const _LoginView();
 
@@ -88,18 +41,18 @@ class _LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<_LoginView> {
-  late final _user = TextEditingController(text: _Creds.user() ?? '');
-  late final _pass = TextEditingController(text: _Creds.pass() ?? '');
-  var _remember = _Creds.remember();
+  late final _user = TextEditingController(text: App.creds.user ?? '');
+  late final _pass = TextEditingController(text: App.creds.password ?? '');
+  var _remember = App.creds.remember;
   var _busy = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    // prefs are loaded before any UI (see bootstrap), so creds are available
+    // creds are loaded before any UI (see bootstrap), so they're available
     // synchronously here -- connect on our own when we have usable ones.
-    if (!App.fibs.loggedIn && !_busy && _Creds.shouldAutologin) {
+    if (!App.fibs.loggedIn && !_busy && App.creds.canAutologin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !App.fibs.loggedIn && !_busy) unawaited(_login());
       });
@@ -119,9 +72,15 @@ class _LoginViewState extends State<_LoginView> {
       _error = null;
     });
     try {
-      await App.fibs.login(user: _user.text.trim(), pass: _pass.text);
-      await _Creds.save(_user.text.trim(), _pass.text, remember: _remember);
-    } on Exception catch (ex) {
+      final user = _user.text.trim();
+      await App.fibs.login(user: user, pass: _pass.text);
+      await App.creds.save(
+        user: user,
+        password: _pass.text,
+        remember: _remember,
+      );
+    } on Exception catch (ex, st) {
+      _log.warning('FIBS login failed for "${_user.text.trim()}"', ex, st);
       if (mounted) setState(() => _error = ex.toString());
     } finally {
       if (mounted) setState(() => _busy = false);

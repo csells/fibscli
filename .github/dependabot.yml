@@ -1,0 +1,12 @@
+# Dependency vulnerability + staleness scanning for the pub dependencies.
+# Dependabot opens PRs for security advisories and version updates.
+version: 2
+updates:
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

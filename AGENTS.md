@@ -13,7 +13,8 @@ websocat proxy) are both reachable from the landing page — see below.
 
 - Run (dev): `flutter run` (targets web/desktop/mobile; works across form factors)
 - Build web: `./build-web.sh` → `flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true`
-- Analyze/lint: `flutter analyze` (lint config in `analysis_options.yaml`, based on `all_lint_rules_community` with many explicit overrides)
+- Analyze/lint: `flutter analyze` (lint config in `analysis_options.yaml`, based on `all_lint_rules_community` with many explicit overrides). CI (`.github/workflows/ci.yml`) gates on `dart format --set-exit-if-changed lib test`, `dart analyze --fatal-infos lib test`, and `flutter test` on every push/PR; Dependabot scans pub deps. CI analyzes only `lib`/`test` so the vendored `packages/` upstream copies don't gate it.
+- Secure storage (`flutter_secure_storage`) backs remembered passwords on all platforms; **Linux** also needs `libsecret-1-dev` at build/run time.
 - Test: `flutter test` — the suite covers the rules engine and game-model features (move generation, forced moves, doubling, stats, race/auto-bear-off, win-probability, piece-animation planning). `test/board_builder.dart` builds boards from a concise `{pipNo: signedCount}` spec for **partial** positions (most rule tests); `test/scenario_test.dart` uses `fibsboard`'s ASCII `boardFromLines` for **full-board** scenarios (which require a complete 15-checker-per-side position).
 
 ## Monorepo workspace
@@ -35,8 +36,18 @@ play, resume of saved matches, and the doubling cube. It drives
 `lib/fibs_state.dart` (`FibsState`, default `localhost:8080`) over a
 [websocat](https://github.com/vi/websocat) websocket→telnet proxy (see README).
 Move generation lives in `lib/fibs_play.dart`, scored by the ported
-`lib/pubeval.dart` evaluator. The older `lib/login.dart` / `lib/who_page.dart`
-are superseded by `FibsPage` and dormant.
+`lib/pubeval.dart` evaluator. Autonomous bot play is `lib/fibs_bot_player.dart`
+(a policy layer over `FibsState`, unit-tested offline + driven live by the
+gated e2e).
+
+Remembered credentials use `lib/credential_store.dart`: the username lives in
+`SharedPreferences`, the password ONLY in platform secure storage
+(`flutter_secure_storage`, via the `SecretStore` adapter — Keychain / Keystore
+/ libsecret / Credential Manager / Web Crypto). `bootstrap()` in `main.dart`
+loads prefs + creds before any UI builds; tests inject their own `App.creds`.
+Logging goes through `package:logging` (`setupLogging` in `lib/logging.dart`);
+cookie tracing logs only the cookie **type**, never crumbs/raw, so other users'
+PII (who-list emails, chat) never reaches the log.
 
 ## FIBS testing etiquette (be a gentle citizen)
 

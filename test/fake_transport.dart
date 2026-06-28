@@ -6,6 +6,11 @@ import 'package:fibscli_lib/fibscli_lib.dart';
 // A scripted transport: feed raw FIBS lines in (parsed to cookies), capture the
 // commands sent out. Lets tests drive FibsState with no live server.
 class FakeTransport implements FibsTransport {
+  FakeTransport({this.loginResult = FibsCookie.CLIP_WELCOME});
+
+  // the cookie login() resolves with; override to simulate a rejected login
+  final FibsCookie loginResult;
+
   final _ctrl = StreamController<CookieMessage>.broadcast();
   final sent = <String>[];
   var _connected = false;
@@ -13,7 +18,7 @@ class FakeTransport implements FibsTransport {
   @override
   Future<FibsCookie> login(String user, String pass) async {
     _connected = true;
-    return FibsCookie.CLIP_WELCOME;
+    return loginResult;
   }
 
   @override
