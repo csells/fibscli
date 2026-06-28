@@ -52,8 +52,8 @@ suggestions:
   against fakes or a captured trace before touching the live server, so a live
   run is **one clean pass**, not many. The widget tests inject a `FakeTransport`
   and `test/fibs_play_state_test.dart` scripts raw cookies; the offline replay
-  (`tmp/replay_validate_test.dart`) re-checks generated moves against a captured
-  `tmp/game_trace.txt` with no server at all.
+  (`test/fibs_replay_test.dart`) re-checks generated moves against a captured
+  trace fixture (`test/fixtures/game_trace_sample.txt`) with no server at all.
 - **Finish every match you start; never kill mid-game.** Resign + `leave`
   cleanly, or don't start it. A dropped connection orphans the opponent and
   saves the match. Resuming a saved match is supported
@@ -68,12 +68,30 @@ suggestions:
   won, stick to the weak **BlunderBot** family — wildbg / MonteCarlo / GammonBot
   are 1800-2100+ and just feed rated losses.
 
-The live driver `tmp/play_game_test.dart` (gitignored) exercises this end to
-end: it drives the app's own `FibsState` **event-driven (no polling)** with
-human-paced delays, resumes saved matches first, plays weak bots, and logs out
-cleanly. Run it via `flutter test tmp/play_game_test.dart` with the websocat
-proxy up. Credentials live in `.env` (`fibs_uname` / `fibs_pword`) — never
-logged, printed, or committed.
+### The live tests (committed, but not run by default)
+
+These hit the real server, so they're **gated** — a normal `flutter test` skips
+them and never connects. Run them deliberately, with the websocat proxy up and
+credentials in `.env` (`fibs_uname` / `fibs_pword`, never logged/committed):
+
+```sh
+websocat --binary ws-l:127.0.0.1:8080 tcp:fibs.com:4321 --exit-on-eof &
+```
+
+- **`test/fibs_live_e2e_test.dart`** — drives the app's own `FibsState`
+  **event-driven (no polling)** with human-paced delays: resumes saved matches
+  first, plays weak bots, wins a couple, logs out cleanly, and backs off if it
+  can't get a game. Tagged `live` and gated behind `FIBS_LIVE=1` (see
+  `dart_test.yaml`):
+
+  ```sh
+  FIBS_LIVE=1 flutter test --tags live
+  ```
+
+- **`tool/browser_e2e/`** — Playwright browser e2e of the served web build:
+  landing → autologin (creds via `--dart-define`, never typed) → live bot list
+  → logout. Run `./tool/browser_e2e/run.sh` (it builds, serves, and drives in
+  one pass). See its README.
 
 ## Architecture
 

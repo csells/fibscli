@@ -52,3 +52,9 @@ app.*.map.json
 .env
 .env.*
 tmp/
+
+# Playwright browser e2e: local-only deps + run output (see tool/browser_e2e)
+tool/browser_e2e/node_modules/
+tool/browser_e2e/out/
+tool/browser_e2e/package.json
+tool/browser_e2e/package-lock.json

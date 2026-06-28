@@ -1,0 +1,9 @@
+# Test tags.
+#
+# `live` marks tests that hit the REAL FIBS server. They are additionally gated
+# behind FIBS_LIVE=1 inside the test, so a normal `flutter test` skips them and
+# never touches the live server. Run them explicitly with the websocat proxy up:
+#
+#   FIBS_LIVE=1 flutter test --tags live
+tags:
+  live:
