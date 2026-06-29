@@ -242,6 +242,10 @@ class _BotListViewState extends State<_BotListView> {
   Widget _build(BuildContext context, FibsState fibs, Widget? child) {
     final free = App.fibs.availableBots; // invite these
     final playing = App.fibs.watchableBots; // watch these
+    final saved = App.fibs.savedMatches; // unfinished matches to resume
+    final resumeFrom = App.fibs.resumeRequestFrom; // opponent asked to resume
+    final empty =
+        free.isEmpty && playing.isEmpty && saved.isEmpty && resumeFrom == null;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bots'),
@@ -263,7 +267,7 @@ class _BotListViewState extends State<_BotListView> {
           ),
         ],
       ),
-      body: (free.isEmpty && playing.isEmpty)
+      body: empty
           ? const Center(
               child: Text(
                 'No bots online yet.\nWaiting for the who-list…',
@@ -272,6 +276,34 @@ class _BotListViewState extends State<_BotListView> {
             )
           : ListView(
               children: [
+                // An opponent (or FIBS between games) is waiting on us to join.
+                if (resumeFrom != null || App.fibs.mustJoin)
+                  ListTile(
+                    leading: const Icon(Icons.play_circle),
+                    title: Text(
+                      resumeFrom != null
+                          ? '$resumeFrom wants to resume your match'
+                          : 'Ready to continue your match',
+                    ),
+                    subtitle: const Text('tap Join to continue'),
+                    trailing: FilledButton(
+                      onPressed: App.fibs.joinGame,
+                      child: const Text('Join'),
+                    ),
+                    onTap: App.fibs.joinGame,
+                  ),
+                // Unfinished matches we can pick back up (re-inviting reloads
+                // the saved game). Finishing saved matches is good manners.
+                if (saved.isNotEmpty)
+                  const _SectionHeader('Resume a saved match'),
+                for (final opponent in saved)
+                  ListTile(
+                    leading: const Icon(Icons.restore),
+                    title: Text(opponent),
+                    subtitle: const Text('unfinished match — tap to resume'),
+                    trailing: const Icon(Icons.play_arrow),
+                    onTap: () => App.fibs.resumeSavedMatch(opponent),
+                  ),
                 if (free.isNotEmpty)
                   const _SectionHeader('Play a bot (tap to invite)'),
                 for (final who in free)
