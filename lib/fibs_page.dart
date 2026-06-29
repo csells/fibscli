@@ -491,9 +491,9 @@ class _PlayViewState extends State<_PlayView> {
     final p1IsUs = b.player1Name == 'You' || b.player1Name == fibs.user;
     final opponent = p1IsUs ? b.player2Name : b.player1Name;
 
-    // default to our own perspective: player two (O) moves up, so flip to put
-    // our home at the bottom; the flip button overrides.
-    final reversed = _reversed ?? (fibs.myColor == GammonPlayer.two);
+    // FIBS already hands us the board from our perspective (we move toward our
+    // home in the lower-right), so no auto-flip; the button is a preference.
+    final reversed = _reversed ?? false;
 
     return Scaffold(
       backgroundColor: Colors.green,
@@ -520,9 +520,8 @@ class _PlayViewState extends State<_PlayView> {
               child: GameBoard(
                 game: fibs.gameState!,
                 animator: _animator,
-                legalMoves: fibs.canMoveNow
-                    ? fibs.gameState!.getAllLegalMoves()
-                    : const {},
+                // mirror-aware highlights in real FIBS coords (see FibsState)
+                legalMoves: fibs.legalMoves,
                 interactive: fibs.canMoveNow,
                 reversed: reversed,
                 onMove: _performMove,

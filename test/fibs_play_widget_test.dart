@@ -2,7 +2,6 @@ import 'package:fibscli/board_view.dart';
 import 'package:fibscli/fibs_page.dart';
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/main.dart';
-import 'package:fibscli/model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -82,19 +81,31 @@ void main() {
 
   testWidgets('a flip-board control reverses the board', (tester) async {
     final fake = FakeTransport();
-    final fibs = await _startGame(tester, fake);
+    await _startGame(tester, fake);
 
-    // we are O (player two), so the board defaults to our perspective (flipped)
-    expect(fibs.myColor, GammonPlayer.two);
+    // FIBS already gives us our own perspective, so no auto-flip by default
     BoardView board() => tester.widget<BoardView>(find.byType(BoardView));
-    expect(
-      board().reversed,
-      isTrue,
-      reason: 'player two views from the bottom',
-    );
+    expect(board().reversed, isFalse, reason: 'no auto-flip by default');
 
     await tester.tap(find.byTooltip('flip board'));
     await tester.pump();
-    expect(board().reversed, isFalse, reason: 'the flip control toggled it');
+    expect(board().reversed, isTrue, reason: 'the flip control toggled it');
+  });
+
+  testWidgets('move highlights go home (mirror-aware), not backwards', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    final fibs = await _startGame(tester, fake); // O on roll, mirrored frame
+
+    // O's checkers are on 24/13/8/6 and must move DOWN toward the 1-point;
+    // the old bug highlighted 6->9 etc. (up, away from home).
+    final byPip = fibs.legalMoves;
+    expect(byPip.keys, contains(24));
+    for (final moves in byPip.values) {
+      for (final m in moves) {
+        expect(m.toPipNo, lessThan(m.fromPipNo), reason: 'moves head home');
+      }
+    }
   });
 }

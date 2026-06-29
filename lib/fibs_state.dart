@@ -102,6 +102,14 @@ class FibsState extends ChangeNotifier {
   bool get canMoveNow => _session.canMoveNow;
   bool get canRoll => _session.canRoll;
 
+  // Legal moves for the UI to highlight, keyed by REAL FIBS from-pip and in the
+  // correct direction even when the frame is mirrored. (gameState's own
+  // getAllLegalMoves runs the engine on the un-mirrored display board and would
+  // point the wrong way -- see FibsPlay.legalMovesByFibsPip.)
+  Map<int, List<GammonMove>> get legalMoves => (board == null || !canMoveNow)
+      ? const {}
+      : FibsPlay.legalMovesByFibsPip(board!, dice: activeDice);
+
   // Whether a who-list entry is a bot. The detection policy (allowlists +
   // precision-first rationale) lives in BotPolicy so it can evolve without
   // touching this connection/state machine.

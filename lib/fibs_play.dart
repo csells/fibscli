@@ -38,6 +38,50 @@ class FibsPlay {
     return board;
   }
 
+  // Legal moves keyed by the on-roll player's REAL FIBS from-pip, for the UI to
+  // highlight and gate tap-to-move. The engine generates moves in its canonical
+  // (possibly mirrored) frame; we translate each back to absolute FIBS
+  // coordinates so the highlights and the displayed board agree -- without
+  // this, a mirrored game highlights moves in the wrong direction. Bar/off
+  // moves are omitted here (the tap-off path handles bear-off); every move kept
+  // is point-to-point with valid hops.
+  static Map<int, List<GammonMove>> legalMovesByFibsPip(
+    FibsBoard fb, {
+    List<int>? dice,
+  }) {
+    final d = dice ?? fb.activeDice;
+    if (d.isEmpty || fb.turnPlayer == null) return const {};
+    final player = fb.turnPlayer!;
+    final barPip = GammonRules.barPipNoFor(player);
+    final offPip = GammonRules.offPipNoFor(player);
+    final canonical = GammonRules.getForcedLegalMoves(
+      _canonicalBoard(fb),
+      player,
+      d,
+    );
+
+    final result = <int, List<GammonMove>>{};
+    for (final moves in canonical.values) {
+      for (final m in moves) {
+        if (m.fromPipNo == barPip || m.toPipNo == offPip) continue; // see above
+        final from = _pos(fb, m.fromPipNo);
+        // translate each waypoint to FIBS coords; the per-hop deltas keep their
+        // magnitude (a valid die) but flip sign on a mirrored frame.
+        final hops = <int>[];
+        var pos = m.fromPipNo;
+        for (final hop in m.hops) {
+          final next = pos + hop;
+          hops.add(_pos(fb, next) - _pos(fb, pos));
+          pos = next;
+        }
+        (result[from] ??= []).add(
+          GammonMove(fromPipNo: from, toPipNo: _pos(fb, m.toPipNo), hops: hops),
+        );
+      }
+    }
+    return result;
+  }
+
   // Every individual legal move for the on-roll player, as FIBS `move` commands
   // (used for highlighting/validation, not for committing a turn).
   static List<String> legalMoveCommands(FibsBoard fb, {List<int>? dice}) {

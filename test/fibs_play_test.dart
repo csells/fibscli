@@ -18,6 +18,40 @@ void main() {
       'board:BlunderBot_II:pompom:5:1:0:0:0:0:0:1:0:5:0:3:0:0:0:-4:4:-2:0'
       ':0:0:-3:-2:-2:-2:2:0:0:0:1:0:0:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:5:0:0';
 
+  group('FibsPlay.legalMovesByFibsPip (mirror-aware highlighting)', () {
+    // The standard opening seated as O (player1Color=1, direction=-1) is
+    // MIRRORED, so this is exactly the case where the raw-board engine
+    // highlights point the wrong way. O on roll with 6 and 3 must move toward
+    // the 1-point (24->18, 13->7, 8->2, 6->3), NOT toward 24.
+    String openingAsO({String turn = '1', String p1dice = '6:3'}) =>
+        'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0'
+        ':0:0:2:0:$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
+
+    test('highlights are keyed by the real FIBS from-pips, going home', () {
+      final fb = parseBoard(openingAsO());
+      final byPip = FibsPlay.legalMovesByFibsPip(fb, dice: const [6, 3]);
+
+      // O's checkers sit on 24/13/8/6; legal moves leave exactly those pips
+      expect(byPip.keys.toSet(), {24, 13, 8, 6});
+      // and head DOWN toward the home board (1-6), never up toward 24
+      expect(byPip[24]!.any((m) => m.toPipNo == 18), isTrue); // 24 - 6
+      expect(byPip[13]!.any((m) => m.toPipNo == 7), isTrue); // 13 - 6
+      expect(byPip[6]!.any((m) => m.toPipNo == 3), isTrue); // 6 - 3
+      for (final moves in byPip.values) {
+        for (final m in moves) {
+          expect(m.toPipNo, lessThan(m.fromPipNo), reason: 'moves go home');
+        }
+      }
+    });
+
+    test('the wrong-direction raw-engine moves are NOT produced', () {
+      final fb = parseBoard(openingAsO());
+      final byPip = FibsPlay.legalMovesByFibsPip(fb, dice: const [6, 3]);
+      // the old (buggy) highlight had 6->9 / 6->15; assert they're gone
+      expect(byPip[6]!.every((m) => m.toPipNo < 6), isTrue);
+    });
+  });
+
   group('FibsPlay.legalMoveCommands (M2, from live data)', () {
     test('the frame is mirrored vs the engine', () {
       expect(parseBoard(beforeBlunderMove).isMirrored, isTrue);
