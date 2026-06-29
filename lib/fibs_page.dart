@@ -14,8 +14,47 @@ final _log = Logger('fibs.login');
 
 // The FIBS "play a bot" flow: connect, then watch a bot game (milestone 1).
 // Bots-only throughout — the who-list only ever shows bots.
-class FibsPage extends StatelessWidget {
+class FibsPage extends StatefulWidget {
   const FibsPage({super.key});
+
+  @override
+  State<FibsPage> createState() => _FibsPageState();
+}
+
+class _FibsPageState extends State<FibsPage> {
+  // how many FIBS messages we've already surfaced (so we only toast new ones)
+  var _shownMessages = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _shownMessages = App.fibs.messages.length;
+    App.fibs.messages.addListener(_onMessages);
+  }
+
+  @override
+  void dispose() {
+    App.fibs.messages.removeListener(_onMessages);
+    super.dispose();
+  }
+
+  // Surface incoming FIBS replies (a bot declining an invite, errors, chat) as
+  // a SnackBar. Without this they were captured but never shown, so a declined
+  // invite looked like a silent failure.
+  void _onMessages() {
+    final messages = App.fibs.messages;
+    if (!mounted || messages.length <= _shownMessages) {
+      _shownMessages = messages.length;
+      return;
+    }
+    final latest = messages.last;
+    _shownMessages = messages.length;
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text('${latest.from}: ${latest.message}')),
+      );
+  }
 
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
