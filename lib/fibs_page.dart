@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
+import 'board_animator.dart';
 import 'board_view.dart';
 import 'fibs_bot_player.dart';
 import 'fibs_state.dart';
@@ -413,9 +414,10 @@ class _PlayViewState extends State<_PlayView> {
   int? _selected;
   // diff-based animation: remember the last board so a fresh FIBS board (our
   // move OR the opponent's) animates instead of snapping (issue: FIBS only
-  // hands us whole boards, never move deltas).
+  // hands us whole boards, never move deltas). The shared BoardAnimator owns
+  // the in-flight tween lifecycle (same one the local game uses).
   List<List<int>>? _prevBoard;
-  final _pieceLayouts = <int?, List<PieceLayout>>{};
+  final _animator = BoardAnimator();
 
   @override
   void initState() {
@@ -427,6 +429,7 @@ class _PlayViewState extends State<_PlayView> {
   @override
   void dispose() {
     App.fibs.removeListener(_onFibsChanged);
+    _animator.dispose();
     super.dispose();
   }
 
@@ -441,18 +444,10 @@ class _PlayViewState extends State<_PlayView> {
     // animate only when the checkers actually moved (not a dice-only refresh)
     if (_prevBoard != null &&
         Position.fromBoard(_prevBoard!) != Position.fromBoard(cur) &&
-        _pieceLayouts.isEmpty) {
-      final anim = MoveAnimation.between(_prevBoard!, cur);
-      if (anim.layouts.isNotEmpty) {
-        setState(() => _pieceLayouts.addAll(anim.layouts));
-      }
+        !_animator.isAnimating) {
+      unawaited(_animator.play(MoveAnimation.between(_prevBoard!, cur)));
     }
     _prevBoard = _boardCopy();
-  }
-
-  void _endPieceAnimation(int? pieceId) {
-    _pieceLayouts.remove(pieceId);
-    if (_pieceLayouts.isEmpty && mounted) setState(() {});
   }
 
   void _tapPip(int pip) {
@@ -505,18 +500,22 @@ class _PlayViewState extends State<_PlayView> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8),
-              child: BoardView(
-                game: fibs.gameState!,
-                legalMoves: fibs.canMoveNow
-                    ? fibs.gameState!.getAllLegalMoves()
-                    : const {},
-                selectedPip: _selected,
-                ignoring: !fibs.canMoveNow,
-                onTapPip: fibs.canMoveNow ? _tapPip : null,
-                onTapOff: fibs.canMoveNow ? _tapOff : null,
-                onTapBoard: () => setState(() => _selected = null),
-                pieceAnimations: _pieceLayouts,
-                onPieceAnimationEnd: _endPieceAnimation,
+              child: ChangeNotifierBuilder<BoardAnimator>(
+                notifier: _animator,
+                builder: (context, animator, child) => BoardView(
+                  game: fibs.gameState!,
+                  legalMoves: fibs.canMoveNow
+                      ? fibs.gameState!.getAllLegalMoves()
+                      : const {},
+                  selectedPip: _selected,
+                  ignoring: !fibs.canMoveNow,
+                  onTapPip: fibs.canMoveNow ? _tapPip : null,
+                  onTapOff: fibs.canMoveNow ? _tapOff : null,
+                  onTapBoard: () => setState(() => _selected = null),
+                  pieceAnimations: animator.layouts,
+                  pieceDelays: animator.delays,
+                  onPieceAnimationEnd: animator.endPiece,
+                ),
               ),
             ),
           ),

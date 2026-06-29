@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
 
+import 'board_animator.dart';
 import 'board_view.dart';
 import 'game_dialogs.dart';
 import 'local_ai_driver.dart';
@@ -213,13 +214,11 @@ class _GameViewState extends State<GameView> {
   GammonState? _game;
   var _legalMovesForPips = <int, List<GammonMove>>{};
   int? _fromPipNo;
-  final _pieceLayouts = <int?, List<PieceLayout>>{};
-  final _pieceDelays = <int?, Duration>{};
-  // 1-player mode: guards re-entrancy while the AI plays, and signals when the
-  // current move's animation has fully finished (so AI moves are sequenced on
-  // real animation completion, not fragile fixed timers).
+  // owns the in-flight checker animation (layouts, hit-delays, completion) so
+  // the AI loop can await a move's animation and the view can redraw on finish.
+  final _animator = BoardAnimator();
+  // 1-player mode: guards re-entrancy while the AI plays.
   var _aiBusy = false;
-  Completer<void>? _animDone;
 
   @override
   void initState() {
@@ -252,6 +251,7 @@ class _GameViewState extends State<GameView> {
   @override
   void dispose() {
     if (_game != null) _game!.removeListener(_gameChanged);
+    _animator.dispose();
     super.dispose();
   }
 
@@ -332,21 +332,25 @@ class _GameViewState extends State<GameView> {
         padding: const EdgeInsets.all(8),
         child: ChangeNotifierBuilder<GameViewController>(
           notifier: widget.controller,
-          builder: (context, controller, child) => BoardView(
-            game: _game!,
-            legalMoves: _legalMovesForPips,
-            selectedPip: _fromPipNo,
-            reversed: controller.reversed,
-            ignoring: _game!.gameOver || _aiBusy,
-            onTapPip: _tapPip,
-            onTapOff: _tapOff,
-            onTapCube: () => unawaited(_tapCube()),
-            onTapDice: _tapDice,
-            onTapBoard: _tapBoard,
-            pieceAnimations: _pieceLayouts,
-            pieceDelays: _pieceDelays,
-            onPieceAnimationEnd: (id) => _endPieceAnimation(id!),
-          ),
+          builder: (context, controller, child) =>
+              ChangeNotifierBuilder<BoardAnimator>(
+                notifier: _animator,
+                builder: (context, animator, child) => BoardView(
+                  game: _game!,
+                  legalMoves: _legalMovesForPips,
+                  selectedPip: _fromPipNo,
+                  reversed: controller.reversed,
+                  ignoring: _game!.gameOver || _aiBusy,
+                  onTapPip: _tapPip,
+                  onTapOff: _tapOff,
+                  onTapCube: () => unawaited(_tapCube()),
+                  onTapDice: _tapDice,
+                  onTapBoard: _tapBoard,
+                  pieceAnimations: animator.layouts,
+                  pieceDelays: animator.delays,
+                  onPieceAnimationEnd: animator.endPiece,
+                ),
+              ),
         ),
       ),
     ),
@@ -451,15 +455,9 @@ class _GameViewState extends State<GameView> {
     final deltasForHops = _game!.applyMove(move: move);
 
     // convert game states for each hop into a sequence of layouts (and hit
-    // delays) for each affected piece
+    // delays) for each affected piece, then hand them to the shared animator
     assert(deltasForHops.length == move.hops.length);
-    assert(_pieceLayouts.isEmpty);
-    final anim = MoveAnimation.forMove(initialBoard, deltasForHops);
-    if (anim.layouts.isEmpty) return Future<void>.value();
-    _animDone = Completer<void>();
-    _pieceLayouts.addAll(anim.layouts);
-    _pieceDelays.addAll(anim.delays);
-    return _animDone!.future;
+    return _animator.play(MoveAnimation.forMove(initialBoard, deltasForHops));
   }
 
   void _reset() {
@@ -482,19 +480,5 @@ class _GameViewState extends State<GameView> {
 
   void _tapBoard() {
     _reset();
-  }
-
-  // remove each animated piece from the list of pieces to animate
-  void _endPieceAnimation(int pieceID) {
-    _pieceLayouts.remove(pieceID)!;
-    _pieceDelays.remove(pieceID);
-
-    // the last piece has been animated, so draw the final state of the board
-    // w/ labels, on edge, etc.
-    if (_pieceLayouts.isEmpty) {
-      setState(() {});
-      _animDone?.complete();
-      _animDone = null;
-    }
   }
 }
