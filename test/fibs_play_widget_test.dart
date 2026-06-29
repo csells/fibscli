@@ -109,6 +109,41 @@ void main() {
     }
   });
 
+  testWidgets('the lobby has no "Play for me" (cheating on FIBS)', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    App.fibs = FibsState.withTransport(fake);
+    await App.fibs.login(user: 'me', pass: 'x');
+    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpAndSettle();
+    expect(find.text('Play for me'), findsNothing);
+  });
+
+  testWidgets('auto bear-off in a pure race submits a bear-off turn', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    App.fibs = FibsState.withTransport(fake);
+    await App.fibs.login(user: 'me', pass: 'x');
+    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    // a pure race: O (us) all home on 1-6, X home on 19-24, our roll 6 and 5
+    fake.feed(
+      'board:You:bot:1:0:0:0:2:2:3:2:3:3:0:0:0:0:0:0:0:0:0:0:0:0:-2:-2:-3:-2'
+      ':-3:-3:0:1:6:5:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0',
+    );
+    await tester.pumpAndSettle();
+
+    // the fast-forward shows in a pure race; tapping it submits the bear-off
+    expect(find.byTooltip('auto bear-off'), findsOneWidget);
+    await tester.tap(find.byTooltip('auto bear-off'));
+    await tester.pumpAndSettle();
+
+    final moves = fake.sent.where((c) => c.startsWith('move '));
+    expect(moves, isNotEmpty);
+    expect(moves.last, contains('off'), reason: 'it bore checkers off');
+  });
+
   testWidgets('entering the view already on our move shows legal moves', (
     tester,
   ) async {

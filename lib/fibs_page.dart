@@ -5,7 +5,6 @@ import 'package:logging/logging.dart';
 
 import 'board_animator.dart';
 import 'dice.dart';
-import 'fibs_bot_player.dart';
 import 'fibs_state.dart';
 import 'game_board.dart';
 import 'main.dart';
@@ -208,33 +207,9 @@ class _BotListView extends StatefulWidget {
 }
 
 class _BotListViewState extends State<_BotListView> {
-  // "Play for me": the autonomous FibsBotPlayer invites a weak bot and plays a
-  // match for the user (move selection runs through the shared bg_engine /
-  // pubeval pipeline). Held here so we never start two at once.
-  FibsBotPlayer? _autoPlayer;
-
-  bool get _autoPlaying => _autoPlayer != null;
-
-  void _toggleAutoPlay() {
-    if (_autoPlaying) {
-      _autoPlayer!.stop('user stopped');
-      setState(() => _autoPlayer = null);
-      return;
-    }
-    final player = FibsBotPlayer(App.fibs);
-    setState(() => _autoPlayer = player);
-    unawaited(
-      player.run().whenComplete(() {
-        if (mounted) setState(() => _autoPlayer = null);
-      }),
-    );
-  }
-
-  @override
-  void dispose() {
-    _autoPlayer?.stop('view disposed');
-    super.dispose();
-  }
+  // NOTE: no "play for me" here. Letting a bot play your moves on the live FIBS
+  // server is cheating, full stop. The autonomous FibsBotPlayer still exists,
+  // but only as a test/e2e driver -- never wired to a button the user can press.
 
   @override
   Widget build(BuildContext context) =>
@@ -251,17 +226,6 @@ class _BotListViewState extends State<_BotListView> {
       appBar: AppBar(
         title: const Text('Bots'),
         actions: [
-          TextButton.icon(
-            onPressed: _toggleAutoPlay,
-            icon: Icon(
-              _autoPlaying ? Icons.stop : Icons.smart_toy,
-              color: Colors.white,
-            ),
-            label: Text(
-              _autoPlaying ? 'Stop' : 'Play for me',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
           TextButton(
             onPressed: () => unawaited(App.fibs.logout()),
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
@@ -570,6 +534,43 @@ class _PlayViewState extends State<_PlayView> {
     return true;
   }
 
+  // A pure race on our turn -> offer to auto bear-off (no decisions matter, so
+  // it's tedium reduction, not the bot playing for us). Unlike "play for me" it
+  // never decides a contested position and only acts on a button press.
+  bool get _canAutoBearOff => _turn != null && GammonRules.isRace(_turn!.board);
+
+  // Play the whole current turn greedily and submit it: bear a checker off when
+  // we can, else advance the rear-most checker. Completes the turn (so it's
+  // ready to submit), then submits.
+  void _autoBearOff() {
+    final turn = _turn;
+    if (turn == null) return;
+    while (true) {
+      final legal = turn.getAllLegalMoves();
+      if (legal.isEmpty) break;
+      final off = GammonRules.offPipNoFor(turn.turnPlayer);
+      // prefer a move that bears a checker off
+      GammonMove? move;
+      for (final moves in legal.values) {
+        for (final m in moves) {
+          if (m.toPipNo == off) {
+            move = m;
+            break;
+          }
+        }
+        if (move != null) break;
+      }
+      // else advance the rear-most checker (we are player one: home is 1..6, so
+      // the rear-most is the highest pip)
+      final fromPips = legal.keys.toList()..sort((a, b) => b.compareTo(a));
+      move ??= legal[fromPips.first]!.first;
+      _moves.add(move);
+      turn.applyMove(move: move);
+    }
+    setState(() {});
+    _submitTurn();
+  }
+
   // Tap the dice to submit the whole turn -- only once there are no more legal
   // moves to make (the forced-move rules require using every playable die).
   void _submitTurn() {
@@ -630,6 +631,13 @@ class _PlayViewState extends State<_PlayView> {
           onPressed: () => _confirmLeave(context),
         ),
         actions: [
+          // in a pure race, fast-forward your bear-off (no decisions matter)
+          if (_canAutoBearOff)
+            IconButton(
+              icon: const Icon(Icons.fast_forward),
+              tooltip: 'auto bear-off',
+              onPressed: _autoBearOff,
+            ),
           // always visible so it's discoverable; disabled until you've moved
           IconButton(
             icon: const Icon(Icons.undo),
