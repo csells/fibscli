@@ -32,7 +32,7 @@ void main() {
     final fake = FakeTransport();
     final fibs = await _startGame(tester, fake);
 
-    expect(find.byType(ReadOnlyBoardView), findsOneWidget);
+    expect(find.byType(BoardView), findsOneWidget);
     expect(find.textContaining('vs wildbg'), findsOneWidget);
     expect(fibs.canMoveNow, isTrue);
   });

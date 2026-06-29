@@ -393,7 +393,7 @@ class _WatchView extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(8),
-        child: ReadOnlyBoardView(game: fibs.gameState!),
+        child: BoardView(game: fibs.gameState!, ignoring: true),
       ),
     ),
   );
@@ -412,13 +412,26 @@ class _PlayViewState extends State<_PlayView> {
   int? _selected;
 
   void _tapPip(int pip) {
-    if (!App.fibs.canMoveNow) return;
+    final fibs = App.fibs;
+    if (!fibs.canMoveNow) return;
     if (_selected == null) {
-      setState(() => _selected = pip);
+      // select only a pip we can actually move from
+      if (fibs.gameState!.getAllLegalMoves()[pip] != null) {
+        setState(() => _selected = pip);
+      }
     } else {
-      App.fibs.move(_selected!, pip);
+      fibs.move(
+        _selected!,
+        pip,
+      ); // server validates; declines surface as toasts
       setState(() => _selected = null);
     }
+  }
+
+  void _tapOff(GammonPlayer player) {
+    if (_selected == null) return;
+    App.fibs.move(_selected!, GammonRules.offPipNoFor(player)); // bear off
+    setState(() => _selected = null);
   }
 
   @override
@@ -428,9 +441,6 @@ class _PlayViewState extends State<_PlayView> {
   );
 
   Widget _buildBoard(BuildContext context, FibsState fibs) {
-    final me = fibs.myColor!;
-    final barPip = GammonRules.barPipNoFor(me);
-    final offPip = GammonRules.offPipNoFor(me);
     // FIBS names us player1 "You" in our own game; the opponent is the other
     final b = fibs.board!;
     final p1IsUs = b.player1Name == 'You' || b.player1Name == fibs.user;
@@ -451,12 +461,16 @@ class _PlayViewState extends State<_PlayView> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8),
-              child: ReadOnlyBoardView(
+              child: BoardView(
                 game: fibs.gameState!,
-                onTapPip: fibs.canMoveNow ? _tapPip : null,
+                legalMoves: fibs.canMoveNow
+                    ? fibs.gameState!.getAllLegalMoves()
+                    : const {},
                 selectedPip: _selected,
-                myBarPip: barPip,
-                myOffPip: offPip,
+                ignoring: !fibs.canMoveNow,
+                onTapPip: fibs.canMoveNow ? _tapPip : null,
+                onTapOff: fibs.canMoveNow ? _tapOff : null,
+                onTapBoard: () => setState(() => _selected = null),
               ),
             ),
           ),

@@ -1,155 +1,280 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
+import 'animated_layouts.dart';
 import 'dice.dart';
-import 'game_play_page.dart' show InnerShadingRect;
 import 'model.dart';
 import 'pieces.dart';
 import 'pip_count.dart';
 import 'pips.dart';
 
-// A render of a [GammonState]: the same board the local game draws. Read-only
-// when watching (milestone 1); when [onTapPip] is supplied it overlays tap
-// targets for playing a FIBS game via tap-to-move (milestone 2). Points report
-// their pip number; the bar reports [myBarPip] and our off tray [myOffPip].
-class ReadOnlyBoardView extends StatelessWidget {
-  const ReadOnlyBoardView({
+/// THE single backgammon board renderer — used by the local game, FIBS play,
+/// and FIBS watch, so they always look and highlight identically.
+///
+/// It is purely presentational: it draws [game], dispatches taps through the
+/// callbacks, and derives all highlighting from [legalMoves] + [selectedPip].
+/// The parent owns selection state and what a move *means* (the local game
+/// applies + animates locally; FIBS sends the move to the server). Animation is
+/// optional: pass [pieceAnimations]/[pieceDelays] to tween moving checkers
+/// (the local game does); omit them for a static render (FIBS).
+class BoardView extends StatelessWidget {
+  const BoardView({
     required this.game,
     super.key,
-    this.onTapPip,
+    this.legalMoves = const {},
     this.selectedPip,
-    this.myBarPip,
-    this.myOffPip,
+    this.reversed = false,
+    this.ignoring = false,
+    this.onTapPip,
+    this.onTapOff,
+    this.onTapCube,
+    this.onTapDice,
+    this.onTapBoard,
+    this.pieceAnimations = const {},
+    this.pieceDelays = const {},
+    this.onPieceAnimationEnd,
   });
-  final GammonState game;
-  final void Function(int pipNo)? onTapPip;
-  final int? selectedPip;
-  final int? myBarPip; // 25 (X) or 0 (O) — where our hit checkers wait
-  final int? myOffPip; // 0 (X, bottom tray) or 25 (O, top tray)
 
-  bool get _interactive => onTapPip != null;
+  /// The position (and dice/cube) to draw.
+  final GammonState game;
+
+  /// Legal moves keyed by from-pip, used to highlight movable checkers and
+  /// (once [selectedPip] is set) the valid destinations.
+  final Map<int, List<GammonMove>> legalMoves;
+
+  /// The currently selected from-pip, or null.
+  final int? selectedPip;
+
+  /// Whether the board is rotated 180° (player-two perspective).
+  final bool reversed;
+
+  /// Whether to ignore all pointer input (game over / opponent's turn / watch).
+  final bool ignoring;
+
+  /// Tap on a pip or a checker (reports the pip number).
+  final void Function(int pipNo)? onTapPip;
+
+  /// Tap on a player's off tray (bear off).
+  final void Function(GammonPlayer player)? onTapOff;
+
+  /// Tap on the doubling cube.
+  final VoidCallback? onTapCube;
+
+  /// Tap on the dice.
+  final VoidCallback? onTapDice;
+
+  /// Tap on empty board (deselect).
+  final VoidCallback? onTapBoard;
+
+  /// Per-piece animation layouts (empty == no animation, static render).
+  final Map<int?, List<PieceLayout>> pieceAnimations;
+
+  /// Per-piece animation start delays.
+  final Map<int?, Duration> pieceDelays;
+
+  /// Called when a piece's animation finishes.
+  final void Function(int? pieceId)? onPieceAnimationEnd;
+
+  List<int?> get _pipNosToHighlight =>
+      selectedPip != null ? [selectedPip] : legalMoves.keys.toList();
+
+  bool _highlightPip(int pipNo) {
+    final moves = selectedPip == null ? null : legalMoves[selectedPip];
+    return moves != null &&
+        moves.hasHops(fromPipNo: selectedPip, toPipNo: pipNo);
+  }
+
+  bool _highlightOff(GammonPlayer player) {
+    final offPipNo = GammonRules.offPipNoFor(player);
+    final moves = selectedPip == null ? null : legalMoves[selectedPip];
+    return moves != null && moves.any((m) => m.toPipNo == offPipNo);
+  }
+
+  // the cube sits at the center bar, shifted toward its owner's side
+  static Rect _cubeRect(GammonPlayer? owner) {
+    const top = <GammonPlayer?, double>{
+      null: 186, // centered
+      GammonPlayer.one: 354, // player1 home is along the bottom
+      GammonPlayer.two: 18, // player2 home is along the top
+    };
+    return Rect.fromLTWH(238, top[owner]!, 44, 44);
+  }
 
   @override
-  Widget build(BuildContext context) => FittedBox(
-    child: Stack(
-      children: [
-        // frame
-        Container(
-          width: 574,
-          height: 420,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.black, width: 5),
-            color: Colors.grey[300],
-          ),
-        ),
-
-        // outer + home board backgrounds
-        for (final rect in const [
-          Rect.fromLTWH(20, 20, 216, 380),
-          Rect.fromLTWH(284, 20, 216, 380),
-        ])
-          Positioned.fromRect(
-            rect: rect,
-            child: DecoratedBox(
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: const Duration(milliseconds: 500),
+    transform: Matrix4.rotationZ(reversed ? pi : 0),
+    transformAlignment: Alignment.center,
+    child: FittedBox(
+      child: IgnorePointer(
+        ignoring: ignoring,
+        child: Stack(
+          children: [
+            // frame
+            Container(
+              width: 574,
+              height: 420,
               decoration: BoxDecoration(
-                color: Colors.green[900],
-                border: Border.all(color: Colors.black),
+                border: Border.all(color: Colors.black, width: 5),
+                color: Colors.grey[300],
               ),
             ),
-          ),
 
-        // pips + labels
-        for (final layout in PipLayout.layouts!) ...[
-          Positioned.fromRect(
-            rect: layout.rect,
-            child: PipTriangle(pip: layout.pipNo, highlight: false),
-          ),
-          Positioned.fromRect(
-            rect: layout.labelRect,
-            child: PipLabel(layout: layout),
-          ),
-        ],
-
-        // off trays
-        for (final rect in const [
-          Rect.fromLTWH(520, 216, 32, 183),
-          Rect.fromLTWH(520, 20, 32, 183),
-        ])
-          Positioned.fromRect(
-            rect: rect,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.green[900],
-                border: Border.all(color: Colors.black, width: 2),
+            // outer + home board backgrounds (tap to deselect)
+            for (final rect in const [
+              Rect.fromLTWH(20, 20, 216, 380),
+              Rect.fromLTWH(284, 20, 216, 380),
+            ])
+              Positioned.fromRect(
+                rect: rect,
+                child: GestureDetector(
+                  onTap: onTapBoard,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.green[900],
+                      border: Border.all(color: Colors.black),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
 
-        const InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)),
-        const InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)),
-        const InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)),
-        const InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)),
+            // pips and labels
+            for (final layout in PipLayout.layouts!) ...[
+              Positioned.fromRect(
+                rect: layout.rect,
+                child: GestureDetector(
+                  onTap: onTapPip == null
+                      ? null
+                      : () => onTapPip!(layout.pipNo),
+                  child: PipTriangle(
+                    pip: layout.pipNo,
+                    highlight: _highlightPip(layout.pipNo),
+                  ),
+                ),
+              ),
+              Positioned.fromRect(
+                rect: layout.labelRect,
+                child: PipLabel(layout: layout, reversed: reversed),
+              ),
+            ],
 
-        // doubling cube
-        Positioned.fromRect(
-          rect: const Rect.fromLTWH(238, 186, 44, 44),
-          child: DoublingCubeView(cube: game.cube),
-        ),
+            // off trays (player1 bottom, player2 top)
+            for (final player in GammonPlayer.values)
+              Positioned.fromRect(
+                rect: player == GammonPlayer.one
+                    ? const Rect.fromLTWH(520, 216, 32, 183)
+                    : const Rect.fromLTWH(520, 20, 32, 183),
+                child: GestureDetector(
+                  onTap: onTapOff == null ? null : () => onTapOff!(player),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.green[900],
+                      border: Border.all(
+                        color: _highlightOff(player)
+                            ? Colors.yellow
+                            : Colors.black,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
 
-        // pieces
-        for (final layout in PieceLayout.getLayouts(game.board))
-          Positioned.fromRect(
-            rect: layout.rect,
-            child: PieceView(layout: layout),
-          ),
+            const InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)),
+            const InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)),
+            const InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)),
+            const InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)),
 
-        // dice (only once someone has rolled)
-        if (game.dice.length == 2 || game.dice.length == 4)
-          for (final layout in DieLayout.getLayouts(game))
+            // doubling cube (issue #12)
             Positioned.fromRect(
-              rect: layout.rect,
-              child: DieView(layout: layout),
+              rect: _cubeRect(game.cube.owner),
+              child: GestureDetector(
+                onTap: onTapCube,
+                child: DoublingCubeView(cube: game.cube, reversed: reversed),
+              ),
             ),
 
-        // pip counts
-        for (final layout in PipCountLayout.getLayouts(game))
-          Positioned.fromRect(
-            rect: layout.rect,
-            child: PipCountView(layout: layout),
-          ),
+            // pieces; moving pieces are drawn last so they appear on top of
+            // stationary pieces (issue #6)
+            for (final layout in PieceLayout.drawOrder(
+              PieceLayout.getLayouts(game.board, _pipNosToHighlight),
+              pieceAnimations.keys.toSet(),
+            ))
+              pieceAnimations.containsKey(layout.pieceID)
+                  ? AnimatedPiece.fromLayouts(
+                      layouts: pieceAnimations[layout.pieceID]!,
+                      delay: pieceDelays[layout.pieceID] ?? Duration.zero,
+                      onEnd: () => onPieceAnimationEnd?.call(layout.pieceID),
+                      child: GestureDetector(
+                        onTap: onTapPip == null
+                            ? null
+                            : () => onTapPip!(layout.pipNo),
+                        child: PieceView(layout: layout.animated),
+                      ),
+                    )
+                  : Positioned.fromRect(
+                      rect: layout.rect,
+                      child: GestureDetector(
+                        onTap: onTapPip == null
+                            ? null
+                            : () => onTapPip!(layout.pipNo),
+                        child: PieceView(layout: layout),
+                      ),
+                    ),
 
-        // tap targets for playing (milestone 2)
-        if (_interactive) ...[
-          // the 24 points
-          for (final layout in PipLayout.layouts!)
-            _tapZone(layout.rect, layout.pipNo),
-          // the bar (center) -> our bar pip
-          if (myBarPip != null)
-            _tapZone(const Rect.fromLTWH(236, 20, 48, 380), myBarPip!),
-          // our off tray (bottom for X, top for O) -> our off pip
-          if (myOffPip != null)
-            _tapZone(
-              myOffPip == 0
-                  ? const Rect.fromLTWH(520, 216, 32, 183)
-                  : const Rect.fromLTWH(520, 20, 32, 183),
-              myOffPip!,
-            ),
-        ],
-      ],
+            // dice (only once someone has rolled)
+            if (game.dice.length == 2 || game.dice.length == 4)
+              for (final layout in DieLayout.getLayouts(game))
+                Positioned.fromRect(
+                  rect: layout.rect,
+                  child: DieView(layout: layout, onTap: onTapDice),
+                ),
+
+            // pip counts
+            for (final layout in PipCountLayout.getLayouts(game))
+              Positioned.fromRect(
+                rect: layout.rect,
+                child: PipCountView(layout: layout, reversed: reversed),
+              ),
+          ],
+        ),
+      ),
     ),
   );
+}
 
-  Widget _tapZone(Rect rect, int pipNo) => Positioned.fromRect(
+/// A subtle inner top/left shadow drawn over a board region.
+class InnerShadingRect extends StatelessWidget {
+  const InnerShadingRect({required this.rect, super.key});
+  final Rect rect;
+
+  @override
+  Widget build(BuildContext context) => Positioned.fromRect(
     rect: rect,
-    child: GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: () => onTapPip!(pipNo),
-      child: selectedPip == pipNo
-          ? DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.yellow, width: 3),
-              ),
-            )
-          : null,
+    child: Stack(
+      children: [
+        Container(
+          height: 10,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.black.withAlpha(51), Colors.transparent],
+            ),
+          ),
+        ),
+        Container(
+          width: 10,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Colors.black.withAlpha(51), Colors.transparent],
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }

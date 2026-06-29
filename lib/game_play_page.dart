@@ -1,18 +1,14 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
 
-import 'animated_layouts.dart';
-import 'dice.dart';
+import 'board_view.dart';
 import 'local_ai_driver.dart';
 import 'main.dart';
 import 'model.dart';
 import 'pieces.dart';
-import 'pip_count.dart';
-import 'pips.dart';
 import 'tinystate.dart';
 
 class GamePlayPage extends StatefulWidget {
@@ -315,202 +311,27 @@ class _GameViewState extends State<GameView> {
         padding: const EdgeInsets.all(8),
         child: ChangeNotifierBuilder<GameViewController>(
           notifier: widget.controller,
-          builder: (context, controller, child) => AnimatedContainer(
-            duration: const Duration(milliseconds: 500),
-            transform: Matrix4.rotationZ(controller.reversed ? pi : 0),
-            transformAlignment: Alignment.center,
-            child: FittedBox(
-              child: IgnorePointer(
-                ignoring: _game!.gameOver || _aiBusy,
-                child: Stack(
-                  children: [
-                    // frame
-                    Container(
-                      width: 574,
-                      height: 420,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.black, width: 5),
-                        color: Colors.grey[300],
-                      ),
-                    ),
-
-                    // outer board
-                    Positioned.fromRect(
-                      rect: const Rect.fromLTWH(20, 20, 216, 380),
-                      child: GestureDetector(
-                        onTap: _tapBoard,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.green[900],
-                            border: Border.all(color: Colors.black),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // home board
-                    Positioned.fromRect(
-                      rect: const Rect.fromLTWH(284, 20, 216, 380),
-                      child: GestureDetector(
-                        onTap: _tapBoard,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.green[900],
-                            border: Border.all(color: Colors.black),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // pips and labels
-                    for (final layout in PipLayout.layouts!) ...[
-                      Positioned.fromRect(
-                        rect: layout.rect,
-                        child: GestureDetector(
-                          onTap: () => _tapPip(layout.pipNo),
-                          child: PipTriangle(
-                            pip: layout.pipNo,
-                            highlight: _highlightPip(layout.pipNo),
-                          ),
-                        ),
-                      ),
-                      Positioned.fromRect(
-                        rect: layout.labelRect,
-                        child: PipLabel(
-                          layout: layout,
-                          reversed: controller.reversed,
-                        ),
-                      ),
-                    ],
-
-                    // player1 off
-                    Positioned.fromRect(
-                      rect: const Rect.fromLTWH(520, 216, 32, 183),
-                      child: GestureDetector(
-                        onTap: () => _tapOff(GammonPlayer.one),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.green[900],
-                            border: Border.all(
-                              color: _highlightOff(GammonPlayer.one)
-                                  ? Colors.yellow
-                                  : Colors.black,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // player2 off
-                    Positioned.fromRect(
-                      rect: const Rect.fromLTWH(520, 20, 32, 183),
-                      child: GestureDetector(
-                        onTap: () => _tapOff(GammonPlayer.two),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.green[900],
-                            border: Border.all(
-                              color: _highlightOff(GammonPlayer.two)
-                                  ? Colors.yellow
-                                  : Colors.black,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const InnerShadingRect(
-                      rect: Rect.fromLTWH(20, 20, 216, 380),
-                    ), // outer board shading
-                    const InnerShadingRect(
-                      rect: Rect.fromLTWH(284, 20, 216, 380),
-                    ), // home board shading
-                    const InnerShadingRect(
-                      rect: Rect.fromLTWH(520, 216, 32, 183),
-                    ), // player1 home shading
-                    const InnerShadingRect(
-                      rect: Rect.fromLTWH(520, 20, 32, 183),
-                    ), // player2 home shading
-                    // doubling cube (issue #12)
-                    Positioned.fromRect(
-                      rect: _cubeRect(_game!.cube.owner),
-                      child: GestureDetector(
-                        onTap: _tapCube,
-                        child: DoublingCubeView(
-                          cube: _game!.cube,
-                          reversed: controller.reversed,
-                        ),
-                      ),
-                    ),
-
-                    // pieces; moving pieces are drawn last so they appear
-                    // on top of stationary pieces (issue #6)
-                    for (final layout in PieceLayout.drawOrder(
-                      PieceLayout.getLayouts(game!.board, _pipNosToHighlight),
-                      _pieceLayouts.keys.toSet(),
-                    ))
-                      _pieceLayouts.containsKey(layout.pieceID)
-                          ? AnimatedPiece.fromLayouts(
-                              layouts: _pieceLayouts[layout.pieceID]!,
-                              delay:
-                                  _pieceDelays[layout.pieceID] ?? Duration.zero,
-                              onEnd: () => _endPieceAnimation(layout.pieceID),
-                              child: GestureDetector(
-                                onTap: () => _tapPiece(layout.pipNo),
-                                child: PieceView(layout: layout.animated),
-                              ),
-                            )
-                          : Positioned.fromRect(
-                              rect: layout.rect,
-                              child: GestureDetector(
-                                onTap: () => _tapPiece(layout.pipNo),
-                                child: PieceView(layout: layout),
-                              ),
-                            ),
-
-                    // dice
-                    for (final layout in DieLayout.getLayouts(game))
-                      Positioned.fromRect(
-                        rect: layout.rect,
-                        child: DieView(layout: layout, onTap: _tapDice),
-                      ),
-
-                    // pip counts
-                    for (final layout in PipCountLayout.getLayouts(game))
-                      Positioned.fromRect(
-                        rect: layout.rect,
-                        child: PipCountView(
-                          layout: layout,
-                          reversed: controller.reversed,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+          builder: (context, controller, child) => BoardView(
+            game: _game!,
+            legalMoves: _legalMovesForPips,
+            selectedPip: _fromPipNo,
+            reversed: controller.reversed,
+            ignoring: _game!.gameOver || _aiBusy,
+            onTapPip: _tapPip,
+            onTapOff: _tapOff,
+            onTapCube: () => unawaited(_tapCube()),
+            onTapDice: _tapDice,
+            onTapBoard: _tapBoard,
+            pieceAnimations: _pieceLayouts,
+            pieceDelays: _pieceDelays,
+            onPieceAnimationEnd: (id) => _endPieceAnimation(id!),
           ),
         ),
       ),
     ),
   );
 
-  List<int?> get _pipNosToHighlight =>
-      _fromPipNo != null ? [_fromPipNo] : _legalMovesForPips.keys.toList();
-
-  void _tapPiece(int pipNo) => _tapPip(pipNo);
   void _tapOff(GammonPlayer player) => _move(GammonRules.offPipNoFor(player));
-
-  // the cube sits at the center bar, shifted toward its owner's side
-  static Rect _cubeRect(GammonPlayer? owner) {
-    const top = <GammonPlayer?, double>{
-      null: 186, // centered
-      GammonPlayer.one: 354, // player1 home is along the bottom
-      GammonPlayer.two: 18, // player2 home is along the top
-    };
-    return Rect.fromLTWH(238, top[owner]!, 44, 44);
-  }
 
   Future<void> _tapCube() async {
     final player = _game!.turnPlayer;
@@ -620,24 +441,6 @@ class _GameViewState extends State<GameView> {
     _reset();
   }
 
-  bool _highlightOff(GammonPlayer player) {
-    final offPipNo = GammonRules.offPipNoFor(player);
-    final legalMoves = _fromPipNo == null
-        ? null
-        : _legalMovesForPips[_fromPipNo];
-    return legalMoves != null && legalMoves.any((m) => m.toPipNo == offPipNo);
-  }
-
-  bool _highlightPip(int pipNo) {
-    final legalMoves = _fromPipNo == null
-        ? null
-        : _legalMovesForPips[_fromPipNo];
-    final result =
-        legalMoves != null &&
-        legalMoves.hasHops(fromPipNo: _fromPipNo, toPipNo: pipNo);
-    return result;
-  }
-
   // remove each animated piece from the list of pieces to animate
   void _endPieceAnimation(int pieceID) {
     _pieceLayouts.remove(pieceID)!;
@@ -651,40 +454,6 @@ class _GameViewState extends State<GameView> {
       _animDone = null;
     }
   }
-}
-
-class InnerShadingRect extends StatelessWidget {
-  const InnerShadingRect({required this.rect, super.key});
-  final Rect rect;
-
-  @override
-  Widget build(BuildContext context) => Positioned.fromRect(
-    rect: rect,
-    child: Stack(
-      children: [
-        Container(
-          height: 10,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.black.withAlpha(51), Colors.transparent],
-            ),
-          ),
-        ),
-        Container(
-          width: 10,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withAlpha(51), Colors.transparent],
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
 }
 
 class QuitGameDialog extends StatelessWidget {

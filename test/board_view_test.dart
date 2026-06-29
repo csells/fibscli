@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fibs_board_test.dart' show fibsBoardLine, parse;
 
 void main() {
-  group('ReadOnlyBoardView (milestone 1)', () {
+  group('BoardView (milestone 1)', () {
     testWidgets('renders a FIBS-derived board with no exception', (
       tester,
     ) async {
@@ -21,12 +21,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: ReadOnlyBoardView(game: game)),
+          home: Scaffold(body: BoardView(game: game)),
         ),
       );
 
       expect(tester.takeException(), isNull);
-      expect(find.byType(ReadOnlyBoardView), findsOneWidget);
+      expect(find.byType(BoardView), findsOneWidget);
       // the doubling cube shows its value
       expect(find.text('1'), findsWidgets);
     });
@@ -42,7 +42,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: ReadOnlyBoardView(game: game)),
+          home: Scaffold(body: BoardView(game: game)),
         ),
       );
 
