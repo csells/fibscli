@@ -1,3 +1,4 @@
+import '../position.dart';
 import '../rules.dart';
 
 /// An immutable snapshot of a position handed to an AI for one decision.
@@ -30,6 +31,10 @@ class BgPosition {
 
   /// Who owns the cube, or null when it is centered.
   final GammonPlayer? cubeOwner;
+
+  /// The checker layout as a typed, immutable [Position] (the structured view
+  /// of [board]).
+  Position get position => Position.fromBoard(board);
 }
 
 /// A full chosen turn: the ordered checker moves to apply. An empty [moves]

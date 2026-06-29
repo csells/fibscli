@@ -7,6 +7,7 @@ export 'src/ai/bg_ai_player.dart';
 export 'src/ai/gnubg_ai_player.dart';
 export 'src/ai/pubeval_ai_player.dart';
 export 'src/ai/turn_search.dart';
+export 'src/position.dart';
 export 'src/pubeval.dart';
 export 'src/race_eval.dart';
 export 'src/rules.dart';
