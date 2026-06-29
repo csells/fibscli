@@ -23,6 +23,9 @@ List<LegalTurn> enumerateLegalTurns(
   List<int> dice,
 ) {
   final results = <LegalTurn>[];
+  // Prune transpositions: different move orders that reach the same position
+  // with the same dice left are explored once (so doubles can't blow up).
+  final seen = <String>{};
 
   void expand(
     List<List<int>> curBoard,
@@ -39,13 +42,32 @@ List<LegalTurn> enumerateLegalTurns(
         final next = copyBoard(curBoard);
         final deltas = GammonRules.applyMove(next, move); // mutates next
         if (deltas.isEmpty) continue;
-        expand(next, _removeHops(curDice, move.hops), [...moves, move]);
+        final rest = _removeHops(curDice, move.hops);
+        final key = '${_signature(next)}|${rest.toList()..sort()}';
+        if (!seen.add(key)) continue;
+        expand(next, rest, [...moves, move]);
       }
     }
   }
 
   expand(board, dice, const []);
   return results;
+}
+
+/// A net signed checker count per pip — a position fingerprint independent of
+/// piece ids (used to prune transpositions during enumeration).
+String _signature(List<List<int>> board) {
+  final sb = StringBuffer();
+  for (final pip in board) {
+    var net = 0;
+    for (final id in pip) {
+      net += id < 0 ? -1 : 1;
+    }
+    sb
+      ..write(net)
+      ..write(',');
+  }
+  return sb.toString();
 }
 
 /// A deep copy of a 26-cell engine board.

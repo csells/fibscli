@@ -86,51 +86,41 @@ class FibsPlay {
     if (d.isEmpty || fb.turnPlayer == null) return null;
     final player = fb.turnPlayer!;
 
+    // Standardized on the shared engine: enumerate the distinct legal turns and
+    // pick the one whose end board pubeval scores best. (Equivalent to
+    // bestTurnCommandWithAi(fb, PubevalAiPlayer()), but synchronous for the
+    // tap-to-move / legacy callers.)
     List<GammonMove>? bestTurn;
     var bestScore = double.negativeInfinity;
-    var leaves = 0; // complete turns evaluated, capped so doubles can't explode
-    final seen = <String>{};
-
-    void dfs(
-      List<List<int>> board,
-      List<int> remaining,
-      List<GammonMove> path,
-    ) {
-      final forced = GammonRules.getForcedLegalMoves(board, player, remaining);
-      if (forced.isEmpty) {
-        if (path.isNotEmpty) {
-          leaves++;
-          final score = PubEval.eval(board, player);
-          if (score > bestScore) {
-            bestScore = score;
-            bestTurn = List.of(path);
-          }
-        }
-        return;
-      }
-      if (leaves > 4000) return;
-      for (final moves in forced.values) {
-        for (final m in moves) {
-          final next = List<List<int>>.generate(
-            board.length,
-            (i) => List<int>.from(board[i]),
-          );
-          GammonRules.applyMove(next, m);
-          final rest = List<int>.of(remaining);
-          for (final hop in m.hops) {
-            rest.remove(hop.abs());
-          }
-          final key = '${_sig(next)}|${rest.toList()..sort()}';
-          if (!seen.add(key)) continue; // prune transpositions
-          path.add(m);
-          dfs(next, rest, path);
-          path.removeLast();
-        }
+    for (final turn in enumerateLegalTurns(_canonicalBoard(fb), player, d)) {
+      if (turn.moves.isEmpty) continue; // dance
+      final score = PubEval.eval(turn.board, player);
+      if (score > bestScore) {
+        bestScore = score;
+        bestTurn = turn.moves;
       }
     }
+    return bestTurn == null ? null : _mergeTurn(fb, bestTurn);
+  }
 
-    dfs(_canonicalBoard(fb), d, []);
-    return bestTurn == null ? null : _mergeTurn(fb, bestTurn!);
+  // The best complete legal turn as one FIBS `move` command, chosen by an
+  // arbitrary [BgAiPlayer] (the spec's "Play for Me" unification). The AI works
+  // in the engine's canonical frame, so we hand it a BgPosition built from the
+  // FIBS board and translate its chosen turn back to FIBS coordinates. With a
+  // PubevalAiPlayer this matches [bestTurnCommand]; other engines (gnubg,
+  // backgammon_ai) plug in unchanged. Returns null for a dance / no dice.
+  static Future<String?> bestTurnCommandWithAi(
+    FibsBoard fb,
+    BgAiPlayer ai, {
+    List<int>? dice,
+  }) async {
+    final d = dice ?? fb.activeDice;
+    if (d.isEmpty || fb.turnPlayer == null) return null;
+    final turn = await ai.chooseTurn(
+      BgPosition(board: _canonicalBoard(fb), onRoll: fb.turnPlayer!, dice: d),
+    );
+    if (turn.moves.isEmpty) return null; // dance
+    return _mergeTurn(fb, turn.moves);
   }
 
   // Render a chosen turn (a list of single-hop moves) as one FIBS `move`
@@ -138,20 +128,6 @@ class FibsPlay {
   static String _mergeTurn(FibsBoard fb, Iterable<GammonMove> moves) {
     final hops = moves.map((m) => commandFor(fb, m).substring('move '.length));
     return 'move ${hops.join(' ')}';
-  }
-
-  static String _sig(List<List<int>> board) {
-    final sb = StringBuffer();
-    for (final pip in board) {
-      var c = 0;
-      for (final id in pip) {
-        c += GammonRules.playerFor(id) == GammonPlayer.one ? -1 : 1;
-      }
-      sb
-        ..write(c)
-        ..write(',');
-    }
-    return sb.toString();
   }
 
   // Translate one canonical GammonMove into a FIBS `move` command, mapping each
