@@ -1,4 +1,5 @@
 import 'package:fibscli/fibs_state.dart';
+import 'package:fibscli/model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_transport.dart';
@@ -65,6 +66,24 @@ void main() {
     // second move can't be sent into a turn we already played
     expect(fibs.canMoveNow, isFalse);
     expect(fibs.playFirstLegalMove, throwsA(isA<FibsStateError>()));
+  });
+
+  test('submitTurn sends the whole turn at once and commits', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    fibs.roll();
+    fake.feed('You roll 4 and 2');
+    await Future<void>.delayed(Duration.zero);
+    expect(fibs.canMoveNow, isTrue);
+
+    // the moves the player built locally on the shared board (viewer pips)
+    fibs.submitTurn([
+      GammonMove(fromPipNo: 8, toPipNo: 4, hops: const [-4]),
+      GammonMove(fromPipNo: 6, toPipNo: 4, hops: const [-2]),
+    ]);
+    expect(fake.sent, contains('move 8-4 6-4')); // one command, whole turn
+    // committing flips canMoveNow off until the next board
+    expect(fibs.canMoveNow, isFalse);
   });
 
   test(

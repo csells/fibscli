@@ -108,4 +108,24 @@ void main() {
       }
     }
   });
+
+  testWidgets('a tap moves the piece LOCALLY -- nothing sent until submit', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    final fibs = await _startGame(tester, fake);
+
+    // make one move on the local working board, the way a tap does
+    final from = fibs.legalMoves.keys.first;
+    final to = fibs.legalMoves[from]!.first.toPipNo;
+    BoardView board() => tester.widget<BoardView>(find.byType(BoardView));
+    board().onTapPip!(from); // select
+    await tester.pump();
+    board().onTapPip!(to); // move (locally)
+    await tester.pumpAndSettle();
+
+    // FIBS must NOT have received a move command -- the turn is built locally
+    // and only submitted on a dice tap (this is what was failing before).
+    expect(fake.sent.where((c) => c.startsWith('move ')), isEmpty);
+  });
 }

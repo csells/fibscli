@@ -49,6 +49,28 @@ void main() {
     });
   });
 
+  group('fibsTurnCommand (whole turn submitted at once)', () {
+    test('joins several moves into one command', () {
+      final moves = [
+        GammonMove(fromPipNo: 8, toPipNo: 4, hops: const [-4]),
+        GammonMove(fromPipNo: 6, toPipNo: 4, hops: const [-2]),
+      ];
+      expect(fibsTurnCommand(moves), 'move 8-4 6-4');
+    });
+
+    test('expands a multi-hop move and keeps bar/off keywords', () {
+      final moves = [
+        GammonMove(fromPipNo: 13, toPipNo: 7, hops: const [-4, -2]),
+        GammonMove(fromPipNo: 3, toPipNo: 0, hops: const [-3]), // bear off
+      ];
+      expect(fibsTurnCommand(moves), 'move 13-9 9-7 3-off');
+    });
+
+    test('an empty turn (a dance) is just "move"', () {
+      expect(fibsTurnCommand(const []), 'move');
+    });
+  });
+
   group('fibsRawMove (tap-to-move, milestone 2)', () {
     test('a plain point-to-point move', () {
       expect(fibsRawMove(13, 9, GammonPlayer.one), 'move 13-9');

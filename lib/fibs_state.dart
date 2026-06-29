@@ -207,6 +207,23 @@ class FibsState extends ChangeNotifier {
     _conn.send(fibsRawMove(fromPip, toPip, GammonPlayer.one));
   }
 
+  // Submit a WHOLE turn the player built locally on the shared board (the same
+  // mechanic as the local game: make your moves, undo freely, then tap the dice
+  // to commit). FIBS wants the complete turn in one command, so we send it all
+  // at once -- a partial turn is what triggers "** You must give N moves". The
+  // moves are in viewer pips (player one); an empty list is a dance (pass).
+  void submitTurn(List<GammonMove> moves) {
+    if (!canMoveNow) {
+      throw FibsStateError(
+        'submitTurn: not our turn to move '
+        '(isMyTurn=$isMyTurn dice=$activeDice)',
+      );
+    }
+    _session = _session.committed(); // canMoveNow off until the next board
+    // an empty turn is a dance: FIBS auto-passes, so there's nothing to send.
+    if (moves.isNotEmpty) _conn.send(fibsTurnCommand(moves));
+  }
+
   // Play a legal move for us automatically (drives an assisted/auto game).
   // Picks the first legal move from the engine and sends it; returns the
   // command sent, or null if there's nothing to play. Bots-only, so safe to

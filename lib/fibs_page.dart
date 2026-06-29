@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
 import 'board_animator.dart';
+import 'dice.dart';
 import 'fibs_bot_player.dart';
 import 'fibs_state.dart';
 import 'game_board.dart';
@@ -443,6 +444,13 @@ class _PlayView extends StatefulWidget {
 }
 
 class _PlayViewState extends State<_PlayView> {
+  // The in-progress turn we're building LOCALLY on the shared board -- same
+  // mechanic as the local game: make your moves (seeing the pieces move), undo
+  // freely, then tap the dice to submit the WHOLE turn. FIBS wants the complete
+  // turn in one command, so we only talk to the server on submit. Non-null only
+  // while it's our turn to move; null when watching the opponent.
+  GammonState? _turn;
+  final _moves = <GammonMove>[]; // the moves we've made this turn, to submit
   // diff-based animation: remember the last board so a fresh FIBS board (our
   // move OR the opponent's) animates instead of snapping (issue: FIBS only
   // hands us whole boards, never move deltas). The shared BoardAnimator owns
@@ -485,12 +493,29 @@ class _PlayViewState extends State<_PlayView> {
       App.fibs.gameState?.dice.map((d) => d.roll).toList() ?? const <int>[];
 
   void _onFibsChanged() {
-    final cur = App.fibs.gameState?.board;
+    final fibs = App.fibs;
+    // Start a fresh local turn when it becomes ours; drop it when the turn ends
+    // (we submitted, or it's the opponent's move now).
+    if (fibs.canMoveNow && _turn == null) {
+      setState(() {
+        _turn = _freshTurn(fibs);
+        _moves.clear();
+      });
+    } else if (!fibs.canMoveNow && _turn != null) {
+      setState(() {
+        _turn = null;
+        _moves.clear();
+      });
+    }
+
+    final cur = fibs.gameState?.board;
     if (cur == null) return;
-    // animate only when the checkers actually moved (not a dice-only refresh).
-    // Use the PREVIOUS board's dice so a multi-hop move animates through each
-    // pip rather than sliding straight to the end (same as the local game).
-    if (_prevBoard != null &&
+    // Animate a whole-board change (the opponent's play, or our committed turn
+    // coming back) only when we're NOT mid-edit -- our own in-progress moves
+    // animate themselves as we make them. Use the PREVIOUS board's dice so a
+    // multi-hop move animates through each pip rather than sliding straight.
+    if (_turn == null &&
+        _prevBoard != null &&
         Position.fromBoard(_prevBoard!) != Position.fromBoard(cur) &&
         !_animator.isAnimating) {
       unawaited(
@@ -503,12 +528,60 @@ class _PlayViewState extends State<_PlayView> {
     _prevDice = _diceSnapshot();
   }
 
-  // Send the move to the server (it validates; a decline surfaces as a toast).
-  // We optimistically report success so the board clears its selection; the
-  // result board -- or the lack of one -- arrives over the wire.
-  bool _performMove(int fromPip, int toPip) {
-    App.fibs.move(fromPip, toPip);
+  // A fresh working copy of the current (viewer) board to build our turn on.
+  GammonState _freshTurn(FibsState fibs) {
+    final gs = fibs.gameState!;
+    return GammonState.from(
+      board: gs.board,
+      dice: [for (final d in gs.dice) DieState(d.roll)],
+      turnPlayer: gs.turnPlayer,
+    );
+  }
+
+  // Apply a move to our LOCAL working turn (no server traffic yet): find the
+  // hops, record the move to submit later, and animate it on the shared board.
+  bool _applyLocalMove(int fromPip, int toPip) {
+    final turn = _turn;
+    if (turn == null) return false;
+    final hops = GammonRules.preferredHops(
+      turn.board,
+      turn.getAllLegalMoves()[fromPip] ?? const <GammonMove>[],
+      fromPipNo: fromPip,
+      toPipNo: toPip,
+    );
+    if (hops == null) return false;
+    final move = GammonMove(fromPipNo: fromPip, toPipNo: toPip, hops: hops);
+    _moves.add(move);
+
+    final initial = [for (final c in turn.board) List<int>.of(c)];
+    final deltas = turn.applyMove(move: move);
+    setState(() {}); // legal moves / dice changed
+    unawaited(_animator.play(MoveAnimation.forMove(initial, deltas)));
     return true;
+  }
+
+  // Tap the dice to submit the whole turn -- only once there are no more legal
+  // moves to make (the forced-move rules require using every playable die).
+  void _submitTurn() {
+    final turn = _turn;
+    if (turn == null || turn.getAllLegalMoves().isNotEmpty) return;
+    // the post-submit board echoes our move, so don't let it re-animate
+    _prevBoard = [for (final c in turn.board) List<int>.of(c)];
+    _prevDice = const [];
+    App.fibs.submitTurn(List<GammonMove>.of(_moves));
+    setState(() {
+      _turn = null;
+      _moves.clear();
+    });
+  }
+
+  // Undo the whole in-progress turn -- start building it again from scratch.
+  void _undoTurn() {
+    if (_moves.isEmpty) return;
+    setState(() {
+      _turn = _freshTurn(App.fibs);
+      _moves.clear();
+    });
   }
 
   @override
@@ -537,6 +610,12 @@ class _PlayViewState extends State<_PlayView> {
           onPressed: () => _confirmLeave(context),
         ),
         actions: [
+          if (_moves.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.undo),
+              tooltip: 'undo moves',
+              onPressed: _undoTurn,
+            ),
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'flip board',
@@ -549,22 +628,27 @@ class _PlayViewState extends State<_PlayView> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8),
+              // While it's our turn we edit a LOCAL working board (_turn) and
+              // submit on a dice tap; otherwise we just render the live board.
               child: GameBoard(
-                game: fibs.gameState!,
+                game: _turn ?? fibs.gameState!,
                 animator: _animator,
-                // mirror-aware highlights in real FIBS coords (see FibsState)
-                legalMoves: fibs.legalMoves,
-                interactive: fibs.canMoveNow,
+                legalMoves: _turn?.getAllLegalMoves() ?? const {},
+                interactive: _turn != null,
                 reversed: reversed,
-                onMove: _performMove,
+                onMove: _applyLocalMove,
+                onTapDice: _submitTurn,
               ),
             ),
           ),
-          _Controls(fibs: fibs),
+          _Controls(fibs: fibs, turnComplete: _turnComplete),
         ],
       ),
     );
   }
+
+  // our turn, a move started, and no more legal moves -> ready to submit
+  bool get _turnComplete => _turn != null && _turn!.getAllLegalMoves().isEmpty;
 
   Future<void> _confirmLeave(BuildContext context) async {
     final ok = await showDialog<bool>(
@@ -592,8 +676,10 @@ class _PlayViewState extends State<_PlayView> {
 }
 
 class _Controls extends StatelessWidget {
-  const _Controls({required this.fibs});
+  const _Controls({required this.fibs, this.turnComplete = false});
   final FibsState fibs;
+  // our turn is fully played -> prompt to tap the dice to submit it
+  final bool turnComplete;
 
   @override
   Widget build(BuildContext context) {
@@ -619,7 +705,10 @@ class _Controls extends StatelessWidget {
     } else if (fibs.canMoveNow) {
       children.add(
         Text(
-          'Your move — dice ${fibs.activeDice.join(", ")}',
+          turnComplete
+              ? 'Tap the dice to submit your move'
+              : 'Your move — make your moves, then tap the dice '
+                    '(dice ${fibs.activeDice.join(", ")})',
           style: const TextStyle(color: Colors.white),
         ),
       );
