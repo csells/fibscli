@@ -52,7 +52,7 @@ as part of the same effort.
 | Mode | Sides | Driver | Engine board | Status |
 |------|-------|--------|--------------|--------|
 | **2-player local** | Human vs Human (hot-seat) | UI taps | `GammonState` | Exists |
-| **1-player vs computer** | Human vs `BgAiPlayer` | `LocalAiDriver` drives one side | `GammonState` | New |
+| **1-player vs computer** | Human vs `BgAiPlayer` | `GamePlayPage` drives the AI side | `GammonState` | New |
 | **2-player FIBS bot** | Human vs FIBS bot | FIBS server | `FibsState` | Exists |
 | **FIBS "Play for Me"** | `BgAiPlayer` plays your side vs FIBS bot | `FibsBotPlayer` → `BgAiPlayer` | `FibsState` | New (unify) |
 
@@ -156,7 +156,7 @@ packages/bg_engine/                 (NEW — pure Dart, workspace member)
 
 fibscli (app)                        depends on bg_engine + backgammon_ai
   GammonState (ChangeNotifier)       stays in the app; uses bg_engine rules
-  LocalAiDriver                      drives one side of a local game via BgAiPlayer
+  playAiTurn/positionFromState       drive + adapt a local AI side (UI: _maybePlayAi)
   FibsBotPlayer                      delegates move choice to a BgAiPlayer
   adapters                           GammonState<->BgPosition, FibsBoard<->BgPosition
 
@@ -207,14 +207,15 @@ The pubeval impl needs **no** adapter — it reads the canonical board directly.
 
 ## 7. Driving a turn
 
-**Local 1-player (`LocalAiDriver`)** — a `ChangeNotifier` listener on
-`GammonState`, analogous to `FibsBotPlayer` but for local play:
-1. On the computer side's turn: roll (human-paced delay), build `BgPosition`.
-2. Before rolling, ask `cubeDecision`; honor offerDouble/respond as configured.
-3. `await ai.chooseTurn(position)`, apply each `GammonMove`, then `commitTurn()`.
-4. Idle while it's the human's turn (UI taps drive that side as today).
-   Injectable durations + a `pace` knob (mirrors `FibsBotPlayer`) keep it
-   testable offline and humane on screen.
+**Local 1-player** — the AI side is driven from the game UI by
+`GamePlayPage`'s `_maybePlayAi`: when it becomes the computer's turn it builds a
+`BgPosition` (via `positionFromState`), `await ai.chooseTurn(position)`, plays
+each `GammonMove` **through the shared animated move path** (so the AI's moves
+tween like the human's), then `commitTurn()`. Pacing delays are injectable
+(`aiThinkDelay`/`aiMoveDelay`, zero in tests). The headless equivalent
+`playAiTurn` (in `lib/local_ai_driver.dart`) backs the offline full-game test.
+(An earlier standalone `LocalAiDriver` listener class was removed as redundant —
+the UI loop owns the animation it cannot delegate.)
 
 **FIBS "Play for Me" (`FibsBotPlayer` unified)** — the autonomous driver's move
 selection delegates to a chosen `BgAiPlayer`: convert the live FIBS board to
@@ -227,7 +228,7 @@ The existing FIBS etiquette/throttling/state guards are unchanged.
 `LandingPage` grows to offer the modes:
 - **Local 2-player** → `GamePlayPage` (unchanged).
 - **Play vs Computer** → AI picker (name + level from `AiRegistry`) → local game
-  with a `LocalAiDriver` on the opponent side.
+  with the AI on the opponent side.
 - **Play a bot (FIBS)** → `FibsPage` (unchanged).
 - **FIBS Play for Me** → within `FibsPage`, a "Play for Me" control that starts/
   stops the unified `FibsBotPlayer` with the chosen AI.
@@ -272,5 +273,5 @@ dedicated red-green TDD, targeting **≥85 on every principle**:
 2. Scorecard fixes to ≥85 across the board (red-green TDD).
 3. `bg_engine` package: extract rules, add `BgPosition`/`BgAiPlayer`/
    `PubevalAiPlayer`/`GnubgAiPlayer`/`AiRegistry` (TDD).
-4. Modes UI + `LocalAiDriver` + unify `FibsBotPlayer` + AI picker (TDD).
+4. Modes UI + local AI driving + unify `FibsBotPlayer` + AI picker (TDD).
 5. `backgammon_ai` adapter (cross-repo) + final brutal scorecard reassessment.
