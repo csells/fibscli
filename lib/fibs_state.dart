@@ -334,10 +334,12 @@ class FibsState extends ChangeNotifier {
     // bot list populate every time instead of sometimes hanging on "waiting for
     // the who-list".
     _conn.send('who');
-    // FIBS automatically lists our unfinished saved matches right after login
-    // (the FIBS_SavedMatch lines handled in _streamItem), so there's no command
-    // to send -- a dropped connection (ours or the opponent's) saves the match
-    // and we resume it by re-inviting.
+    // Ask FIBS for our unfinished saved matches. FIBS does NOT volunteer the
+    // listing on login -- you have to request it -- and its lines (handled as
+    // FIBS_SavedMatch) populate savedMatches so the lobby can offer "Resume a
+    // saved match". (FIBS never re-invites you itself; resuming re-invites the
+    // opponent, which makes FIBS reload the saved game.)
+    _conn.send('show savedgames');
     notifyListeners();
   }
 

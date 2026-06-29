@@ -14,12 +14,13 @@ Future<FibsState> _loggedIn(FakeTransport fake) async {
 
 void main() {
   test(
-    'login does not send junk commands (FIBS lists saved games itself)',
+    'login requests the saved-games list (FIBS does not volunteer it)',
     () async {
       final fake = FakeTransport();
       await _loggedIn(fake);
-      // FIBS auto-reports saved games at login; we must not invent a command
-      expect(fake.sent, isNot(contains('show savedgames')));
+      // FIBS only lists saved games when asked; without this the lobby can't
+      // ever offer to resume an unfinished match.
+      expect(fake.sent, contains('show savedgames'));
     },
   );
 
