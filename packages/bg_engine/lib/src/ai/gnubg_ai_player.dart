@@ -2,6 +2,27 @@ import '../rules.dart';
 import 'bg_ai_player.dart';
 import 'turn_search.dart';
 
+/// Thrown when gnubg cannot supply a move: the service is unreachable (after
+/// retries) or it answered but none of its ranked plays matched a legal turn.
+/// The adapter NEVER substitutes a locally-chosen move for gnubg's -- that
+/// would misreport a heuristic play as gnubg's. Callers surface this to the
+/// user (e.g. "the gnubg endpoint is unavailable").
+class GnubgUnavailableException implements Exception {
+  /// Creates the exception with a human-readable [message] and the underlying
+  /// [cause] (the last transport error), when there was one.
+  GnubgUnavailableException(this.message, [this.cause]);
+
+  /// What went wrong, in user-facing terms.
+  final String message;
+
+  /// The last underlying error (e.g. a SocketException), if any.
+  final Object? cause;
+
+  @override
+  String toString() =>
+      'GnubgUnavailableException: $message${cause == null ? '' : ' ($cause)'}';
+}
+
 /// One ranked move from gnubg: a standard-notation [play] (e.g. "8/5 6/5") and
 /// its cubeless equity (higher is better for the mover).
 class GnubgRankedMove {
@@ -30,13 +51,29 @@ abstract class GnubgClient {
 /// rank the moves, then returns the locally-enumerated legal turn whose
 /// resulting position matches gnubg's best playable choice — so the returned
 /// [GammonMove]s always have valid hops, regardless of how gnubg collapses its
-/// notation. Falls back to a legal turn if gnubg returns nothing matchable, so
-/// play never stalls.
+/// notation.
+///
+/// It NEVER fabricates a move: if the service is unreachable (after [retries]
+/// attempts) or answers with nothing matchable, it throws
+/// [GnubgUnavailableException] so the caller can tell the user the gnubg
+/// endpoint is unavailable, rather than silently playing a local heuristic move
+/// dressed up as gnubg's.
 class GnubgAiPlayer extends BgAiPlayer {
-  /// Creates a player driven by [_client].
-  GnubgAiPlayer(this._client);
+  /// Creates a player driven by [_client]. A transient transport failure is
+  /// retried [retries] extra times, waiting [retryDelay] between attempts.
+  GnubgAiPlayer(
+    this._client, {
+    this.retries = 2,
+    this.retryDelay = const Duration(milliseconds: 300),
+  });
 
   final GnubgClient _client;
+
+  /// Extra attempts after the first if the service request fails transiently.
+  final int retries;
+
+  /// Delay between retry attempts.
+  final Duration retryDelay;
 
   @override
   String get name => 'GNU Backgammon (gnubg)';
@@ -60,14 +97,7 @@ class GnubgAiPlayer extends BgAiPlayer {
       return const BgTurn([]);
     }
 
-    final List<GnubgRankedMove> ranked;
-    try {
-      ranked = await _client.evalMoves(position);
-    } on Exception {
-      // The service is down, slow, or erroring. Don't let a remote hiccup
-      // stall the game: fall back to a legal turn, exactly as a no-match does.
-      return BgTurn(turns.first.moves);
-    }
+    final ranked = await _evalWithRetry(position);
     for (final move in ranked) {
       final target = _signatureOfPlay(
         position.board,
@@ -81,8 +111,31 @@ class GnubgAiPlayer extends BgAiPlayer {
         }
       }
     }
-    // gnubg returned nothing we could match -> don't stall the game
-    return BgTurn(turns.first.moves);
+    // The service answered but none of its ranked plays matched a legal turn.
+    // We will NOT invent one -- report it so the user knows gnubg failed us.
+    throw GnubgUnavailableException(
+      'gnubg returned no usable move for this position',
+    );
+  }
+
+  // Ask the service, retrying a transient transport failure. On exhaustion,
+  // throw GnubgUnavailableException -- never a local fallback.
+  Future<List<GnubgRankedMove>> _evalWithRetry(BgPosition position) async {
+    Object? lastError;
+    for (var attempt = 0; attempt <= retries; attempt++) {
+      if (attempt > 0 && retryDelay > Duration.zero) {
+        await Future<void>.delayed(retryDelay);
+      }
+      try {
+        return await _client.evalMoves(position);
+      } on Exception catch (error) {
+        lastError = error;
+      }
+    }
+    throw GnubgUnavailableException(
+      'the gnubg endpoint is unavailable',
+      lastError,
+    );
   }
 
   // Apply a standard-notation [play] for [player] to [board] and return the

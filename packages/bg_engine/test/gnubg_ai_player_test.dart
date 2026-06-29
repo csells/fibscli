@@ -17,15 +17,34 @@ class _FakeGnubgClient implements GnubgClient {
   void dispose() {}
 }
 
-// A client that always fails -- a down/slow service or a dropped connection.
-class _FailingGnubgClient implements GnubgClient {
+// A client that fails its first [failures] calls, then serves [plays]. With
+// failures large it models a down service; with failures==1 a transient blip.
+class _FlakyGnubgClient implements GnubgClient {
+  _FlakyGnubgClient({this.failures = 1 << 30, this.plays = const []});
+  int failures;
+  final List<String> plays;
+  int calls = 0;
+
   @override
-  Future<List<GnubgRankedMove>> evalMoves(BgPosition position) async =>
+  Future<List<GnubgRankedMove>> evalMoves(BgPosition position) async {
+    calls++;
+    if (failures > 0) {
+      failures--;
       throw Exception('connection refused');
+    }
+    return [
+      for (var i = 0; i < plays.length; i++)
+        GnubgRankedMove(play: plays[i], equity: -0.1 * i),
+    ];
+  }
 
   @override
   void dispose() {}
 }
+
+// no retry delay so the failure tests run instantly
+GnubgAiPlayer _player(GnubgClient client) =>
+    GnubgAiPlayer(client, retryDelay: Duration.zero);
 
 void main() {
   group('GnubgAiPlayer', () {
@@ -83,39 +102,57 @@ void main() {
     });
 
     test(
-      'falls back to a legal turn when gnubg returns nothing usable',
+      'throws (never fabricates) when gnubg returns nothing usable',
       () async {
-        final ai = GnubgAiPlayer(_FakeGnubgClient(const []));
-        final turn = await ai.chooseTurn(
-          BgPosition(
-            board: GammonRules.initialBoard(),
-            onRoll: GammonPlayer.one,
-            dice: [3, 1],
+        // service answered but with no matchable play: we must NOT substitute
+        // a local move and pass it off as gnubg's -- surface the failure.
+        final ai = _player(_FakeGnubgClient(const []));
+        await expectLater(
+          ai.chooseTurn(
+            BgPosition(
+              board: GammonRules.initialBoard(),
+              onRoll: GammonPlayer.one,
+              dice: [3, 1],
+            ),
           ),
+          throwsA(isA<GnubgUnavailableException>()),
         );
-        // still a legal, both-dice turn (so the game never stalls)
-        final hops = turn.moves.fold<int>(0, (s, m) => s + m.hops.length);
-        expect(hops, 2);
       },
     );
 
     test(
-      'a failed service request falls back to a legal turn (no stall)',
+      'an unavailable service throws after retrying -- never a faked move',
       () async {
-        // a network/timeout/HTTP error must NOT throw out of chooseTurn and
-        // stall the game -- it degrades to a legal play like a no-match does.
-        final ai = GnubgAiPlayer(_FailingGnubgClient());
-        final turn = await ai.chooseTurn(
-          BgPosition(
-            board: GammonRules.initialBoard(),
-            onRoll: GammonPlayer.one,
-            dice: [3, 1],
+        // the endpoint is down: retry, then report it. We must NOT play a
+        // local move dressed up as gnubg's.
+        final client = _FlakyGnubgClient(); // always fails
+        final ai = _player(client);
+        await expectLater(
+          ai.chooseTurn(
+            BgPosition(
+              board: GammonRules.initialBoard(),
+              onRoll: GammonPlayer.one,
+              dice: [3, 1],
+            ),
           ),
+          throwsA(isA<GnubgUnavailableException>()),
         );
-        final hops = turn.moves.fold<int>(0, (s, m) => s + m.hops.length);
-        expect(hops, 2, reason: 'a legal, both-dice turn despite the failure');
+        expect(client.calls, 3, reason: '1 try + 2 retries');
       },
     );
+
+    test('a transient blip is retried and then succeeds', () async {
+      // one failure, then a good response -> gnubg's move, no error
+      final ai = _player(_FlakyGnubgClient(failures: 1, plays: ['8/5 6/5']));
+      final turn = await ai.chooseTurn(
+        BgPosition(
+          board: GammonRules.initialBoard(),
+          onRoll: GammonPlayer.one,
+          dice: [3, 1],
+        ),
+      );
+      expect(turn.moves.any((m) => m.fromPipNo == 8 && m.toPipNo == 5), isTrue);
+    });
 
     test('a dance is returned without ever calling the service', () async {
       // no legal move -> a dance; don't waste a request (or risk its failure).
@@ -128,11 +165,12 @@ void main() {
           ..clear()
           ..addAll([-1, -2]); // player1 blocks every entry point
       }
-      final ai = GnubgAiPlayer(_FailingGnubgClient());
-      final turn = await ai.chooseTurn(
+      final client = _FlakyGnubgClient(); // would fail if called
+      final turn = await _player(client).chooseTurn(
         BgPosition(board: board, onRoll: GammonPlayer.two, dice: [3, 1]),
       );
       expect(turn.isDance, isTrue);
+      expect(client.calls, 0, reason: 'a dance needs no service call');
     });
 
     test('registers as an engine via its factory', () {

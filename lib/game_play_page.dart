@@ -290,9 +290,29 @@ class _GameViewState extends State<GameView> {
         },
       );
       if (mounted && _game != null) _reset();
+    } on GnubgUnavailableException catch (e) {
+      // The chosen engine couldn't supply a move (after its own retries). We do
+      // NOT fabricate one -- tell the user and let them retry the engine.
+      _reportEngineUnavailable(e.message);
     } finally {
       _aiBusy = false;
     }
+  }
+
+  void _reportEngineUnavailable(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Computer engine unavailable: $message'),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => unawaited(_maybePlayAi()),
+          ),
+        ),
+      );
   }
 
   // The AI offered a double; ask the human (the opponent) to take or pass.
