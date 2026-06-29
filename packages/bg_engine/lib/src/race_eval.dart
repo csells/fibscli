@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'board_signature.dart';
 import 'rules.dart';
 
 /// Exact race evaluation, ported from the algorithm in race2.c
@@ -120,7 +121,7 @@ class RaceEval {
   double _winProb(List<List<int>> board, GammonPlayer toMove) {
     if (_won(board, GammonRules.otherPlayer(toMove))) return 0;
 
-    final key = '${_signature(board)}|${toMove.index}';
+    final key = '${netSignature(board)}|${toMove.index}';
     final cached = _winMemo[key];
     if (cached != null) return cached;
     _checkCap();
@@ -161,7 +162,7 @@ class RaceEval {
   double _unitRoll(List<List<int>> board, GammonPlayer toMove, int owner) {
     if (_won(board, GammonRules.otherPlayer(toMove))) return -1;
 
-    final key = 'R|${_signature(board)}|${toMove.index}|$owner';
+    final key = 'R|${netSignature(board)}|${toMove.index}|$owner';
     final cached = _eqMemo[key];
     if (cached != null) return cached;
     _checkCap();
@@ -252,7 +253,7 @@ class RaceEval {
     final seen = <String>{};
     final result = <List<List<int>>>[];
     for (final candidate in byDepth[maxDepth]!) {
-      if (seen.add(_signature(candidate))) result.add(candidate);
+      if (seen.add(netSignature(candidate))) result.add(candidate);
     }
     return result;
   }
@@ -261,22 +262,6 @@ class RaceEval {
 
   static List<List<int>> _copy(List<List<int>> board) =>
       List<List<int>>.generate(board.length, (i) => List<int>.from(board[i]));
-
-  // Piece ids don't affect the race outcome, so the memo key is just the net
-  // checker count per pip (negative = player1, positive = player2).
-  static String _signature(List<List<int>> board) {
-    final sb = StringBuffer();
-    for (final pip in board) {
-      var count = 0;
-      for (final id in pip) {
-        count += GammonRules.playerFor(id) == GammonPlayer.one ? -1 : 1;
-      }
-      sb
-        ..write(count)
-        ..write(',');
-    }
-    return sb.toString();
-  }
 
   static bool _won(List<List<int>> board, GammonPlayer player) {
     final offPipNo = GammonRules.offPipNoFor(player);
