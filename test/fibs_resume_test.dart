@@ -52,20 +52,22 @@ void main() {
     expect(fake.sent, contains('invite BlunderBot'));
   });
 
-  test('an opponent resume request is surfaced and join accepts it', () async {
-    final fake = FakeTransport();
-    final fibs = await _loggedIn(fake);
+  test(
+    'an opponent resume request auto-joins (always drops us back in)',
+    () async {
+      final fake = FakeTransport();
+      final fibs = await _loggedIn(fake);
 
-    fake.feed('BlunderBot wants to resume a saved match with you.');
-    await Future<void>.delayed(Duration.zero);
-    expect(fibs.resumeRequestFrom, 'BlunderBot');
+      fake.feed('BlunderBot wants to resume a saved match with you.');
+      await Future<void>.delayed(Duration.zero);
 
-    fibs.joinGame();
-    expect(fake.sent, contains('join'));
-    expect(fibs.resumeRequestFrom, isNull);
-  });
+      // no manual tap: the app sends `join` itself and clears the prompt
+      expect(fake.sent, contains('join'));
+      expect(fibs.resumeRequestFrom, isNull);
+    },
+  );
 
-  test("a 'type join' prompt sets mustJoin until we join", () async {
+  test("a 'type join' prompt auto-joins the next game", () async {
     final fake = FakeTransport();
     final fibs = await _loggedIn(fake);
 
@@ -74,9 +76,8 @@ void main() {
       "if you don't.",
     );
     await Future<void>.delayed(Duration.zero);
-    expect(fibs.mustJoin, isTrue);
 
-    fibs.joinGame();
+    expect(fake.sent, contains('join'));
     expect(fibs.mustJoin, isFalse);
   });
 }

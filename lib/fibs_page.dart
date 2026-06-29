@@ -219,9 +219,7 @@ class _BotListViewState extends State<_BotListView> {
     final free = App.fibs.availableBots; // invite these
     final playing = App.fibs.watchableBots; // watch these
     final saved = App.fibs.savedMatches; // unfinished matches to resume
-    final resumeFrom = App.fibs.resumeRequestFrom; // opponent asked to resume
-    final empty =
-        free.isEmpty && playing.isEmpty && saved.isEmpty && resumeFrom == null;
+    final empty = free.isEmpty && playing.isEmpty && saved.isEmpty;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bots'),
@@ -241,24 +239,13 @@ class _BotListViewState extends State<_BotListView> {
             )
           : ListView(
               children: [
-                // An opponent (or FIBS between games) is waiting on us to join.
-                if (resumeFrom != null || App.fibs.mustJoin)
-                  ListTile(
-                    leading: const Icon(Icons.play_circle),
-                    title: Text(
-                      resumeFrom != null
-                          ? '$resumeFrom wants to resume your match'
-                          : 'Ready to continue your match',
-                    ),
-                    subtitle: const Text('tap Join to continue'),
-                    trailing: FilledButton(
-                      onPressed: App.fibs.joinGame,
-                      child: const Text('Join'),
-                    ),
-                    onTap: App.fibs.joinGame,
-                  ),
-                // Unfinished matches we can pick back up (re-inviting reloads
-                // the saved game). Finishing saved matches is good manners.
+                // A resume request or "type join" prompt is AUTO-joined in
+                // FibsState (see _applyAndAutoJoin), so there's no manual Join
+                // tile here -- an outstanding game just drops us back in.
+                //
+                // Unfinished matches we can pick back up when the opponent
+                // isn't online to auto-resume (re-inviting reloads the saved
+                // game). Finishing saved matches is good manners.
                 if (saved.isNotEmpty)
                   const _SectionHeader('Resume a saved match'),
                 for (final opponent in saved)

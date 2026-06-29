@@ -144,8 +144,11 @@ class FibsState extends ChangeNotifier {
     FibsCookie.FIBS_AcceptRejectDouble: _applyCookie,
     FibsCookie.FIBS_SavedMatch: _applyCookie,
     FibsCookie.FIBS_NoSavedGames: _applyCookie,
-    FibsCookie.FIBS_ResumeMatchRequest: _applyCookie,
-    FibsCookie.FIBS_JoinNextGame: _applyCookie,
+    // an opponent asking to resume, or FIBS prompting "type join" between/into
+    // games, both need a `join` to actually load the board -- auto-join so an
+    // outstanding game ALWAYS drops us back in, no tap required.
+    FibsCookie.FIBS_ResumeMatchRequest: _applyAndAutoJoin,
+    FibsCookie.FIBS_JoinNextGame: _applyAndAutoJoin,
     FibsCookie.FIBS_ResumeMatchAck0: _applyCookie,
     FibsCookie.FIBS_ResumeMatchAck5: _applyCookie,
   };
@@ -153,6 +156,18 @@ class FibsState extends ChangeNotifier {
   // fold an inbound game/turn cookie into the session and republish
   void _applyCookie(CookieMessage cm) {
     _session = _session.reduce(cm);
+    notifyListeners();
+  }
+
+  // Reduce a resume/join prompt and immediately send `join` so the saved game
+  // loads on its own. This is the seamless half of resume: FIBS sometimes
+  // reloads the match and sends a board directly, but otherwise it waits for a
+  // join -- which used to need a manual tap, so resuming worked only sometimes.
+  void _applyAndAutoJoin(CookieMessage cm) {
+    _session = _session.reduce(cm);
+    if (_session.mustJoin || _session.resumeRequestFrom != null) {
+      joinGame(); // sends `join` and clears the prompt
+    }
     notifyListeners();
   }
 

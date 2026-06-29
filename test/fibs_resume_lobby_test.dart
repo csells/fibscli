@@ -29,19 +29,20 @@ void main() {
     expect(fake.sent, contains('invite MG'));
   });
 
-  testWidgets('an opponent asking to resume shows a Join prompt', (
+  testWidgets('an opponent resume request auto-joins (no manual prompt)', (
     tester,
   ) async {
     final fake = FakeTransport();
     App.fibs = FibsState.withTransport(fake);
     await App.fibs.login(user: 'me', pass: 'pw');
-    fake.feed('MG wants to resume a saved match with you.');
     await tester.pumpWidget(const MaterialApp(home: FibsPage()));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('MG'), findsWidgets);
-    await tester.tap(find.text('Join'));
+    fake.feed('MG wants to resume a saved match with you.');
     await tester.pumpAndSettle();
+
+    // no tap needed -- the app sends `join` itself to drop us into the game
     expect(fake.sent, contains('join'));
+    expect(find.text('Join'), findsNothing);
   });
 }
