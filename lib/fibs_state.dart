@@ -131,6 +131,11 @@ class FibsState extends ChangeNotifier {
     return isMyTurn ? _myDice : const [];
   }
 
+  // The dice the UI should display/play -- the board's dice, or the ones we
+  // just rolled when FIBS delivered them via a "You roll x and y" message
+  // without a fresh board carrying them.
+  List<int> get activeDice => _effectiveDice;
+
   // it's our turn and we have dice and we haven't already committed this turn
   bool get canMoveNow =>
       isMyTurn && _effectiveDice.isNotEmpty && !_committedTurn;
@@ -212,7 +217,11 @@ class FibsState extends ChangeNotifier {
     final me = myColor;
     if (me != null && _board != null && _board!.turnPlayer != me) {
       _board = _board!.copyWith(turnColor: me == GammonPlayer.one ? -1 : 1);
-      _gameState = _board!.toGammonState();
+    }
+    // Rebuild the rendered state so our just-rolled dice are visible even when
+    // FIBS delivered them via "You roll x and y" without a board carrying them.
+    if (_board != null) {
+      _gameState = _board!.toGammonState(diceOverride: _myDice);
     }
     notifyListeners();
   }

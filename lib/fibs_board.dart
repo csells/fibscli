@@ -130,7 +130,9 @@ class FibsBoard {
     return dice.any((d) => d == 0) ? const [] : dice;
   }
 
-  GammonState toGammonState() {
+  // [diceOverride] forces the rendered dice (used when FIBS delivered our roll
+  // via a "You roll x and y" message rather than in the board frame).
+  GammonState toGammonState({List<int>? diceOverride}) {
     // synthesize stable signed piece ids per player (negative = X = player1)
     var nextX = 0;
     var nextO = 0;
@@ -164,7 +166,8 @@ class FibsBoard {
     place(0, -xOff);
     place(25, oOff);
 
-    final dice = activeDice.map(DieState.new).toList();
+    final diceValues = diceOverride ?? activeDice;
+    final dice = diceValues.map(DieState.new).toList();
     return GammonState.from(board: board, dice: dice, turnPlayer: turnPlayer);
   }
 }

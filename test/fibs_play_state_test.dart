@@ -124,4 +124,18 @@ void main() {
     expect(fibs.acceptDouble, throwsA(isA<FibsStateError>()));
     expect(fibs.rejectDouble, throwsA(isA<FibsStateError>()));
   });
+
+  test('rolled dice (no board carrying them) are visible to the UI', () async {
+    // FIBS auto-rolls and sends "You roll 4 and 2" with no fresh board -- the
+    // dice must still show in the status (activeDice) AND in the rendered game
+    // state (ReadOnlyBoardView renders gameState.dice).
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake); // our turn, no dice
+    fibs.roll();
+    fake.feed('You roll 4 and 2');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.activeDice, [4, 2]);
+    expect(fibs.gameState!.dice.map((d) => d.roll).toList(), [4, 2]);
+  });
 }

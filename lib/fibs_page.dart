@@ -519,7 +519,7 @@ class _Controls extends StatelessWidget {
     } else if (fibs.canMoveNow) {
       children.add(
         Text(
-          'Your move — dice ${fibs.board!.activeDice.join(", ")}',
+          'Your move — dice ${fibs.activeDice.join(", ")}',
           style: const TextStyle(color: Colors.white),
         ),
       );
