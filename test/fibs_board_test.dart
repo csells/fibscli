@@ -154,4 +154,29 @@ void main() {
       expect(countOn(board, 25, GammonPlayer.two), 2);
     });
   });
+
+  group('FibsBoard.position', () {
+    test('the opening maps to the standard typed Position', () {
+      final board = FibsBoard.fromCrumbs(parse(fibsBoardLine(opening)).crumbs!);
+      expect(board.position, Position.standard());
+    });
+
+    test('bar and off counts route to the right player (X=one, O=two)', () {
+      final cm = parse(
+        fibsBoardLine(opening, xBar: 1, oBar: 2, xOff: 3, oOff: 4),
+      );
+      final position = FibsBoard.fromCrumbs(cm.crumbs!).position;
+      expect(position.barFor(GammonPlayer.one), 1); // X bar
+      expect(position.barFor(GammonPlayer.two), 2); // O bar
+      expect(position.offFor(GammonPlayer.one), 3); // X off
+      expect(position.offFor(GammonPlayer.two), 4); // O off
+    });
+
+    test('toGammonState renders exactly the position (no checkers lost)', () {
+      final cm = parse(fibsBoardLine(opening, xBar: 1, oOff: 2));
+      final board = FibsBoard.fromCrumbs(cm.crumbs!);
+      // the rendered board collapses back to the same typed Position
+      expect(Position.fromBoard(board.toGammonState().board), board.position);
+    });
+  });
 }

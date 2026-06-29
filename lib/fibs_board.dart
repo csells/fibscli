@@ -130,44 +130,27 @@ class FibsBoard {
     return dice.any((d) => d == 0) ? const [] : dice;
   }
 
+  // The checker layout as a typed, immutable [Position]. The FIBS frame already
+  // matches the engine's sign convention on the points (positive = O = player
+  // two, negative = X = player one), so they map by identity; the off/bar
+  // counts come from the color-routed [xOff]/[oOff]/[xBar]/[oBar] getters.
+  Position get position => Position(
+    points: [for (var pip = 1; pip <= 24; pip++) points[pip]],
+    oneBar: xBar, // X = player one
+    twoBar: oBar, // O = player two
+    oneOff: xOff,
+    twoOff: oOff,
+  );
+
   // [diceOverride] forces the rendered dice (used when FIBS delivered our roll
   // via a "You roll x and y" message rather than in the board frame).
   GammonState toGammonState({List<int>? diceOverride}) {
-    // synthesize stable signed piece ids per player (negative = X = player1)
-    var nextX = 0;
-    var nextO = 0;
-    int xId() {
-      nextX += 1;
-      return -nextX;
-    }
-
-    int oId() => ++nextO;
-
-    final board = List<List<int>>.generate(26, (_) => <int>[]);
-
-    void place(int pip, int count) {
-      if (count == 0) return;
-      final ids = count < 0 ? xId : oId;
-      for (var i = 0; i != count.abs(); ++i) {
-        board[pip].add(ids());
-      }
-    }
-
-    // points 1..24 map by identity (sign and index)
-    for (var pip = 1; pip <= 24; ++pip) {
-      place(pip, points[pip]);
-    }
-
-    // bars: X bar at index 25 (player1 bar), O bar at index 0 (player2 bar)
-    place(25, -xBar);
-    place(0, oBar);
-
-    // borne off: X off at index 0 (player1 off), O home/off at index 25
-    place(0, -xOff);
-    place(25, oOff);
-
     final diceValues = diceOverride ?? activeDice;
     final dice = diceValues.map(DieState.new).toList();
-    return GammonState.from(board: board, dice: dice, turnPlayer: turnPlayer);
+    return GammonState.from(
+      board: position.toBoard(), // Position synthesises the piece ids
+      dice: dice,
+      turnPlayer: turnPlayer,
+    );
   }
 }
