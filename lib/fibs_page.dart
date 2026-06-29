@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
 import 'board_animator.dart';
-import 'board_view.dart';
 import 'fibs_bot_player.dart';
 import 'fibs_state.dart';
+import 'game_board.dart';
 import 'main.dart';
 import 'model.dart';
 import 'pieces.dart';
@@ -395,7 +395,7 @@ class _WatchView extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(8),
-        child: BoardView(game: fibs.gameState!, ignoring: true),
+        child: GameBoard(game: fibs.gameState!), // read-only spectator board
       ),
     ),
   );
@@ -411,7 +411,6 @@ class _PlayView extends StatefulWidget {
 }
 
 class _PlayViewState extends State<_PlayView> {
-  int? _selected;
   // diff-based animation: remember the last board so a fresh FIBS board (our
   // move OR the opponent's) animates instead of snapping (issue: FIBS only
   // hands us whole boards, never move deltas). The shared BoardAnimator owns
@@ -467,27 +466,12 @@ class _PlayViewState extends State<_PlayView> {
     _prevDice = _diceSnapshot();
   }
 
-  void _tapPip(int pip) {
-    final fibs = App.fibs;
-    if (!fibs.canMoveNow) return;
-    if (_selected == null) {
-      // select only a pip we can actually move from
-      if (fibs.gameState!.getAllLegalMoves()[pip] != null) {
-        setState(() => _selected = pip);
-      }
-    } else {
-      fibs.move(
-        _selected!,
-        pip,
-      ); // server validates; declines surface as toasts
-      setState(() => _selected = null);
-    }
-  }
-
-  void _tapOff(GammonPlayer player) {
-    if (_selected == null) return;
-    App.fibs.move(_selected!, GammonRules.offPipNoFor(player)); // bear off
-    setState(() => _selected = null);
+  // Send the move to the server (it validates; a decline surfaces as a toast).
+  // We optimistically report success so the board clears its selection; the
+  // result board -- or the lack of one -- arrives over the wire.
+  bool _performMove(int fromPip, int toPip) {
+    App.fibs.move(fromPip, toPip);
+    return true;
   }
 
   @override
@@ -517,22 +501,14 @@ class _PlayViewState extends State<_PlayView> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8),
-              child: ChangeNotifierBuilder<BoardAnimator>(
-                notifier: _animator,
-                builder: (context, animator, child) => BoardView(
-                  game: fibs.gameState!,
-                  legalMoves: fibs.canMoveNow
-                      ? fibs.gameState!.getAllLegalMoves()
-                      : const {},
-                  selectedPip: _selected,
-                  ignoring: !fibs.canMoveNow,
-                  onTapPip: fibs.canMoveNow ? _tapPip : null,
-                  onTapOff: fibs.canMoveNow ? _tapOff : null,
-                  onTapBoard: () => setState(() => _selected = null),
-                  pieceAnimations: animator.layouts,
-                  pieceDelays: animator.delays,
-                  onPieceAnimationEnd: animator.endPiece,
-                ),
+              child: GameBoard(
+                game: fibs.gameState!,
+                animator: _animator,
+                legalMoves: fibs.canMoveNow
+                    ? fibs.gameState!.getAllLegalMoves()
+                    : const {},
+                interactive: fibs.canMoveNow,
+                onMove: _performMove,
               ),
             ),
           ),

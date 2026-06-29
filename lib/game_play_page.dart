@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
 
 import 'board_animator.dart';
-import 'board_view.dart';
+import 'game_board.dart';
 import 'game_dialogs.dart';
 import 'local_ai_driver.dart';
 import 'main.dart';
@@ -213,7 +213,6 @@ class GameView extends StatefulWidget {
 class _GameViewState extends State<GameView> {
   GammonState? _game;
   var _legalMovesForPips = <int, List<GammonMove>>{};
-  int? _fromPipNo;
   // owns the in-flight checker animation (layouts, hit-delays, completion) so
   // the AI loop can await a move's animation and the view can redraw on finish.
   final _animator = BoardAnimator();
@@ -352,31 +351,39 @@ class _GameViewState extends State<GameView> {
         padding: const EdgeInsets.all(8),
         child: ChangeNotifierBuilder<GameViewController>(
           notifier: widget.controller,
-          builder: (context, controller, child) =>
-              ChangeNotifierBuilder<BoardAnimator>(
-                notifier: _animator,
-                builder: (context, animator, child) => BoardView(
-                  game: _game!,
-                  legalMoves: _legalMovesForPips,
-                  selectedPip: _fromPipNo,
-                  reversed: controller.reversed,
-                  ignoring: _game!.gameOver || _aiBusy,
-                  onTapPip: _tapPip,
-                  onTapOff: _tapOff,
-                  onTapCube: () => unawaited(_tapCube()),
-                  onTapDice: _tapDice,
-                  onTapBoard: _tapBoard,
-                  pieceAnimations: animator.layouts,
-                  pieceDelays: animator.delays,
-                  onPieceAnimationEnd: animator.endPiece,
-                ),
-              ),
+          builder: (context, controller, child) => GameBoard(
+            game: _game!,
+            animator: _animator,
+            legalMoves: _legalMovesForPips,
+            interactive: !_game!.gameOver && !_aiBusy,
+            onMove: _performMove,
+            reversed: controller.reversed,
+            onTapDice: _tapDice,
+            onTapCube: () => unawaited(_tapCube()),
+          ),
         ),
       ),
     ),
   );
 
-  void _tapOff(GammonPlayer player) => _move(GammonRules.offPipNoFor(player));
+  // Apply a human move locally: find the hops, animate it, recompute legals.
+  // Returns whether the move was legal (so the board can re-select on a miss).
+  bool _performMove(int fromPip, int toPip) {
+    final hops = GammonRules.preferredHops(
+      _game!.board,
+      _legalMovesForPips[fromPip] ?? const <GammonMove>[],
+      fromPipNo: fromPip,
+      toPipNo: toPip,
+    );
+    if (hops == null) return false;
+    unawaited(
+      _applyMoveAnimated(
+        GammonMove(fromPipNo: fromPip, toPipNo: toPip, hops: hops),
+      ),
+    );
+    _reset();
+    return true;
+  }
 
   Future<void> _tapCube() async {
     final player = _game!.turnPlayer;
@@ -419,51 +426,6 @@ class _GameViewState extends State<GameView> {
     }
   }
 
-  void _tapPip(int pipNo) {
-    if (_fromPipNo == null) {
-      // if there's no pip to move from selected and it has legal moves,
-      // select it
-      if (_legalMovesForPips[pipNo] != null) setState(() => _fromPipNo = pipNo);
-    } else {
-      final oldFromPipNo = _fromPipNo;
-
-      // if there is a pip to move from selected, attempt to move to this piece
-      if (!_move(pipNo)) {
-        // if the move failed, check if it's got legal moves and highlight it,
-        // unless it's the same out pip, then toggle it on/off
-        if (oldFromPipNo != pipNo && _legalMovesForPips[pipNo] != null) {
-          setState(() => _fromPipNo = pipNo);
-        }
-      }
-    }
-  }
-
-  bool _move(int toEndPipNo) {
-    // find the set of hops that move from the current pip to the desired pip,
-    // preferring an ordering that hits opponent blots along the way (issue #9)
-    final hops = _fromPipNo == null
-        ? null
-        : GammonRules.preferredHops(
-            _game!.board,
-            _legalMovesForPips[_fromPipNo] ?? const <GammonMove>[],
-            fromPipNo: _fromPipNo!,
-            toPipNo: toEndPipNo,
-          );
-
-    // if this is a legal move, do the move
-    if (hops != null) {
-      final move = GammonMove(
-        fromPipNo: _fromPipNo!,
-        toPipNo: toEndPipNo,
-        hops: hops,
-      );
-      unawaited(_applyMoveAnimated(move));
-    }
-
-    _reset();
-    return hops != null;
-  }
-
   // Apply [move] to the game and animate it; returns a future that completes
   // when the move's piece animation has fully finished. Shared by tap-to-move
   // (fire-and-forget) and the AI driver (awaited, to sequence its moves).
@@ -481,10 +443,7 @@ class _GameViewState extends State<GameView> {
   }
 
   void _reset() {
-    setState(() {
-      _legalMovesForPips = _game!.getAllLegalMoves();
-      _fromPipNo = null;
-    });
+    setState(() => _legalMovesForPips = _game!.getAllLegalMoves());
     widget.controller.canAutoBearOff = _game!.canAutoBearOff;
   }
 
@@ -496,9 +455,5 @@ class _GameViewState extends State<GameView> {
       _reset();
       unawaited(_maybePlayAi()); // turn may now be the AI's
     }
-  }
-
-  void _tapBoard() {
-    _reset();
   }
 }
