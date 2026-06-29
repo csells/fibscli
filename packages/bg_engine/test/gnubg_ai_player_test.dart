@@ -17,6 +17,16 @@ class _FakeGnubgClient implements GnubgClient {
   void dispose() {}
 }
 
+// A client that always fails -- a down/slow service or a dropped connection.
+class _FailingGnubgClient implements GnubgClient {
+  @override
+  Future<List<GnubgRankedMove>> evalMoves(BgPosition position) async =>
+      throw Exception('connection refused');
+
+  @override
+  void dispose() {}
+}
+
 void main() {
   group('GnubgAiPlayer', () {
     test(
@@ -88,6 +98,42 @@ void main() {
         expect(hops, 2);
       },
     );
+
+    test(
+      'a failed service request falls back to a legal turn (no stall)',
+      () async {
+        // a network/timeout/HTTP error must NOT throw out of chooseTurn and
+        // stall the game -- it degrades to a legal play like a no-match does.
+        final ai = GnubgAiPlayer(_FailingGnubgClient());
+        final turn = await ai.chooseTurn(
+          BgPosition(
+            board: GammonRules.initialBoard(),
+            onRoll: GammonPlayer.one,
+            dice: [3, 1],
+          ),
+        );
+        final hops = turn.moves.fold<int>(0, (s, m) => s + m.hops.length);
+        expect(hops, 2, reason: 'a legal, both-dice turn despite the failure');
+      },
+    );
+
+    test('a dance is returned without ever calling the service', () async {
+      // no legal move -> a dance; don't waste a request (or risk its failure).
+      final board = GammonRules.initialBoard();
+      board[0]
+        ..clear()
+        ..add(50); // a player2 checker on the bar
+      for (var pip = 1; pip <= 6; ++pip) {
+        board[pip]
+          ..clear()
+          ..addAll([-1, -2]); // player1 blocks every entry point
+      }
+      final ai = GnubgAiPlayer(_FailingGnubgClient());
+      final turn = await ai.chooseTurn(
+        BgPosition(board: board, onRoll: GammonPlayer.two, dice: [3, 1]),
+      );
+      expect(turn.isDance, isTrue);
+    });
 
     test('registers as an engine via its factory', () {
       final factory = GnubgAiPlayerFactory(() => _FakeGnubgClient(const []));

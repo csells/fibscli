@@ -54,9 +54,20 @@ class GnubgAiPlayer extends BgAiPlayer {
       position.onRoll,
       position.dice,
     );
-    if (turns.isEmpty) return const BgTurn([]);
+    // No legal play (empty, or only a dance): pass without bothering the
+    // service -- there is nothing for it to rank, and nothing to fail on.
+    if (turns.isEmpty || turns.every((t) => t.moves.isEmpty)) {
+      return const BgTurn([]);
+    }
 
-    final ranked = await _client.evalMoves(position);
+    final List<GnubgRankedMove> ranked;
+    try {
+      ranked = await _client.evalMoves(position);
+    } on Exception {
+      // The service is down, slow, or erroring. Don't let a remote hiccup
+      // stall the game: fall back to a legal turn, exactly as a no-match does.
+      return BgTurn(turns.first.moves);
+    }
     for (final move in ranked) {
       final target = _signatureOfPlay(
         position.board,
