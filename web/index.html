@@ -18,13 +18,15 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!-- This script installs service_worker.js to provide PWA functionality to
-       application. For more information, see:
-       https://developers.google.com/web/fundamentals/primers/service-workers -->
+  <!-- NO service worker. It only added offline PWA caching (useless for a
+       network FIBS client) and its aggressive cache forced a clear-site-data to
+       see new builds -- which wiped localStorage, i.e. the remembered FIBS
+       username + password. We actively unregister any SW a previous build left
+       behind, so reloads always fetch fresh code and saved credentials stick. -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('flutter_service_worker.js');
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        for (var i = 0; i < regs.length; i++) regs[i].unregister();
       });
     }
   </script>
