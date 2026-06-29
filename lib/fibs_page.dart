@@ -417,12 +417,18 @@ class _PlayViewState extends State<_PlayView> {
   // hands us whole boards, never move deltas). The shared BoardAnimator owns
   // the in-flight tween lifecycle (same one the local game uses).
   List<List<int>>? _prevBoard;
+  // The dice in play on [_prevBoard] -- i.e. the dice that PRODUCED the move we
+  // animate when the next board arrives. We must capture them from the board
+  // we move FROM: by the time the result board lands, those dice are already
+  // gone (the turn passed), so reading them then would give the wrong dice.
+  List<int> _prevDice = const [];
   final _animator = BoardAnimator();
 
   @override
   void initState() {
     super.initState();
     _prevBoard = _boardCopy();
+    _prevDice = _diceSnapshot();
     App.fibs.addListener(_onFibsChanged);
   }
 
@@ -438,16 +444,27 @@ class _PlayViewState extends State<_PlayView> {
     return board == null ? null : [for (final c in board) List<int>.of(c)];
   }
 
+  // the dice the on-roll player has in play on the current board
+  List<int> _diceSnapshot() =>
+      App.fibs.gameState?.dice.map((d) => d.roll).toList() ?? const <int>[];
+
   void _onFibsChanged() {
     final cur = App.fibs.gameState?.board;
     if (cur == null) return;
-    // animate only when the checkers actually moved (not a dice-only refresh)
+    // animate only when the checkers actually moved (not a dice-only refresh).
+    // Use the PREVIOUS board's dice so a multi-hop move animates through each
+    // pip rather than sliding straight to the end (same as the local game).
     if (_prevBoard != null &&
         Position.fromBoard(_prevBoard!) != Position.fromBoard(cur) &&
         !_animator.isAnimating) {
-      unawaited(_animator.play(MoveAnimation.between(_prevBoard!, cur)));
+      unawaited(
+        _animator.play(
+          MoveAnimation.between(_prevBoard!, cur, dice: _prevDice),
+        ),
+      );
     }
     _prevBoard = _boardCopy();
+    _prevDice = _diceSnapshot();
   }
 
   void _tapPip(int pip) {

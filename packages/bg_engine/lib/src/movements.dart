@@ -72,3 +72,63 @@ List<Movement> boardMovements(Position from, Position to) {
   }
   return movements;
 }
+
+/// The pip path a single checker travels from [fromPip] to [toPip] for
+/// [player], decomposing the journey into [dice]-sized hops so a multi-die move
+/// animates through each intermediate pip instead of sliding straight to the
+/// end.
+///
+/// Returns the ordered pips `[fromPip, ...intermediate, toPip]`. A single-die
+/// move (or one whose distance can't be formed from the available dice, e.g. a
+/// bear-off overshoot) has no intermediate pip: just `[fromPip, toPip]`.
+///
+/// The dice actually used are REMOVED from [dice] (it is mutated), so a shared
+/// pool can allocate dice across the several checkers a whole turn moves; when
+/// no subset matches, nothing is consumed. Among subsets that sum to the
+/// distance the fewest dice win, so an ambiguous distance isn't given invented
+/// extra hops.
+List<int> consumeHopPath({
+  required int fromPip,
+  required int toPip,
+  required GammonPlayer player,
+  required List<int> dice,
+}) {
+  // player one moves toward pip 1 (decreasing); player two toward 24.
+  final dir = player == GammonPlayer.one ? -1 : 1;
+  final distance = (toPip - fromPip) * dir;
+  if (distance <= 0) return [fromPip, toPip]; // bar/off/degenerate: direct
+
+  final chosen = _fewestDiceSummingTo(dice, distance);
+  if (chosen == null) return [fromPip, toPip]; // can't decompose: direct
+  chosen.forEach(dice.remove);
+  if (chosen.length < 2) return [fromPip, toPip]; // single die: no hop
+
+  chosen.sort((a, b) => b.compareTo(a)); // larger die first
+  final path = <int>[fromPip];
+  var pip = fromPip;
+  for (var k = 0; k < chosen.length - 1; k++) {
+    pip += chosen[k] * dir;
+    path.add(pip);
+  }
+  path.add(toPip);
+  return path;
+}
+
+// The fewest-element subset of [dice] summing to [target], or null if none.
+List<int>? _fewestDiceSummingTo(List<int> dice, int target) {
+  List<int>? best;
+  for (var mask = 1; mask < (1 << dice.length); mask++) {
+    var sum = 0;
+    final subset = <int>[];
+    for (var i = 0; i < dice.length; i++) {
+      if (mask & (1 << i) != 0) {
+        sum += dice[i];
+        subset.add(dice[i]);
+      }
+    }
+    if (sum == target && (best == null || subset.length < best.length)) {
+      best = subset;
+    }
+  }
+  return best;
+}

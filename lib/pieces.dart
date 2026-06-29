@@ -136,10 +136,17 @@ class MoveAnimation {
   /// in [toBoard] (its final resting place) and tweened from the matching slot
   /// in [fromBoard]. This is what lets FIBS and opponent moves animate the same
   /// way the local game does, even though FIBS only ever hands us whole boards.
+  ///
+  /// When the turn's [dice] are supplied, a checker that travelled more than
+  /// one die is animated THROUGH each intermediate pip (via [consumeHopPath])
+  /// rather than sliding straight to the end — so a multi-hop move reads as the
+  /// hops it actually was. The dice are allocated across checkers (longest
+  /// journeys first), so each multi-die checker claims its own dice.
   factory MoveAnimation.between(
     List<List<int>> fromBoard,
-    List<List<int>> toBoard,
-  ) {
+    List<List<int>> toBoard, {
+    List<int> dice = const [],
+  }) {
     final movements = boardMovements(
       Position.fromBoard(fromBoard),
       Position.fromBoard(toBoard),
@@ -160,12 +167,33 @@ class MoveAnimation {
       return null;
     }
 
-    for (final move in movements) {
+    // Allocate dice to the longest journeys first so a multi-hop checker claims
+    // its dice before single-hop movers nibble at the shared pool.
+    final pool = List<int>.of(dice);
+    int travel(Movement m) =>
+        (m.toPip - m.fromPip) * (m.player == GammonPlayer.one ? -1 : 1);
+    final ordered = movements.toList()
+      ..sort((a, b) => travel(b).compareTo(travel(a)));
+
+    for (final move in ordered) {
       final dest = take(toLayouts, usedTo, move.toPip);
       final src = take(fromLayouts, usedFrom, move.fromPip);
       if (dest == null || src == null) continue;
-      // tween the destination piece from the source slot to its final slot
-      layouts[dest.pieceID] = [
+
+      // intermediate hops only when landing on a real point (1..24); bar/off
+      // moves (hits, bear-offs) stay a single segment.
+      final hopPips = (move.toPip >= 1 && move.toPip <= 24)
+          ? consumeHopPath(
+              fromPip: move.fromPip,
+              toPip: move.toPip,
+              player: move.player,
+              dice: pool,
+            )
+          : <int>[move.fromPip, move.toPip];
+
+      // first frame = the real source slot; last = the real destination slot;
+      // any middle pips = that point's base slot (a transient pass-through).
+      final frames = <PieceLayout>[
         PieceLayout(
           pieceID: dest.pieceID,
           offset: src.offset,
@@ -173,8 +201,16 @@ class MoveAnimation {
           pipNo: move.fromPip,
           edge: src.edge,
         ),
+        for (final pip in hopPips.getRange(1, hopPips.length - 1))
+          PieceLayout(
+            pieceID: dest.pieceID,
+            offset: PieceLayout.baseSlotOffset(pip),
+            label: '',
+            pipNo: pip,
+          ),
         dest,
       ];
+      layouts[dest.pieceID] = frames;
     }
     return MoveAnimation(layouts, const {});
   }
@@ -205,6 +241,19 @@ class PieceLayout {
 
   Size get size => edge ? _edgeSize : _pieceSize;
   Rect get rect => offset! & size;
+
+  // The on-screen offset of the FIRST checker (stack base) on point [pipNo],
+  // 1..24 -- the same geometry getLayouts assigns at stack height 0. Used to
+  // place a checker mid-journey as it hops through an intermediate point.
+  static Offset baseSlotOffset(int pipNo) {
+    assert(pipNo >= 1 && pipNo <= 24);
+    final dx = _offset.dx * ((pipNo - 1) % 6);
+    if (pipNo <= 6) return Offset(468 - dx, 371); // bottom right
+    if (pipNo <= 12) return Offset(204 - dx, 371); // bottom left
+    if (pipNo <= 18) return Offset(24 + dx, 21); // top left
+    return Offset(288 + dx, 21); // top right
+  }
+
   PieceLayout get animated =>
       PieceLayout(pieceID: pieceID, offset: offset, label: '', pipNo: pipNo);
 
