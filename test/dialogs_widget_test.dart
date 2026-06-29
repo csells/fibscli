@@ -1,5 +1,5 @@
 import 'package:fibscli/dice.dart';
-import 'package:fibscli/game_play_page.dart';
+import 'package:fibscli/game_dialogs.dart';
 import 'package:fibscli/model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
