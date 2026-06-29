@@ -86,6 +86,20 @@ class Position {
   int offFor(GammonPlayer player) =>
       player == GammonPlayer.one ? oneOff : twoOff;
 
+  /// [player]'s pip count: the total distance their checkers must travel to
+  /// bear off (a checker on the bar is a full 25 pips). Player one bears off
+  /// past pip 0 (so a checker on point p owes p pips); player two bears off
+  /// past pip 25 (so a checker on point p owes 25 - p).
+  int pipCountFor(GammonPlayer player) {
+    var pips = barFor(player) * 25;
+    for (var point = 1; point <= 24; point++) {
+      final n = countAt(point: point, player: player);
+      if (n == 0) continue;
+      pips += n * (player == GammonPlayer.one ? point : 25 - point);
+    }
+    return pips;
+  }
+
   /// All 15 (in a legal game) of [player]'s checkers: points + bar + off.
   int totalFor(GammonPlayer player) {
     var total = barFor(player) + offFor(player);

@@ -1,3 +1,4 @@
+import '../cube_policy.dart';
 import '../position.dart';
 import '../rules.dart';
 
@@ -67,8 +68,10 @@ enum BgCubeAction {
 
 /// The base class every AI engine implements. Asynchronous so a remote engine
 /// (an HTTP service) fits the same contract; in-process engines complete the
-/// future synchronously. Cube/resign decisions are optional with conservative
-/// defaults, so a moves-only engine needs only [chooseTurn].
+/// future synchronously. A moves-only engine needs only [chooseTurn]: the cube
+/// decisions default to the shared [CubePolicy] (exact in a race, heuristic
+/// with contact), so every engine plays the cube sensibly without extra code,
+/// and a stronger engine can override with its own evaluation.
 abstract class BgAiPlayer {
   /// A human-readable name for this engine (shown in the AI picker).
   String get name;
@@ -83,13 +86,35 @@ abstract class BgAiPlayer {
   /// there is no legal move (a dance).
   Future<BgTurn> chooseTurn(BgPosition position);
 
-  /// The cube action when on roll, before rolling. Defaults to never doubling.
-  Future<BgCubeAction> cubeDecision(BgPosition position) async =>
-      BgCubeAction.noDouble;
+  /// The cube action when on roll, before rolling: offer a double once the
+  /// position is good enough to (whether the opponent should take or pass),
+  /// otherwise just roll.
+  Future<BgCubeAction> cubeDecision(BgPosition position) async {
+    final action = CubePolicy.recommendedAction(
+      board: position.board,
+      onRoll: position.onRoll,
+      cubeValue: position.cubeValue,
+      cubeOwner: position.cubeOwner,
+    );
+    return action == CubeAction.noDouble
+        ? BgCubeAction.noDouble
+        : BgCubeAction.offerDouble;
+  }
 
-  /// The response to the opponent's double. Defaults to taking.
-  Future<BgCubeAction> respondToDouble(BgPosition position) async =>
-      BgCubeAction.take;
+  /// The response to the opponent's double. [position]'s [BgPosition.onRoll] is
+  /// the doubler (they offer before rolling): pass when their position is a
+  /// pass-strength double, otherwise take.
+  Future<BgCubeAction> respondToDouble(BgPosition position) async {
+    final action = CubePolicy.recommendedAction(
+      board: position.board,
+      onRoll: position.onRoll,
+      cubeValue: position.cubeValue,
+      cubeOwner: position.cubeOwner,
+    );
+    return action == CubeAction.doublePass
+        ? BgCubeAction.pass
+        : BgCubeAction.take;
+  }
 
   /// Release any resources held by the engine (e.g. an HTTP client).
   void dispose() {}

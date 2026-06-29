@@ -251,25 +251,19 @@ class GammonState extends ChangeNotifier {
     final onRollPlayer = _turnPlayer;
     if (onRollPlayer == null) return 0.5;
 
-    final onRollWins =
-        RaceEval.winProbabilityOrNull(board, onRollPlayer) ??
-        GammonRules.raceWinProbability(
-          myPips: pipCount(sign: GammonRules.signFor(onRollPlayer)),
-          oppPips: pipCount(
-            sign: GammonRules.signFor(GammonRules.otherPlayer(onRollPlayer)),
-          ),
-        );
+    final onRollWins = CubePolicy.winProbability(board, onRollPlayer);
     return player == onRollPlayer ? onRollWins : 1.0 - onRollWins;
   }
 
   // The recommended cube action for the player currently on roll (issue #14).
-  // Exact in a pure race; heuristic with contact.
-  CubeAction get recommendedCubeAction {
-    final onRoll = _turnPlayer!;
-    if (cube.value >= DoublingCube.maxValue) return CubeAction.noDouble;
-    return RaceEval.cubeActionOrNull(board, onRoll, cube.owner) ??
-        GammonRules.cubeAction(winProbabilityFor(onRoll));
-  }
+  // Exact in a pure race; heuristic with contact. Shares the one [CubePolicy]
+  // the AI uses, so the advice the UI shows matches how the AI plays the cube.
+  CubeAction get recommendedCubeAction => CubePolicy.recommendedAction(
+    board: board,
+    onRoll: _turnPlayer!,
+    cubeValue: cube.value,
+    cubeOwner: cube.owner,
+  );
 
   // True when the win chances and cube action are exact (a pure race) rather
   // than a pip-count estimate, so the UI can label them honestly (issue #14).

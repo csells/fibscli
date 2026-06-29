@@ -183,6 +183,7 @@ class GameView extends StatefulWidget {
     this.ai,
     this.aiThinkDelay = const Duration(milliseconds: 600),
     this.aiMoveDelay = const Duration(milliseconds: 250),
+    this.createGame,
   }) : controller = controller ?? GameViewController();
   final GameViewController controller;
 
@@ -197,6 +198,11 @@ class GameView extends StatefulWidget {
 
   /// Pause between the AI's individual checker moves.
   final Duration aiMoveDelay;
+
+  /// Builds the starting game. Defaults to a fresh random opening; injected by
+  /// tests to drive a deterministic position (e.g. a forced cube decision).
+  @visibleForTesting
+  final GammonState Function()? createGame;
 
   @override
   _GameViewState createState() => _GameViewState();
@@ -251,7 +257,7 @@ class _GameViewState extends State<GameView> {
   void _newGame() {
     if (_game != null) _game!.removeListener(_gameChanged);
 
-    _game = GammonState();
+    _game = widget.createGame?.call() ?? GammonState();
     widget.controller.canUndo = true;
     _game!.addListener(_gameChanged);
     _reset();
@@ -270,6 +276,12 @@ class _GameViewState extends State<GameView> {
       await _pace(widget.aiThinkDelay);
       if (!mounted || _game == null || _game!.gameOver) return;
       if (_game!.turnPlayer != widget.aiSide) return;
+      // The AI may double before playing its dice. If the human passes, the
+      // game ends and we stop; if they take, play continues at the new stake.
+      if (_game!.canOfferDouble(widget.aiSide) && !await _maybeAiDouble()) {
+        return;
+      }
+      if (!mounted || _game == null || _game!.gameOver) return;
       final turn = await widget.ai!.chooseTurn(positionFromState(_game!));
       for (final move in turn.moves) {
         if (!mounted || _game!.gameOver) break;
@@ -283,6 +295,27 @@ class _GameViewState extends State<GameView> {
     } finally {
       _aiBusy = false;
     }
+  }
+
+  // The AI decides whether to double before playing its dice. Returns true to
+  // continue the turn (no double, or the human took), false when the human
+  // passed and the game is over.
+  Future<bool> _maybeAiDouble() async {
+    final decision = await widget.ai!.cubeDecision(positionFromState(_game!));
+    if (decision != BgCubeAction.offerDouble) return true;
+    if (!mounted) return false;
+    final accepted = await DoubleOfferDialog.show(
+      context,
+      widget.aiSide!,
+      _game!.cube.value * 2,
+    );
+    if (accepted ?? false) {
+      _game!.acceptDouble();
+      _reset();
+      return true;
+    }
+    _game!.declineDouble(); // the human passed: the AI wins
+    return false;
   }
 
   // Pace the AI: a real delay when positive, but a plain microtask when zero so
@@ -337,11 +370,33 @@ class _GameViewState extends State<GameView> {
     final player = _game!.turnPlayer;
     if (player == null || !_game!.canOfferDouble(player)) return;
 
-    final accepted = await DoubleOfferDialog.show(
-      context,
-      player,
-      _game!.cube.value * 2,
-    );
+    // When the opponent is the computer it answers itself; otherwise the human
+    // opponent is asked (hot-seat) via the dialog.
+    final opponent = GammonRules.otherPlayer(player);
+    final bool? accepted;
+    if (widget.ai != null && opponent == widget.aiSide) {
+      final response = await widget.ai!.respondToDouble(
+        positionFromState(_game!),
+      );
+      accepted = response == BgCubeAction.take;
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)
+          ?..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                'Computer ${accepted ? 'accepts' : 'declines'} the double',
+              ),
+            ),
+          );
+      }
+    } else {
+      accepted = await DoubleOfferDialog.show(
+        context,
+        player,
+        _game!.cube.value * 2,
+      );
+    }
     if (accepted == null) return; // dismissed
 
     if (accepted) {
