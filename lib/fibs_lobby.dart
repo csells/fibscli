@@ -144,4 +144,8 @@ class WhoInfo {
 
   // whether this user is a bot (precision-first; see BotPolicy)
   bool get isBot => BotPolicy.isBot(client: client, user: user);
+
+  // whether this bot only accepts 1-point matches (see BotPolicy)
+  bool get playsOnePointOnly =>
+      BotPolicy.playsOnePointOnly(client: client, user: user);
 }

@@ -277,8 +277,10 @@ class _BotListViewState extends State<_BotListView> {
                     leading: const Icon(Icons.smart_toy),
                     title: Text(who.user),
                     subtitle: Text(
-                      'ready · rating '
-                      '${who.rating.toStringAsFixed(0)}',
+                      'rating ${who.rating.toStringAsFixed(0)} · '
+                      '${who.experience} exp · '
+                      '${who.client.isEmpty ? 'no client' : who.client}'
+                      '${who.playsOnePointOnly ? ' · 1-point only' : ''}',
                     ),
                     trailing: const Icon(Icons.sports_esports),
                     onTap: () => _confirmInvite(context, who),
@@ -302,27 +304,58 @@ class _BotListViewState extends State<_BotListView> {
   }
 
   Future<void> _confirmInvite(BuildContext context, WhoInfo bot) async {
+    // default to 1 for bots that only play 1-point matches, else a short 3-pt
+    var length = bot.playsOnePointOnly ? 1 : 3;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Invite ${bot.user}?'),
-        content: const Text(
-          'Start a 3-point match. Please finish the game '
-          'once it starts — be a good FIBS citizen.',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: Text('Invite ${bot.user}?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Match length (points):'),
+              const SizedBox(height: 8),
+              SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(value: 1, label: Text('1')),
+                  ButtonSegment(value: 3, label: Text('3')),
+                  ButtonSegment(value: 5, label: Text('5')),
+                  ButtonSegment(value: 7, label: Text('7')),
+                ],
+                selected: {length},
+                onSelectionChanged: (s) =>
+                    setLocalState(() => length = s.first),
+              ),
+              const SizedBox(height: 12),
+              if (bot.playsOnePointOnly)
+                Text(
+                  '${bot.user} only accepts 1-point matches — a longer '
+                  'match will be declined.',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              const SizedBox(height: 8),
+              const Text(
+                'Please finish the game once it starts — be a good FIBS '
+                'citizen.',
+              ),
+            ],
+          ),
+          actions: [
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text('Invite ($length pt)'),
+            ),
+          ],
         ),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Invite'),
-          ),
-        ],
       ),
     );
-    if (ok ?? false) App.fibs.invite(bot);
+    if (ok ?? false) App.fibs.invite(bot, matchLength: length);
   }
 }
 

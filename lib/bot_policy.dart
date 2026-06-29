@@ -42,4 +42,17 @@ class BotPolicy {
   // True when a user reporting [client] and login [user] is a bot.
   static bool isBot({required String client, required String user}) =>
       _botClients.contains(client) || _knownBotNames.contains(user);
+
+  // Bots that report no client but are known to only play 1-point matches.
+  // (Client-based 1-point bots are caught by the 'bot_1p_matches_only' client.)
+  static const _onePointBotNames = <String>{'MonteCarlo'};
+
+  // True when a bot only accepts 1-point matches -- either it advertises this
+  // in its client string ('bot_1p_matches_only', e.g. wildbg/udacity_capstone)
+  // or it is a known clientless 1-point bot (MonteCarlo). Used to warn the user
+  // before they invite it to a longer match (which it would decline).
+  static bool playsOnePointOnly({
+    required String client,
+    required String user,
+  }) => client == 'bot_1p_matches_only' || _onePointBotNames.contains(user);
 }

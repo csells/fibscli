@@ -17,4 +17,25 @@ void main() {
     // TourneyBot is a human tournament organizer despite the name
     expect(BotPolicy.isBot(client: 'MGOnline', user: 'TourneyBot'), isFalse);
   });
+
+  test('flags 1-point-only bots by client string or known name', () {
+    // wildbg / udacity_capstone advertise it in their client string
+    expect(
+      BotPolicy.playsOnePointOnly(
+        client: 'bot_1p_matches_only',
+        user: 'wildbg',
+      ),
+      isTrue,
+    );
+    // MonteCarlo reports no client but is a known 1-point bot
+    expect(
+      BotPolicy.playsOnePointOnly(client: '-', user: 'MonteCarlo'),
+      isTrue,
+    );
+    // the BlunderBot family plays multi-point matches
+    expect(
+      BotPolicy.playsOnePointOnly(client: 'ParlorBot', user: 'BlunderBot_II'),
+      isFalse,
+    );
+  });
 }
