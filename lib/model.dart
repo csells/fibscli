@@ -226,23 +226,12 @@ class GammonState extends ChangeNotifier {
     }
   }
 
-  int pipCount({required int sign}) {
-    var pipCount = 0;
-
-    // pips left on the board
-    for (var i = 1; i <= 24; ++i) {
-      final pip = _board[i];
-      if (pip.isEmpty) continue;
-      if (pip[0].sign != sign) continue;
-      final pieceCount = pip.length;
-      pipCount += sign == -1 ? pieceCount * i : pieceCount * (25 - i);
-    }
-
-    // pips left on the bar (each bar checker is a full 25 pips... counted as 24
-    // here against pip-1..24 indexing, matching the on-board loop above)
-    final barPips = _board[0].where((p) => p.sign == sign).length * 24;
-    return pipCount + barPips;
-  }
+  // [player]'s pip count: the distance their checkers must travel to bear off
+  // (a checker on the bar is 25 pips; borne-off checkers are 0). Delegates to
+  // the one [Position.pipCountFor] the cube policy also uses, so there is a
+  // single, correct implementation instead of two.
+  int pipCountFor(GammonPlayer player) =>
+      Position.fromBoard(board).pipCountFor(player);
 
   // Win probability for [player], always complementary between the two players
   // (issue #14). In a pure race this is the exact value from the race solver;

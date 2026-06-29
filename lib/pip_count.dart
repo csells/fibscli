@@ -37,7 +37,15 @@ class PipCountLayout {
   Rect get rect => Rect.fromLTWH(left, top, width, height);
 
   static List<PipCountLayout> getLayouts(GammonState game) => [
-    PipCountLayout(pipCount: game.pipCount(sign: -1), left: 518, top: 399),
-    PipCountLayout(pipCount: game.pipCount(sign: 1), left: 518, top: 5),
+    PipCountLayout(
+      pipCount: game.pipCountFor(GammonPlayer.one),
+      left: 518,
+      top: 399,
+    ),
+    PipCountLayout(
+      pipCount: game.pipCountFor(GammonPlayer.two),
+      left: 518,
+      top: 5,
+    ),
   ];
 }
