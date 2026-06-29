@@ -422,6 +422,11 @@ class _PlayViewState extends State<_PlayView> {
   // gone (the turn passed), so reading them then would give the wrong dice.
   List<int> _prevDice = const [];
   final _animator = BoardAnimator();
+  // Board orientation. Null means "use our perspective": player two (O) moves
+  // up the board, so we flip it by default to put our home at the bottom --
+  // same view the local game gives the down-moving player. The flip button
+  // overrides it.
+  bool? _reversed;
 
   @override
   void initState() {
@@ -486,6 +491,10 @@ class _PlayViewState extends State<_PlayView> {
     final p1IsUs = b.player1Name == 'You' || b.player1Name == fibs.user;
     final opponent = p1IsUs ? b.player2Name : b.player1Name;
 
+    // default to our own perspective: player two (O) moves up, so flip to put
+    // our home at the bottom; the flip button overrides.
+    final reversed = _reversed ?? (fibs.myColor == GammonPlayer.two);
+
     return Scaffold(
       backgroundColor: Colors.green,
       appBar: AppBar(
@@ -495,6 +504,13 @@ class _PlayViewState extends State<_PlayView> {
           tooltip: 'resign / leave',
           onPressed: () => _confirmLeave(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            tooltip: 'flip board',
+            onPressed: () => setState(() => _reversed = !reversed),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -508,6 +524,7 @@ class _PlayViewState extends State<_PlayView> {
                     ? fibs.gameState!.getAllLegalMoves()
                     : const {},
                 interactive: fibs.canMoveNow,
+                reversed: reversed,
                 onMove: _performMove,
               ),
             ),

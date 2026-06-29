@@ -2,6 +2,7 @@ import 'package:fibscli/board_view.dart';
 import 'package:fibscli/fibs_page.dart';
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/main.dart';
+import 'package:fibscli/model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -77,5 +78,23 @@ void main() {
     await tester.tap(find.text('Take'));
     await tester.pump();
     expect(fake.sent, contains('accept'));
+  });
+
+  testWidgets('a flip-board control reverses the board', (tester) async {
+    final fake = FakeTransport();
+    final fibs = await _startGame(tester, fake);
+
+    // we are O (player two), so the board defaults to our perspective (flipped)
+    expect(fibs.myColor, GammonPlayer.two);
+    BoardView board() => tester.widget<BoardView>(find.byType(BoardView));
+    expect(
+      board().reversed,
+      isTrue,
+      reason: 'player two views from the bottom',
+    );
+
+    await tester.tap(find.byTooltip('flip board'));
+    await tester.pump();
+    expect(board().reversed, isFalse, reason: 'the flip control toggled it');
   });
 }
