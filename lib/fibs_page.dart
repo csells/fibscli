@@ -492,21 +492,30 @@ class _PlayViewState extends State<_PlayView> {
   List<int> _diceSnapshot() =>
       App.fibs.gameState?.dice.map((d) => d.roll).toList() ?? const <int>[];
 
+  // Keep the local working turn in sync with whose move it is: create one when
+  // it's ours, drop it when the turn ends (we submitted, or it's the opponent's
+  // move). Idempotent and side-effect-light, so it's safe to call from build
+  // (covers entering the view already on our move -- a resumed game, or the
+  // turn already ours -- when no further notification fires) AND from the
+  // listener. Never clobbers an in-progress turn (_turn != null on our move).
+  bool _syncTurn() {
+    final fibs = App.fibs;
+    if (fibs.canMoveNow && _turn == null) {
+      _turn = _freshTurn(fibs);
+      _moves.clear();
+      return true;
+    }
+    if (!fibs.canMoveNow && _turn != null) {
+      _turn = null;
+      _moves.clear();
+      return true;
+    }
+    return false;
+  }
+
   void _onFibsChanged() {
     final fibs = App.fibs;
-    // Start a fresh local turn when it becomes ours; drop it when the turn ends
-    // (we submitted, or it's the opponent's move now).
-    if (fibs.canMoveNow && _turn == null) {
-      setState(() {
-        _turn = _freshTurn(fibs);
-        _moves.clear();
-      });
-    } else if (!fibs.canMoveNow && _turn != null) {
-      setState(() {
-        _turn = null;
-        _moves.clear();
-      });
-    }
+    if (_syncTurn()) setState(() {});
 
     final cur = fibs.gameState?.board;
     if (cur == null) return;
@@ -591,6 +600,8 @@ class _PlayViewState extends State<_PlayView> {
   );
 
   Widget _buildBoard(BuildContext context, FibsState fibs) {
+    _syncTurn(); // create/drop the working turn (also covers entering on ours)
+
     // FIBS names us player1 "You" in our own game; the opponent is the other
     final b = fibs.board!;
     final p1IsUs = b.player1Name == 'You' || b.player1Name == fibs.user;

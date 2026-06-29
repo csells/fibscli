@@ -109,6 +109,19 @@ void main() {
     }
   });
 
+  testWidgets('entering the view already on our move shows legal moves', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake); // board+dice arrive together -> our move
+
+    // the working turn must be created on entry (no later notification fires),
+    // so the board is interactive with our legal moves highlighted.
+    final board = tester.widget<BoardView>(find.byType(BoardView));
+    expect(board.ignoring, isFalse, reason: 'interactive on our move');
+    expect(board.legalMoves, isNotEmpty, reason: 'legal moves are shown');
+  });
+
   testWidgets('a tap moves the piece LOCALLY -- nothing sent until submit', (
     tester,
   ) async {
