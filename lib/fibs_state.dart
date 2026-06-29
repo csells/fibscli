@@ -102,13 +102,11 @@ class FibsState extends ChangeNotifier {
   bool get canMoveNow => _session.canMoveNow;
   bool get canRoll => _session.canRoll;
 
-  // Legal moves for the UI to highlight, keyed by REAL FIBS from-pip and in the
-  // correct direction even when the frame is mirrored. (gameState's own
-  // getAllLegalMoves runs the engine on the un-mirrored display board and would
-  // point the wrong way -- see FibsPlay.legalMovesByFibsPip.)
-  Map<int, List<GammonMove>> get legalMoves => (board == null || !canMoveNow)
-      ? const {}
-      : FibsPlay.legalMovesByFibsPip(board!, dice: activeDice);
+  // Legal moves for the UI to highlight. The viewer gameState already has us as
+  // player one moving toward our home, so the engine's own move generation is
+  // correct -- no special mirror handling needed.
+  Map<int, List<GammonMove>> get legalMoves =>
+      canMoveNow ? gameState!.getAllLegalMoves() : const {};
 
   // Whether a who-list entry is a bot. The detection policy (allowlists +
   // precision-first rationale) lives in BotPolicy so it can evolve without
@@ -197,14 +195,16 @@ class FibsState extends ChangeNotifier {
   }
 
   // move one checker one die at a time; the server validates (tap-to-move).
-  // Throws if it isn't our turn to move.
+  // Throws if it isn't our turn to move. The pips are viewer pips (== FIBS
+  // pips; viewerState doesn't renumber), and in the viewer frame WE are player
+  // one, so the bar/off keywords render from player one's convention.
   void move(int fromPip, int toPip) {
     if (!canMoveNow) {
       throw FibsStateError(
         'move: not our turn to move (isMyTurn=$isMyTurn dice=$activeDice)',
       );
     }
-    _conn.send(fibsRawMove(fromPip, toPip, myColor!));
+    _conn.send(fibsRawMove(fromPip, toPip, GammonPlayer.one));
   }
 
   // Play a legal move for us automatically (drives an assisted/auto game).

@@ -153,4 +153,33 @@ class FibsBoard {
       turnPlayer: turnPlayer,
     );
   }
+
+  // The game from YOUR perspective: you are always engine player one, so the
+  // fixed renderer shows you at the bottom with your home in the lower-right,
+  // your off tray bottom-right and the bar in the middle -- whatever color FIBS
+  // dealt you. [me] is your color in the raw frame (FibsBoard.colorFor(user));
+  // when you are O we relabel you as player one (negate the signs and route the
+  // bar/off counts accordingly). Pip NUMBERS are unchanged -- FIBS already
+  // hands you the board moving toward your 1-point -- so moves still translate
+  // straight to FIBS `move` commands.
+  GammonState viewerState({required GammonPlayer me, List<int>? diceOverride}) {
+    final flip = me == GammonPlayer.two; // O -> make you player one
+    final viewer = Position(
+      points: [for (var p = 1; p <= 24; p++) (flip ? -1 : 1) * points[p]],
+      oneBar: flip ? oBar : xBar, // player one == you
+      twoBar: flip ? xBar : oBar,
+      oneOff: flip ? oOff : xOff,
+      twoOff: flip ? xOff : oOff,
+    );
+    // your turn -> player one is on roll; the opponent -> player two
+    final turn = turnPlayer == null
+        ? null
+        : (turnPlayer == me ? GammonPlayer.one : GammonPlayer.two);
+    final dice = (diceOverride ?? activeDice).map(DieState.new).toList();
+    return GammonState.from(
+      board: viewer.toBoard(),
+      dice: dice,
+      turnPlayer: turn,
+    );
+  }
 }

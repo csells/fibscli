@@ -75,11 +75,19 @@ class FibsSession {
   bool get canRoll =>
       isMyTurn && effectiveDice.isEmpty && !rolling && !committedTurn;
 
-  // The rendered game model. Derived straight from the board (+ our just-rolled
-  // dice when FIBS delivered them via "You roll x and y" without a fresh board
-  // carrying them), so there's no separately-cached game state to drift.
-  GammonState? get gameState =>
-      board?.toGammonState(diceOverride: myDice.isNotEmpty ? myDice : null);
+  // The rendered game model (+ our just-rolled dice when FIBS delivered them
+  // via "You roll x and y" without a fresh board). In a game WE play it's the
+  // viewer board -- we are always engine player one, so the fixed renderer puts
+  // us at the bottom with our home/off-tray in the lower-right whatever color
+  // FIBS dealt us. When only watching, there's no "us", so it's the raw board.
+  GammonState? get gameState {
+    final b = board;
+    if (b == null) return null;
+    final dice = myDice.isNotEmpty ? myDice : null;
+    return myColor == null
+        ? b.toGammonState(diceOverride: dice)
+        : b.viewerState(me: myColor!, diceOverride: dice);
+  }
 
   // --- event-sourced transitions --------------------------------------------
 

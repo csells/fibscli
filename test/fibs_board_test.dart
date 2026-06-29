@@ -179,4 +179,60 @@ void main() {
       expect(Position.fromBoard(board.toGammonState().board), board.position);
     });
   });
+
+  group('FibsBoard.viewerState (you are always the bottom player)', () {
+    // an opening seated as O (player1Color=1, direction=-1) -- mirrored, the
+    // case where "you" must be flipped to play from the bottom-right home.
+    String openingAsO({String turn = '1', String p1dice = '6:3'}) =>
+        'board:You:bot:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0'
+        ':0:0:2:0:$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
+
+    test('you (O) become engine player one, moving toward your 1-point', () {
+      final fb = FibsBoard.fromCrumbs(parse(openingAsO()).crumbs!);
+      final me = fb.colorFor('You'); // O == player two in the raw frame
+      expect(me, GammonPlayer.two);
+
+      final gs = fb.viewerState(me: me!);
+      // it is our turn, and in the viewer frame WE are player one
+      expect(gs.turnPlayer, GammonPlayer.one);
+      // every legal move heads home (toward pip 1), never up toward 24
+      final byPip = gs.getAllLegalMoves();
+      expect(byPip.keys.toSet(), {24, 13, 8, 6});
+      for (final moves in byPip.values) {
+        for (final m in moves) {
+          expect(m.toPipNo, lessThan(m.fromPipNo), reason: 'moves go home');
+        }
+      }
+    });
+
+    test('an X game is unchanged (you are already player one)', () {
+      final fb = FibsBoard.fromCrumbs(parse(fibsBoardLine(opening)).crumbs!);
+      final me = fb.colorFor('xplayer'); // player1Color=-1 -> X == player one
+      expect(me, GammonPlayer.one);
+      expect(
+        Position.fromBoard(fb.viewerState(me: me!).board),
+        Position.fromBoard(fb.toGammonState().board),
+      );
+    });
+
+    test('an O bear-off bears off toward the bottom-right off tray', () {
+      // O all home on its 1..6 points (FIBS frame, positive = O), our roll 5:2
+      const homeAsO = [
+        0, 2, 2, 3, 3, 3, 2, 0, 0, 0, 0, 0, 0, //
+        0, 0, 0, 0, 0, 0, 0, 0, 0, -2, -13, 0, 0,
+      ];
+      final line =
+          'board:You:bot:1:0:0:${homeAsO.join(':')}'
+          ':1:5:2:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
+      final fb = FibsBoard.fromCrumbs(parse(line).crumbs!);
+      final gs = fb.viewerState(me: fb.colorFor('You')!);
+      // bearing off lands on player one's off tray (engine pip 0, lower-right)
+      final off = gs
+          .getAllLegalMoves()
+          .values
+          .expand((m) => m)
+          .any((m) => m.toPipNo == GammonRules.offPipNoFor(GammonPlayer.one));
+      expect(off, isTrue, reason: 'an O home position can bear off to pip 0');
+    });
+  });
 }
