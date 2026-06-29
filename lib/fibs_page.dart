@@ -8,6 +8,7 @@ import 'fibs_bot_player.dart';
 import 'fibs_state.dart';
 import 'main.dart';
 import 'model.dart';
+import 'pieces.dart';
 import 'tinystate.dart';
 
 final _log = Logger('fibs.login');
@@ -410,6 +411,49 @@ class _PlayView extends StatefulWidget {
 
 class _PlayViewState extends State<_PlayView> {
   int? _selected;
+  // diff-based animation: remember the last board so a fresh FIBS board (our
+  // move OR the opponent's) animates instead of snapping (issue: FIBS only
+  // hands us whole boards, never move deltas).
+  List<List<int>>? _prevBoard;
+  final _pieceLayouts = <int?, List<PieceLayout>>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _prevBoard = _boardCopy();
+    App.fibs.addListener(_onFibsChanged);
+  }
+
+  @override
+  void dispose() {
+    App.fibs.removeListener(_onFibsChanged);
+    super.dispose();
+  }
+
+  List<List<int>>? _boardCopy() {
+    final board = App.fibs.gameState?.board;
+    return board == null ? null : [for (final c in board) List<int>.of(c)];
+  }
+
+  void _onFibsChanged() {
+    final cur = App.fibs.gameState?.board;
+    if (cur == null) return;
+    // animate only when the checkers actually moved (not a dice-only refresh)
+    if (_prevBoard != null &&
+        Position.fromBoard(_prevBoard!) != Position.fromBoard(cur) &&
+        _pieceLayouts.isEmpty) {
+      final anim = MoveAnimation.between(_prevBoard!, cur);
+      if (anim.layouts.isNotEmpty) {
+        setState(() => _pieceLayouts.addAll(anim.layouts));
+      }
+    }
+    _prevBoard = _boardCopy();
+  }
+
+  void _endPieceAnimation(int? pieceId) {
+    _pieceLayouts.remove(pieceId);
+    if (_pieceLayouts.isEmpty && mounted) setState(() {});
+  }
 
   void _tapPip(int pip) {
     final fibs = App.fibs;
@@ -471,6 +515,8 @@ class _PlayViewState extends State<_PlayView> {
                 onTapPip: fibs.canMoveNow ? _tapPip : null,
                 onTapOff: fibs.canMoveNow ? _tapOff : null,
                 onTapBoard: () => setState(() => _selected = null),
+                pieceAnimations: _pieceLayouts,
+                onPieceAnimationEnd: _endPieceAnimation,
               ),
             ),
           ),

@@ -131,6 +131,54 @@ class MoveAnimation {
     return MoveAnimation(layouts, delays);
   }
 
+  /// Build an animation purely from the *difference* between two boards — no
+  /// move deltas required. Each [boardMovements] entry is mapped onto a piece
+  /// in [toBoard] (its final resting place) and tweened from the matching slot
+  /// in [fromBoard]. This is what lets FIBS and opponent moves animate the same
+  /// way the local game does, even though FIBS only ever hands us whole boards.
+  factory MoveAnimation.between(
+    List<List<int>> fromBoard,
+    List<List<int>> toBoard,
+  ) {
+    final movements = boardMovements(
+      Position.fromBoard(fromBoard),
+      Position.fromBoard(toBoard),
+    );
+    final fromLayouts = PieceLayout.getLayouts(fromBoard).toList();
+    final toLayouts = PieceLayout.getLayouts(toBoard).toList();
+    final usedFrom = <PieceLayout>{};
+    final usedTo = <PieceLayout>{};
+    final layouts = <int?, List<PieceLayout>>{};
+
+    PieceLayout? take(List<PieceLayout> pool, Set<PieceLayout> used, int pip) {
+      for (final l in pool) {
+        if (l.pipNo == pip && !used.contains(l)) {
+          used.add(l);
+          return l;
+        }
+      }
+      return null;
+    }
+
+    for (final move in movements) {
+      final dest = take(toLayouts, usedTo, move.toPip);
+      final src = take(fromLayouts, usedFrom, move.fromPip);
+      if (dest == null || src == null) continue;
+      // tween the destination piece from the source slot to its final slot
+      layouts[dest.pieceID] = [
+        PieceLayout(
+          pieceID: dest.pieceID,
+          offset: src.offset,
+          label: '',
+          pipNo: move.fromPip,
+          edge: src.edge,
+        ),
+        dest,
+      ];
+    }
+    return MoveAnimation(layouts, const {});
+  }
+
   final Map<int?, List<PieceLayout>> layouts;
   final Map<int?, Duration> delays;
 }
