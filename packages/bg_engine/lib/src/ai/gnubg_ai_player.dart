@@ -65,29 +65,13 @@ class GnubgAiPlayer extends BgAiPlayer {
       );
       if (target == null) continue;
       for (final turn in turns) {
-        if (_listEquals(_signatureOfBoard(turn.board), target)) {
+        if (_listEquals(positionSignature(turn.board), target)) {
           return BgTurn(turn.moves);
         }
       }
     }
     // gnubg returned nothing we could match -> don't stall the game
     return BgTurn(turns.first.moves);
-  }
-
-  // A position signature: per-pip (player1 count, player2 count). Two turns
-  // that reach the same position share a signature (piece ids are irrelevant).
-  static List<int> _signatureOfBoard(List<List<int>> board) {
-    final sig = List<int>.filled(board.length * 2, 0);
-    for (var i = 0; i < board.length; i++) {
-      for (final id in board[i]) {
-        if (id < 0) {
-          sig[i * 2]++;
-        } else {
-          sig[i * 2 + 1]++;
-        }
-      }
-    }
-    return sig;
   }
 
   // Apply a standard-notation [play] for [player] to [board] and return the

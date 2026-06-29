@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_close_stub.dart' if (dart.library.html) 'app_close_web.dart';
+import 'backgammon_ai_player.dart';
 import 'credential_store.dart';
 import 'fibs_page.dart';
 import 'fibs_state.dart';
@@ -33,6 +34,9 @@ Future<void> bootstrap({
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   setupLogging();
+  // Bundle the backgammon_ai engine as a selectable opponent alongside the
+  // built-in pubeval (gnubg is registered separately once a URL is configured).
+  AiRegistry.register(BackgammonAiPlayerFactory());
   final prefs = await SharedPreferences.getInstance();
   App.prefs.value = prefs;
   App.creds = SecureCredentialStore(prefs, secretStore);

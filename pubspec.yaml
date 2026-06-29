@@ -12,6 +12,10 @@ environment:
   sdk: ^3.12.0
 
 dependencies:
+  backgammon_ai:
+    git:
+      url: https://github.com/csells/backgammon_ai.git
+      ref: per-level-weakening
   bg_engine: ^0.1.0
   cupertino_icons: ^1.0.1+1
   dartx: ^1.2.0
