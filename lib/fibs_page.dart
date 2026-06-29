@@ -46,6 +46,7 @@ class _LoginViewState extends State<_LoginView> {
   late final _pass = TextEditingController(text: App.creds.password ?? '');
   var _remember = App.creds.remember;
   var _busy = false;
+  var _obscure = true;
   String? _error;
 
   @override
@@ -106,8 +107,17 @@ class _LoginViewState extends State<_LoginView> {
               ),
               TextField(
                 controller: _pass,
-                decoration: const InputDecoration(labelText: 'FIBS password'),
-                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'FIBS password',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscure ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    tooltip: _obscure ? 'Show password' : 'Hide password',
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+                obscureText: _obscure,
                 onSubmitted: (_) => unawaited(_login()),
               ),
               CheckboxListTile(
