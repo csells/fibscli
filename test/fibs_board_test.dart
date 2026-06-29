@@ -1,3 +1,4 @@
+import 'package:fibscli/dice.dart';
 import 'package:fibscli/fibs_board.dart';
 import 'package:fibscli/model.dart';
 import 'package:fibscli_lib/fibscli_lib.dart';
@@ -213,6 +214,15 @@ void main() {
         Position.fromBoard(fb.viewerState(me: me!).board),
         Position.fromBoard(fb.toGammonState().board),
       );
+    });
+
+    test('a normal FIBS roll colours both dice for the player on roll', () {
+      // both dice are ours -> one colour; the two-colour "who goes first" rule
+      // is only for the local game's opening (move #1), never a FIBS roll.
+      final fb = FibsBoard.fromCrumbs(parse(openingAsO()).crumbs!);
+      final gs = fb.viewerState(me: fb.colorFor('You')!);
+      final players = DieLayout.getLayouts(gs).map((d) => d.player).toSet();
+      expect(players, {gs.turnPlayer});
     });
 
     test('an O bear-off bears off toward the bottom-right off tray', () {

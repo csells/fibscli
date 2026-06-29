@@ -40,8 +40,10 @@ class GammonState extends ChangeNotifier {
     required List<List<int>> board,
     required List<DieState> dice,
     required GammonPlayer? turnPlayer,
+    int moveNo = 1,
   }) {
     _setState(board: board, dice: dice, turnPlayer: turnPlayer);
+    _moveNo = moveNo;
   }
   static final _rand = Random();
 

@@ -544,6 +544,7 @@ class _PlayViewState extends State<_PlayView> {
       board: gs.board,
       dice: [for (final d in gs.dice) DieState(d.roll)],
       turnPlayer: gs.turnPlayer,
+      moveNo: 2, // a normal FIBS roll: both dice are ours, not the opening
     );
   }
 
@@ -584,12 +585,20 @@ class _PlayViewState extends State<_PlayView> {
     });
   }
 
-  // Undo the whole in-progress turn -- start building it again from scratch.
-  void _undoTurn() {
+  // Undo the LAST move you made this turn (tap again to keep walking back).
+  // Rebuild the working turn from scratch and replay all but the last move.
+  void _undoMove() {
     if (_moves.isEmpty) return;
+    final replay = _moves.sublist(0, _moves.length - 1);
+    final turn = _freshTurn(App.fibs);
+    for (final m in replay) {
+      turn.applyMove(move: m);
+    }
     setState(() {
-      _turn = _freshTurn(App.fibs);
-      _moves.clear();
+      _turn = turn;
+      _moves
+        ..clear()
+        ..addAll(replay);
     });
   }
 
@@ -621,12 +630,12 @@ class _PlayViewState extends State<_PlayView> {
           onPressed: () => _confirmLeave(context),
         ),
         actions: [
-          if (_moves.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.undo),
-              tooltip: 'undo moves',
-              onPressed: _undoTurn,
-            ),
+          // always visible so it's discoverable; disabled until you've moved
+          IconButton(
+            icon: const Icon(Icons.undo),
+            tooltip: 'undo last move',
+            onPressed: _moves.isEmpty ? null : _undoMove,
+          ),
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'flip board',

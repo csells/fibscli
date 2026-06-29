@@ -151,6 +151,9 @@ class FibsBoard {
       board: position.toBoard(), // Position synthesises the piece ids
       dice: dice,
       turnPlayer: turnPlayer,
+      // FIBS handles the opening roll itself; the dice we render are always a
+      // normal both-dice-yours roll, so don't color them as move #1's opening.
+      moveNo: 2,
     );
   }
 
@@ -180,6 +183,8 @@ class FibsBoard {
       board: viewer.toBoard(),
       dice: dice,
       turnPlayer: turn,
+      moveNo:
+          2, // a normal roll (both dice yours), never the opening -- see above
     );
   }
 }
