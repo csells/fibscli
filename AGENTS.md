@@ -34,16 +34,23 @@ Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`) an
 `AiRegistry.available` → `GamePlayPage` with an `aiSide`/`BgAiPlayer`, driven by
 `lib/local_ai_driver.dart`'s `positionFromState`/`playAiTurn`), and **Play a bot
 (FIBS)** (`FibsPage`). The AI abstraction (`BgAiPlayer`, `PubevalAiPlayer`,
-`AiRegistry`) lives in `packages/bg_engine`; see the spec. `lib/fibs_page.dart` is
-the working FIBS client UI — login (with optional autologin from `--dart-define`
-`fibs_uname`/`fibs_pword`), the live bot list (invite / watch), tap-to-move
-play, resume of saved matches, and the doubling cube. It drives
-`lib/fibs_state.dart` (`FibsState`, default `localhost:8080`) over a
-[websocat](https://github.com/vi/websocat) websocket→telnet proxy (see README).
-Move generation lives in `lib/fibs_play.dart`, scored by the ported
-`lib/pubeval.dart` evaluator. Autonomous bot play is `lib/fibs_bot_player.dart`
-(a policy layer over `FibsState`, unit-tested offline + driven live by the
-gated e2e).
+`AiRegistry`) lives in `packages/bg_engine`; see the spec. Three engines are
+registered: the built-in `PubevalAiPlayer`, the bundled **`backgammon_ai`**
+engine (a git dependency on `github.com/csells/backgammon_ai`, adapted to
+`BgAiPlayer` in `lib/backgammon_ai_player.dart`), and a **gnubg-service**
+adapter (`GnubgAiPlayer` + `HttpGnubgClient` in `bg_engine`; registered once a
+service URL is configured). `lib/fibs_page.dart` is the working FIBS client UI —
+login (with optional autologin from `--dart-define` `fibs_uname`/`fibs_pword`),
+the live bot list (invite / watch), tap-to-move play, **"Play for me"**
+(starts the autonomous `FibsBotPlayer`), resume of saved matches, and the
+doubling cube. It drives `lib/fibs_state.dart` (`FibsState`, default
+`localhost:8080`) over a [websocat](https://github.com/vi/websocat)
+websocket→telnet proxy (see README). Move generation lives in
+`lib/fibs_play.dart`: `bestTurnCommand` (pubeval) and `bestTurnCommandWithAi`
+(any `BgAiPlayer`) both standardize on `bg_engine`'s shared `enumerateLegalTurns`
++ canonical board — the FIBS protocol parse/mirror is the only FIBS-specific
+conversion. Autonomous bot play is `lib/fibs_bot_player.dart` (a policy layer
+over `FibsState`, unit-tested offline + driven live by the gated e2e).
 
 Remembered credentials use `lib/credential_store.dart`: the username lives in
 `SharedPreferences`, the password ONLY in platform secure storage

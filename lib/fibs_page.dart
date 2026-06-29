@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
 import 'board_view.dart';
+import 'fibs_bot_player.dart';
 import 'fibs_state.dart';
 import 'main.dart';
 import 'model.dart';
@@ -147,8 +148,41 @@ class _LoginViewState extends State<_LoginView> {
 }
 
 // The bots currently in a game, each watchable.
-class _BotListView extends StatelessWidget {
+class _BotListView extends StatefulWidget {
   const _BotListView();
+
+  @override
+  State<_BotListView> createState() => _BotListViewState();
+}
+
+class _BotListViewState extends State<_BotListView> {
+  // "Play for me": the autonomous FibsBotPlayer invites a weak bot and plays a
+  // match for the user (move selection runs through the shared bg_engine /
+  // pubeval pipeline). Held here so we never start two at once.
+  FibsBotPlayer? _autoPlayer;
+
+  bool get _autoPlaying => _autoPlayer != null;
+
+  void _toggleAutoPlay() {
+    if (_autoPlaying) {
+      _autoPlayer!.stop('user stopped');
+      setState(() => _autoPlayer = null);
+      return;
+    }
+    final player = FibsBotPlayer(App.fibs);
+    setState(() => _autoPlayer = player);
+    unawaited(
+      player.run().whenComplete(() {
+        if (mounted) setState(() => _autoPlayer = null);
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    _autoPlayer?.stop('view disposed');
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) =>
@@ -161,6 +195,17 @@ class _BotListView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Bots'),
         actions: [
+          TextButton.icon(
+            onPressed: _toggleAutoPlay,
+            icon: Icon(
+              _autoPlaying ? Icons.stop : Icons.smart_toy,
+              color: Colors.white,
+            ),
+            label: Text(
+              _autoPlaying ? 'Stop' : 'Play for me',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
           TextButton(
             onPressed: () => unawaited(App.fibs.logout()),
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
