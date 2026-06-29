@@ -754,7 +754,10 @@ class GammonRules {
   }
 
   static final _playerHomeBoardPipNos = [1.rangeTo(6), 19.rangeTo(24)];
-  static final _playerNonHomeBoardPipNos = [7.rangeTo(24), 1.rangeTo(18)];
+  // Everything that is NOT the player's home board AND not their off tray --
+  // crucially this includes the player's BAR (pip 25 for player one, pip 0 for
+  // player two), so a checker on the bar correctly blocks bearing off.
+  static final _playerNonHomeBoardPipNos = [7.rangeTo(25), 0.rangeTo(18)];
 
   /// Whether [player] may bear a checker off from [fromPipNo] to [toPipNo]
   /// (all checkers home, and either an exact roll or no checker further back).
