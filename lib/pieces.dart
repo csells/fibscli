@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 
 import 'model.dart';
 
-// Milliseconds of animation per unit of on-screen distance a piece travels.
+// Fixed wall-clock duration for a single piece hop, independent of the distance
+// travelled, so every move shares a steady rhythm instead of short moves
+// popping and long moves crawling (matches the Android app's per-hop slide). A
+// multi-hop move (doubles) runs this many milliseconds per hop, back to back.
 // Shared by AnimatedPiece (segment duration) and MoveAnimation (hit delays) so
-// a hittee's wait lines up with the hitter's travel time.
-const kAnimationMsPerDistance = 3;
+// a hittee's wait lines up with the hitter's arrival.
+const kHopAnimationDuration = Duration(milliseconds: 250);
 
 class PieceView extends StatelessWidget {
   PieceView({required this.layout, super.key})
@@ -78,9 +81,6 @@ class MoveAnimation {
     List<List<int>> initialBoard,
     List<List<GammonDelta>> deltasForHops,
   ) {
-    // the main piece that's moving (not the pieces being sent to the bar)
-    final mainPieceID = deltasForHops[0][0].pieceID;
-
     // copy the initial board; it'll change as we apply deltas
     final board = List<List<int>>.generate(
       initialBoard.length,
@@ -111,21 +111,26 @@ class MoveAnimation {
       }
     }
 
-    // a hittee starts moving only once the hitter has reached the hit pip
+    // A hittee starts moving only once the hitter has finished the hop that
+    // lands on (and hits) it: the hitter completes hop `hop` after `hop + 1`
+    // fixed-duration hops, so the hittee waits exactly that long. Because each
+    // hop is a fixed duration now, the wait is no longer distance-derived.
     final delays = <int?, Duration>{};
-    final hitterPath = layouts[mainPieceID]!;
+    final hittees = <int?>{};
     for (var hop = 0; hop != deltasForHops.length; ++hop) {
       for (final delta in deltasForHops[hop]) {
         if (delta.kind != GammonDeltaKind.bar) continue;
-        var distance = 0.0;
-        for (var i = 1; i <= hop + 1; ++i) {
-          distance +=
-              (hitterPath[i - 1].offset! - hitterPath[i].offset!).distance;
-        }
-        delays[delta.pieceID] = Duration(
-          milliseconds: (distance * kAnimationMsPerDistance).floor(),
-        );
+        hittees.add(delta.pieceID);
+        delays[delta.pieceID] = kHopAnimationDuration * (hop + 1);
       }
+    }
+
+    // Collapse each hittee's path to a single slide (its resting spot -> the
+    // bar). It never moves before the hit, so the recorded stay-frames would
+    // otherwise burn extra hops sitting still on top of the `delay` wait.
+    for (final pieceID in hittees) {
+      final path = layouts[pieceID]!;
+      layouts[pieceID] = [path.first, path.last];
     }
 
     return MoveAnimation(layouts, delays);

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:dartx/dartx.dart';
 import 'package:flutter/widgets.dart';
 
 import 'pieces.dart';
@@ -34,23 +33,18 @@ class _AnimatedPieceState extends State<AnimatedPiece>
   void initState() {
     super.initState();
 
-    final distance = [
-      for (var i = 1; i != widget.layouts.length; ++i)
-        (widget.layouts[i - 1].offset! - widget.layouts[i].offset!).distance,
-    ].sum();
+    final hops = widget.layouts.length - 1;
 
-    final animatable = _animatableFor(widget.layouts);
-
+    // Fixed duration per hop (not distance-proportional), so a 1-pip nudge and
+    // a bar flight take the same beat and the rhythm stays steady move-to-move.
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(
-        milliseconds: (distance * kAnimationMsPerDistance).floor(),
-      ),
+      duration: kHopAnimationDuration * hops,
     );
 
-    _animation = animatable.animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    // The easing is applied per hop inside _animatableFor (each hop eases in
+    // AND out), so the controller itself drives the sequence linearly.
+    _animation = _animatableFor(widget.layouts).animate(_controller);
 
     // a hittee waits for the hitter to arrive before sliding to the bar
     // (issue #5); during the delay it stays at its first layout
@@ -66,16 +60,21 @@ class _AnimatedPieceState extends State<AnimatedPiece>
     }
   }
 
+  // Each hop is its own equal-weight (equal-time) ease-in-out slide, run back
+  // to back with no frozen pauses between them: a doubles move reads as
+  // "slide... slide... slide", with every hop accelerating off its start and
+  // decelerating into its destination (matches the Android app's feel).
+  // easeInOutSine is the raised cosine (1 - cos(pi*t)) / 2 the Android app uses.
   static Animatable<PieceLayout> _animatableFor(List<PieceLayout> layouts) =>
       TweenSequence([
-        for (var i = 1; i != layouts.length; ++i) ...[
+        for (var i = 1; i != layouts.length; ++i)
           TweenSequenceItem(
-            tween: PieceLayoutTween(begin: layouts[i - 1], end: layouts[i]),
-            weight: (layouts[i - 1].offset! - layouts[i].offset!).distance + 1,
+            tween: PieceLayoutTween(
+              begin: layouts[i - 1],
+              end: layouts[i],
+            ).chain(CurveTween(curve: Curves.easeInOutSine)),
+            weight: 1,
           ),
-          if (i != layouts.length - 1)
-            TweenSequenceItem(tween: ConstantTween(layouts[i]), weight: 100),
-        ],
       ]);
 
   @override
