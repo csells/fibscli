@@ -45,10 +45,12 @@ Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`); i
 (FIBS)** (`FibsPage`). The AI abstraction (`BgAiPlayer`, `PubevalAiPlayer`,
 `AiRegistry`) lives in `packages/bg_engine`; see the spec. The picker offers
 **Gary Gammon** (`GaryGammonFactory` in `lib/backgammon_ai_player.dart`), a
-single opponent exposing levels 0-8: level 0 is the built-in `PubevalAiPlayer`
-heuristic, and levels 1-8 are the stronger `backgammon_ai` neural engine (a git
+single opponent exposing five difficulty levels of increasing strength: levels
+1-2 and 4-5 map to the `backgammon_ai` neural engine (its levels 2/4/6/8), and
+level 3 is the built-in `PubevalAiPlayer` heuristic. The neural engine is a git
 dependency on `github.com/csells/backgammon_ai`, adapted to `BgAiPlayer` in the
-same file). A **gnubg-service** adapter (`GnubgAiPlayer` + `HttpGnubgClient` in
+same file. The landing page picks the level inline; a full engine picker only
+appears when a second engine (e.g. gnubg) is configured. A **gnubg-service** adapter (`GnubgAiPlayer` + `HttpGnubgClient` in
 `bg_engine`) is also listed when a service URL is configured
 (`--dart-define=gnubg_service_url`). `lib/fibs_page.dart` is the working FIBS client UI —
 login (with optional autologin from `--dart-define` `fibs_uname`/`fibs_pword`),

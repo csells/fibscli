@@ -13,6 +13,7 @@ import 'local_ai_driver.dart';
 import 'main.dart';
 import 'model.dart';
 import 'pieces.dart';
+import 'theme.dart';
 import 'tinystate.dart';
 
 final _log = Logger('game_play_page');
@@ -77,10 +78,8 @@ class _GamePlayPageState extends State<GamePlayPage> {
       ChangeNotifierBuilder<GameViewController>(
         notifier: _controller,
         builder: (context, controller, child) => Scaffold(
-          backgroundColor: Colors.green,
           appBar: AppBar(
             title: const Text(App.title),
-            elevation: 0,
             actions: [
               if (controller.canAutoBearOff)
                 IconButton(
@@ -331,23 +330,28 @@ class _GameViewState extends State<GameView> {
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<GammonState?>(
     notifier: _game,
-    builder: (context, game, child) => SizedBox.expand(
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: ChangeNotifierBuilder<GameViewController>(
-          notifier: widget.controller,
-          builder: (context, controller, child) => GameBoard(
-            game: _game!,
-            animator: _animator,
-            legalMoves: _legalMovesForPips,
-            interactive: !_game!.gameOver && !_aiBusy,
-            onMove: _performMove,
-            reversed: controller.reversed,
-            onTapDice: _tapDice,
-            onTapCube: () => unawaited(_tapCube()),
+    builder: (context, game, child) => Column(
+      children: [
+        _TurnBanner(game: _game!, aiSide: widget.aiSide),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: ChangeNotifierBuilder<GameViewController>(
+              notifier: widget.controller,
+              builder: (context, controller, child) => GameBoard(
+                game: _game!,
+                animator: _animator,
+                legalMoves: _legalMovesForPips,
+                interactive: !_game!.gameOver && !_aiBusy,
+                onMove: _performMove,
+                reversed: controller.reversed,
+                onTapDice: _tapDice,
+                onTapCube: () => unawaited(_tapCube()),
+              ),
+            ),
           ),
         ),
-      ),
+      ],
     ),
   );
 
@@ -442,5 +446,105 @@ class _GameViewState extends State<GameView> {
       _reset();
       unawaited(_maybePlayAi()); // turn may now be the AI's
     }
+  }
+}
+
+// A full-width strip above the board that answers the two questions the old UI
+// left implicit: whose turn is it, and what should I tap next. The checker
+// swatch matches the on-roll player's piece; the human's turn is called out in
+// the accent.
+class _TurnBanner extends StatelessWidget {
+  const _TurnBanner({required this.game, this.aiSide});
+
+  final GammonState game;
+
+  /// The side the computer plays, or null in a 2-player hot-seat game.
+  final GammonPlayer? aiSide;
+
+  @override
+  Widget build(BuildContext context) {
+    final turn = game.turnPlayer;
+    final over = game.gameOver;
+    // Player one is the solid ink checker; player two the hollow one.
+    final solid = turn != GammonPlayer.two;
+    final isHumanTurn = aiSide != null && turn != null && turn != aiSide;
+
+    String label;
+    var color = AppColors.ink;
+    if (over) {
+      label = 'Game over';
+    } else if (turn == null) {
+      label = 'Opening roll';
+    } else if (aiSide != null && turn == aiSide) {
+      label = 'Gary Gammon is thinking…';
+    } else if (isHumanTurn) {
+      label = 'Your move';
+      color = AppColors.accent;
+    } else {
+      label = turn == GammonPlayer.one
+          ? 'Player One to move'
+          : 'Player Two to move';
+    }
+
+    String? hint;
+    if (!over && turn != null && (aiSide == null || turn != aiSide)) {
+      final dice = game.dice;
+      if (dice.isNotEmpty) {
+        hint = dice.every((d) => !d.available)
+            ? 'Tap the dice to end your turn'
+            : 'Tap a checker to move';
+      }
+    }
+
+    final text = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      decoration: const BoxDecoration(
+        color: AppColors.ivory,
+        border: Border(bottom: BorderSide(color: AppColors.line)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: solid ? AppColors.ink : AppColors.ivory,
+              border: Border.all(color: AppColors.ink, width: solid ? 1 : 2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('It is', style: editorialKicker(size: 10)),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.headlineSmall?.copyWith(
+                    fontSize: 22,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (hint != null)
+            Flexible(
+              child: Text(
+                hint,
+                textAlign: TextAlign.right,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: editorialKicker(size: 10.5),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

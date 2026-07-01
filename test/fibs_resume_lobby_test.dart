@@ -25,9 +25,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // the unfinished match with MG is offered for resume
+    // the unfinished match with MG is offered for resume (the section header
+    // reads in editorial small-caps)
     expect(find.text('MG'), findsOneWidget);
-    expect(find.textContaining('Resume'), findsWidgets);
+    expect(find.textContaining('RESUME'), findsWidgets);
 
     await tester.tap(find.text('MG'));
     await tester.pumpAndSettle();

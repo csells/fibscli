@@ -1,0 +1,33 @@
+name: Deploy FIBS Proxy Worker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: packages/fibs_proxy_worker
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      FIBS_PROXY_ALLOWED_ORIGINS: ${{ vars.FIBS_PROXY_ALLOWED_ORIGINS }}
+      FIBS_PROXY_VERSION: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: packages/fibs_proxy_worker/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: Deploy Worker
+        run: >
+          npx wrangler deploy
+          --var ENVIRONMENT:prod
+          --var VERSION:${FIBS_PROXY_VERSION}
+          --var ALLOWED_ORIGINS:${FIBS_PROXY_ALLOWED_ORIGINS}

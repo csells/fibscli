@@ -9,7 +9,6 @@ class _WatchView extends StatelessWidget {
   Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
     notifier: FibsScope.of(context),
     builder: (context, fibs, child) => Scaffold(
-      backgroundColor: Colors.green,
       appBar: AppBar(
         title: const Text('Watching'),
         leading: IconButton(

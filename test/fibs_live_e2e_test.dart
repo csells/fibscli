@@ -44,7 +44,12 @@ void main() {
     'resume saved matches, then win human-paced matches vs a weak bot',
     () async {
       final env = _env();
-      final fibs = FibsState(proxy: '127.0.0.1');
+      final fibs = FibsState(
+        proxy: '127.0.0.1',
+        port: 8080,
+        secure: false,
+        path: '',
+      );
       Directory('tmp').createSync(recursive: true); // trace output (gitignored)
       final trace = File('tmp/game_trace.txt').openWrite();
 

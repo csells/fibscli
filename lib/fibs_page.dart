@@ -7,6 +7,7 @@ import 'credential_store.dart';
 import 'fibs_play_controller.dart';
 import 'fibs_state.dart';
 import 'game_board.dart';
+import 'theme.dart';
 import 'tinystate.dart';
 
 part 'fibs_login_view.dart';

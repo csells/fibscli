@@ -27,7 +27,11 @@ P=$(grep -i '^fibs_pword[ ]*=' .env | head -1 | sed -E 's/^[^=]*=[ ]*//; s/^["'\
 echo "building web for user=$U (password hidden)"
 
 flutter build web --release \
-  --dart-define=fibs_uname="$U" --dart-define=fibs_pword="$P" >/dev/null
+  --dart-define=fibs_uname="$U" --dart-define=fibs_pword="$P" \
+  --dart-define=fibs_proxy_host=127.0.0.1 \
+  --dart-define=fibs_proxy_port=8080 \
+  --dart-define=fibs_proxy_secure=false \
+  --dart-define=fibs_proxy_path= >/dev/null
 
 # --- websocat proxy (start only if not already up) --------------------------
 if ! lsof -nP -iTCP:8080 -sTCP:LISTEN 2>/dev/null | grep -q websocat; then

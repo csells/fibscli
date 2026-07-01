@@ -9,8 +9,12 @@
 //
 // Prereqs (see run.sh, which automates them):
 //   * web build with creds: flutter build web --release \
-//       --dart-define=fibs_uname=$U --dart-define=fibs_pword=$P
-//   * websocat proxy:  websocat --binary ws-l:127.0.0.1:8080 \
+//       --dart-define=fibs_uname=$U --dart-define=fibs_pword=$P \
+//       --dart-define=fibs_proxy_host=127.0.0.1 \
+//       --dart-define=fibs_proxy_port=8080 \
+//       --dart-define=fibs_proxy_secure=false \
+//       --dart-define=fibs_proxy_path=
+//   * local developer bridge:  websocat --binary ws-l:127.0.0.1:8080 \
 //       tcp:fibs.com:4321 --exit-on-eof
 //   * serve build/web, e.g. (cd build/web && python3 -m http.server 8088)
 //

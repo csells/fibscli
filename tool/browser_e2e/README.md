@@ -24,7 +24,8 @@ That script (one clean pass, one FIBS login):
 1. reads `fibs_uname`/`fibs_pword` from `.env` (values never printed) and builds
    `build/web` with them baked in via `--dart-define` — the app autologins, so
    no credential is ever typed into a form;
-2. starts the `websocat` ws→telnet proxy on `:8080` if it isn't already up;
+2. starts the developer-only `websocat` ws→telnet proxy on `:8080` if it isn't
+   already up, and builds the app with local bridge overrides;
 3. serves `build/web` on `:8088`;
 4. installs Playwright the first time, then runs `fibs_e2e.mjs`.
 

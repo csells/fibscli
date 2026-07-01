@@ -49,7 +49,6 @@ class _PlayViewState extends State<_PlayView> {
     final opponent = fibs.board!.opponentNameFor(fibs.user);
 
     return Scaffold(
-      backgroundColor: Colors.green,
       appBar: AppBar(
         title: Text('vs $opponent'),
         leading: IconButton(
@@ -119,7 +118,7 @@ class _PlayViewState extends State<_PlayView> {
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Keep playing'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Resign'),
           ),
@@ -142,24 +141,26 @@ class _GameOverBar extends StatelessWidget {
     final label = won == null
         ? 'Game over'
         : won
-        ? 'You win! 🎉'
+        ? 'You win!'
         : 'You lose';
     return Container(
-      padding: const EdgeInsets.all(12),
-      color: Colors.black26,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: const BoxDecoration(
+        color: AppColors.ivory,
+        border: Border(top: BorderSide(color: AppColors.ink)),
+      ),
       child: Wrap(
-        spacing: 12,
+        spacing: 16,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: won ?? false ? AppColors.accent : AppColors.ink,
             ),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: fibs.returnToLobby,
             child: const Text('Back to lobby'),
           ),
@@ -177,18 +178,24 @@ class _Controls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final status = Theme.of(
+      context,
+    ).textTheme.titleMedium?.copyWith(color: AppColors.inkSoft);
     final children = <Widget>[];
     if (fibs.doubleOffered) {
       children.addAll([
-        const Text('Opponent doubled!'),
-        ElevatedButton(onPressed: fibs.acceptDouble, child: const Text('Take')),
+        Text(
+          'Opponent doubled!',
+          style: status?.copyWith(color: AppColors.ink),
+        ),
+        FilledButton(onPressed: fibs.acceptDouble, child: const Text('Take')),
         OutlinedButton(onPressed: fibs.rejectDouble, child: const Text('Pass')),
       ]);
     } else if (fibs.canRoll) {
       children.addAll([
-        ElevatedButton.icon(
+        FilledButton.icon(
           onPressed: fibs.roll,
-          icon: const Icon(Icons.casino),
+          icon: const Icon(Icons.casino, size: 18),
           label: const Text('Roll'),
         ),
         OutlinedButton(
@@ -203,23 +210,23 @@ class _Controls extends StatelessWidget {
               ? 'Tap the dice to submit your move'
               : 'Your move — make your moves, then tap the dice '
                     '(dice ${fibs.activeDice.join(", ")})',
-          style: const TextStyle(color: Colors.white),
+          style: status,
         ),
       );
     } else {
-      children.add(
-        const Text(
-          'Waiting for opponent…',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
+      children.add(Text('Waiting for opponent…', style: status));
     }
 
     return Container(
-      padding: const EdgeInsets.all(12),
-      color: Colors.black26,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: const BoxDecoration(
+        color: AppColors.ivory,
+        border: Border(top: BorderSide(color: AppColors.ink)),
+      ),
       child: Wrap(
         spacing: 12,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: children,
       ),

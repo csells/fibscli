@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'theme.dart';
+
 class PipLabel extends StatelessWidget {
   const PipLabel({required this.layout, super.key, this.reversed = false});
   final bool reversed;
@@ -13,7 +15,12 @@ class PipLabel extends StatelessWidget {
       child: Text(
         layout.pipNo.toString(),
         textAlign: TextAlign.center,
-        style: const TextStyle(color: Colors.black, fontSize: 10),
+        style: const TextStyle(
+          color: AppColors.inkFaint,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
       ),
     ),
   );
@@ -128,26 +135,33 @@ class PipLayout {
 class PipPainter extends CustomPainter {
   PipPainter({required int pip, required this.clipper, required this.highlight})
     : _color = pip.isOdd ? _lightColor : _darkColor;
-  static final _lightColor = Colors.grey[300];
-  static const _darkColor = Colors.grey;
+  // Two restrained editorial fills for the alternating points.
+  static const _lightColor = AppColors.bone;
+  static const _darkColor = AppColors.stone;
 
   final PipClipper clipper;
-  final Color? _color;
+  final Color _color;
   final bool highlight;
 
   @override
   void paint(Canvas canvas, Size size) {
-    // draw the pip
+    // fill the triangle
     final path = clipper.getClip(size);
-    final paint = Paint();
-    paint.color = _color!;
+    final paint = Paint()..color = _color;
     canvas.drawPath(path, paint);
 
-    // highlight or outline the pip
+    // a crisp ink hairline outlines every point
+    paint
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = AppColors.line;
+    canvas.drawPath(path, paint);
+
+    // a legal destination point glows in the accent
     if (highlight) {
-      paint.strokeWidth = 4.0;
-      paint.style = PaintingStyle.stroke;
-      paint.color = Colors.yellow;
+      paint
+        ..strokeWidth = 3
+        ..color = AppColors.accent;
       canvas.drawPath(path, paint);
     }
   }

@@ -49,17 +49,16 @@ class FibsMessage {
 }
 
 class FibsState extends ChangeNotifier {
-  // The proxy host/port/scheme the websocat bridge listens on (see README).
-  // Defaults come from --dart-define (fibs_proxy_host / fibs_proxy_port /
-  // fibs_proxy_secure) so a production build can target a hosted wss:// proxy,
-  // falling back to the local dev bridge; still overridable per-instance so
-  // tooling can target 127.0.0.1 directly.
-  FibsState({String? proxy, int? port, bool? secure})
+  // The app's hosted WebSocket-to-FIBS bridge. Compile-time overrides are for
+  // development, staging, and live test infrastructure; the UI never exposes
+  // proxy selection.
+  FibsState({String? proxy, int? port, bool? secure, String? path})
     : _makeTransport = (() => FibsConnectionTransport(
         FibsConnection(
           proxy ?? _envProxyHost,
           port ?? _envProxyPort,
           secure: secure ?? _envProxySecure,
+          path: path ?? _envProxyPath,
         ),
       ));
 
@@ -75,15 +74,23 @@ class FibsState extends ChangeNotifier {
   // ignore: do_not_use_environment -- compile-time proxy config seam
   static const _envProxyHost = String.fromEnvironment(
     'fibs_proxy_host',
-    defaultValue: 'localhost',
+    defaultValue: 'proxy.playfibs.com',
   );
   // ignore: do_not_use_environment -- compile-time proxy config seam
   static const _envProxyPort = int.fromEnvironment(
     'fibs_proxy_port',
-    defaultValue: 8080,
+    defaultValue: 443,
   );
   // ignore: do_not_use_environment -- compile-time proxy config seam
-  static const _envProxySecure = bool.fromEnvironment('fibs_proxy_secure');
+  static const _envProxySecure = bool.fromEnvironment(
+    'fibs_proxy_secure',
+    defaultValue: true,
+  );
+  // ignore: do_not_use_environment -- compile-time proxy config seam
+  static const _envProxyPath = String.fromEnvironment(
+    'fibs_proxy_path',
+    defaultValue: '/fibs',
+  );
 
   // the FIBS lobby roster (who-list + bot-only invite/watch queries)
   final lobby = FibsLobby();

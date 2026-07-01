@@ -1,0 +1,12 @@
+name = "fibs-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+
+[vars]
+ENVIRONMENT = "dev"
+VERSION = "local"
+ALLOWED_ORIGINS = ""
+
+[[analytics_engine_datasets]]
+binding = "FIBS_PROXY_ANALYTICS"
+dataset = "fibs_proxy_events"

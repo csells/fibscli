@@ -17,7 +17,7 @@ List<Widget> _confirmActions(
     onPressed: () => Navigator.pop(context, false),
     child: Padding(padding: const EdgeInsets.all(8), child: Text(cancel)),
   ),
-  ElevatedButton(
+  FilledButton(
     onPressed: () => Navigator.pop(context, true),
     child: Padding(padding: const EdgeInsets.all(8), child: Text(confirm)),
   ),
@@ -86,7 +86,7 @@ class OddsDialog extends StatelessWidget {
         ],
       ),
       actions: [
-        ElevatedButton(
+        FilledButton(
           onPressed: () => Navigator.pop(context),
           child: const Padding(padding: EdgeInsets.all(8), child: Text('OK')),
         ),

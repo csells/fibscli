@@ -13,4 +13,14 @@ void main() {
     final conn = FibsConnection('proxy.example.com', 443, secure: true);
     expect(conn.url, Uri.parse('wss://proxy.example.com:443'));
   });
+
+  test('a secure connection can target the hosted Worker bridge path', () {
+    final conn = FibsConnection(
+      'proxy.playfibs.com',
+      443,
+      secure: true,
+      path: '/fibs',
+    );
+    expect(conn.url, Uri.parse('wss://proxy.playfibs.com:443/fibs'));
+  });
 }

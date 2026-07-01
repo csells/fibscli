@@ -32,7 +32,7 @@ class _BotListViewState extends State<_BotListView> {
         actions: [
           TextButton(
             onPressed: () => unawaited(fibs.logout()),
-            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+            child: const Text('Logout'),
           ),
         ],
       ),
@@ -140,7 +140,7 @@ class _BotListViewState extends State<_BotListView> {
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () => Navigator.pop(context, true),
               child: Text('Invite ($length pt)'),
             ),
@@ -158,13 +158,16 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-    child: Text(
-      text,
-      style: TextStyle(
-        color: Theme.of(context).primaryColor,
-        fontWeight: FontWeight.bold,
-      ),
+    padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+    child: Row(
+      children: [
+        Text(
+          text.toUpperCase(),
+          style: editorialKicker(color: AppColors.accent),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(child: Divider(color: AppColors.line)),
+      ],
     ),
   );
 }

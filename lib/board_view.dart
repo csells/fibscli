@@ -8,6 +8,7 @@ import 'model.dart';
 import 'pieces.dart';
 import 'pip_count.dart';
 import 'pips.dart';
+import 'theme.dart';
 
 /// THE single backgammon board renderer — used by the local game, FIBS play,
 /// and FIBS watch, so they always look and highlight identically.
@@ -111,17 +112,17 @@ class BoardView extends StatelessWidget {
         ignoring: ignoring,
         child: Stack(
           children: [
-            // frame
+            // frame: the surrounding rail + the central bar read as stone
             Container(
               width: 574,
               height: 420,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.black, width: 5),
-                color: Colors.grey[300],
+                border: Border.all(color: AppColors.ink, width: 4),
+                color: AppColors.stone,
               ),
             ),
 
-            // outer + home board backgrounds (tap to deselect)
+            // outer + home board backgrounds (ivory field, tap to deselect)
             for (final rect in const [
               Rect.fromLTWH(20, 20, 216, 380),
               Rect.fromLTWH(284, 20, 216, 380),
@@ -132,8 +133,8 @@ class BoardView extends StatelessWidget {
                   onTap: onTapBoard,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: Colors.green[900],
-                      border: Border.all(color: Colors.black),
+                      color: AppColors.ivory,
+                      border: Border.all(color: AppColors.ink),
                     ),
                   ),
                 ),
@@ -169,22 +170,17 @@ class BoardView extends StatelessWidget {
                   onTap: onTapOff == null ? null : () => onTapOff!(player),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: Colors.green[900],
+                      color: AppColors.bone,
                       border: Border.all(
                         color: _highlightOff(player)
-                            ? Colors.yellow
-                            : Colors.black,
+                            ? AppColors.accent
+                            : AppColors.ink,
                         width: 2,
                       ),
                     ),
                   ),
                 ),
               ),
-
-            const InnerShadingRect(rect: Rect.fromLTWH(20, 20, 216, 380)),
-            const InnerShadingRect(rect: Rect.fromLTWH(284, 20, 216, 380)),
-            const InnerShadingRect(rect: Rect.fromLTWH(520, 216, 32, 183)),
-            const InnerShadingRect(rect: Rect.fromLTWH(520, 20, 32, 183)),
 
             // doubling cube (issue #12)
             Positioned.fromRect(
@@ -240,41 +236,6 @@ class BoardView extends StatelessWidget {
           ],
         ),
       ),
-    ),
-  );
-}
-
-/// A subtle inner top/left shadow drawn over a board region.
-class InnerShadingRect extends StatelessWidget {
-  const InnerShadingRect({required this.rect, super.key});
-  final Rect rect;
-
-  @override
-  Widget build(BuildContext context) => Positioned.fromRect(
-    rect: rect,
-    child: Stack(
-      children: [
-        Container(
-          height: 10,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.black.withAlpha(51), Colors.transparent],
-            ),
-          ),
-        ),
-        Container(
-          width: 10,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withAlpha(51), Colors.transparent],
-            ),
-          ),
-        ),
-      ],
     ),
   );
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'model.dart';
+import 'theme.dart';
 
 class DieState {
   DieState(this.roll);
@@ -8,27 +10,20 @@ class DieState {
   bool available = true;
 }
 
+// One die per player, in the two checker colors: player one is an ink face with
+// ivory spots, player two an ivory face (ink-ringed) with ink spots. A spent
+// die dims.
 class DieView extends StatelessWidget {
   DieView({required this.layout, super.key, void Function()? onTap})
     : _onTap = onTap ?? _noop,
-      _playerColor = layout.player == GammonPlayer.one
-          ? Colors.black
-          : Colors.white,
-      _otherColor = layout.player == GammonPlayer.one
-          ? Colors.white
-          : Colors.black,
-      _gradeColors = _dieColors[layout.player!.index];
+      _solid = layout.player == GammonPlayer.one;
 
-  static final _dieColors = [
-    [Colors.grey[850]!, const Color(0xFF141414)],
-    [Colors.grey[50]!, Colors.grey[300]!],
-  ];
-
-  final List<Color> _gradeColors;
-  final Color _playerColor;
-  final Color _otherColor;
+  final bool _solid;
   final DieLayout layout;
   final void Function() _onTap;
+
+  Color get _faceColor => _solid ? AppColors.ink : AppColors.ivory;
+  Color get _spotColor => _solid ? AppColors.ivory : AppColors.ink;
 
   static void _noop() {}
 
@@ -36,16 +31,12 @@ class DieView extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
     onTap: _onTap,
     child: Opacity(
-      opacity: layout.die.available ? 1.0 : 0.5,
+      opacity: layout.die.available ? 1.0 : 0.4,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: _playerColor,
-          border: Border.all(color: Colors.black, width: 1),
-          borderRadius: const BorderRadius.all(Radius.circular(4)),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            colors: _gradeColors,
-          ),
+          color: _faceColor,
+          border: Border.all(color: AppColors.ink, width: _solid ? 1 : 1.5),
+          borderRadius: const BorderRadius.all(Radius.circular(5)),
         ),
         // spots sit directly on the die face (no inner circle behind them)
         child: Stack(
@@ -53,9 +44,9 @@ class DieView extends StatelessWidget {
             for (final rect in layout.getSpotRects())
               Positioned.fromRect(
                 rect: rect.shift(const Offset(-1, -1)),
-                child: Container(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: _otherColor,
+                    color: _spotColor,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -180,9 +171,9 @@ class DoublingCubeView extends StatelessWidget {
     final faceValue = cube.value;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.black, width: 2),
-        borderRadius: const BorderRadius.all(Radius.circular(10)),
+        color: AppColors.ivory,
+        border: Border.all(color: AppColors.ink, width: 2),
+        borderRadius: const BorderRadius.all(Radius.circular(6)),
       ),
       child: Center(
         // counter-rotate the number so it reads upright when the whole board is
@@ -195,7 +186,10 @@ class DoublingCubeView extends StatelessWidget {
               child: Text(
                 '$faceValue',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: GoogleFonts.instrumentSerif(
+                  color: AppColors.ink,
+                  height: 1,
+                ),
               ),
             ),
           ),

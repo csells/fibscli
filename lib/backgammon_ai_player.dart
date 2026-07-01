@@ -99,31 +99,42 @@ class BackgammonAiPlayer extends BgAiPlayer {
   }
 }
 
-/// The app's single computer opponent, **Gary Gammon**, exposing levels 0-8:
-/// level 0 is the fast [PubevalAiPlayer] heuristic, and levels 1-8 use the
-/// stronger neural engine, increasing in strength. Register it with the
-/// `AiRegistry`.
+/// The app's single computer opponent, **Gary Gammon**, exposing five
+/// difficulty levels of increasing strength: levels 1-2 and 4-5 are the neural
+/// engine (levels 2/4/6/8), and level 3 is the fast [PubevalAiPlayer]
+/// heuristic. Register it with the `AiRegistry`.
 class GaryGammonFactory extends BgAiPlayerFactory {
   @override
   String get name => 'Gary Gammon';
 
   @override
-  String? get description => 'Level 0 is quick; 1-8 grow steadily stronger';
+  String? get description =>
+      'Five settings, from a gentle warm-up to a ruthless neural engine';
 
-  /// Levels "0".."8": 0 is the heuristic, 1-8 the neural engine.
+  /// Levels "1".."5", of increasing strength: 1 and 2 are the neural engine's
+  /// level2/level4, 3 is the quick [PubevalAiPlayer] heuristic, and 4/5 are the
+  /// neural engine's level6/level8.
   @override
-  List<String> get levels => [for (var i = 0; i <= 8; i++) '$i'];
+  List<String> get levels => [for (var i = 1; i <= 5; i++) '$i'];
 
   @override
   BgAiPlayer create({String? level}) {
     final n = int.tryParse(level ?? '') ?? _defaultLevel;
-    if (n <= 0) return PubevalAiPlayer(); // level 0: the quick heuristic
-    // levels 1-8 map to the neural engine's level1..level8
-    final capped = n.clamp(1, 8);
-    return BackgammonAiPlayer(level: bgai.AiLevel.values[capped - 1]);
+    // Which neural strength (1-8) each difficulty maps to; 0 means "no neural
+    // engine — use the heuristic". Level 3 (and anything out of range) is the
+    // heuristic.
+    final neural = switch (n) {
+      1 => 2,
+      2 => 4,
+      4 => 6,
+      5 => 8,
+      _ => 0,
+    };
+    if (neural == 0) return PubevalAiPlayer();
+    return BackgammonAiPlayer(level: bgai.AiLevel.values[neural - 1]);
   }
 
   // Used only if create() is called without a level (the picker always supplies
-  // one); a middling default.
-  static const _defaultLevel = 4;
+  // one); the middle setting, which is the heuristic.
+  static const _defaultLevel = 3;
 }

@@ -85,15 +85,24 @@ class _LoginViewState extends State<_LoginView> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Est. 1992 · fibs.com',
+                style: editorialKicker(color: AppColors.accent),
+              ),
+              const SizedBox(height: 8),
+              Text('Sign in', style: Theme.of(context).textTheme.displaySmall),
+              const SizedBox(height: 24),
               TextField(
                 controller: _user,
                 decoration: const InputDecoration(labelText: 'FIBS user'),
                 autofillHints: const [AutofillHints.username],
               ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _pass,
                 decoration: InputDecoration(
@@ -115,25 +124,29 @@ class _LoginViewState extends State<_LoginView> {
                 title: const Text('Remember my password'),
                 subtitle: const Text('only on a device you trust'),
                 contentPadding: EdgeInsets.zero,
+                activeColor: AppColors.accent,
               ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     _error!,
-                    style: const TextStyle(color: Colors.red),
+                    style: const TextStyle(color: AppColors.accent),
                   ),
                 ),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: FilledButton(
                   onPressed: _busy ? null : () => unawaited(_login()),
                   child: _busy
                       ? const SizedBox(
                           height: 16,
                           width: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.ivory,
+                          ),
                         )
                       : const Text('Connect'),
                 ),

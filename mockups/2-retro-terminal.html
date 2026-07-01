@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>fibscli // retro terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     fibscli — Retro Terminal (mockup 2 of 4)
+     amber/green CRT phosphor · monospace · scanlines
+     ============================================================ */
+
+  :root {
+    --bg0: #060806;
+    --bg1: #0A0E0A;
+    --bg2: #0d130d;
+    --panel: rgba(12, 20, 12, 0.72);
+    --amber: #FFB000;
+    --amber-dim: #a86f00;
+    --amber-deep: #5f3f00;
+    --green: #33FF66;
+    --green-dim: #1c9a3d;
+    --green-deep: #0c451c;
+    --red: #ff5a4d;
+    --grid: rgba(51, 255, 102, 0.10);
+    --scan: rgba(0, 0, 0, 0.30);
+    --glow-amber: 0 0 4px rgba(255,176,0,0.55), 0 0 12px rgba(255,176,0,0.28);
+    --glow-green: 0 0 4px rgba(51,255,102,0.55), 0 0 12px rgba(51,255,102,0.25);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg0);
+    color: var(--amber);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100%;
+  }
+
+  body {
+    /* radial vignette for CRT curvature */
+    background:
+      radial-gradient(ellipse 120% 120% at 50% 50%, rgba(12,22,12,0.55) 0%, rgba(6,8,6,0.98) 78%, #000 100%),
+      var(--bg0);
+    overflow-x: hidden;
+  }
+
+  /* ---------- CRT overlays (fixed, above everything, non-interactive) ---------- */
+  .crt-scanlines,
+  .crt-vignette,
+  .crt-flicker {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9000;
+  }
+  .crt-scanlines {
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 2px,
+      var(--scan) 3px,
+      var(--scan) 3px
+    );
+    background-size: 100% 4px;
+    animation: scandrift 14s linear infinite;
+    opacity: 0.55;
+    mix-blend-mode: multiply;
+  }
+  .crt-vignette {
+    background:
+      radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(0,0,0,0.65) 100%);
+    box-shadow: inset 0 0 180px 40px rgba(0,0,0,0.75);
+  }
+  /* faint chromatic bloom lines */
+  .crt-vignette::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      rgba(255,0,60,0.020) 0px,
+      rgba(0,255,180,0.020) 1px,
+      rgba(0,120,255,0.020) 2px,
+      transparent 3px
+    );
+    mix-blend-mode: screen;
+  }
+  .crt-flicker {
+    background: rgba(255, 200, 90, 0.015);
+    animation: flicker 6s steps(60) infinite;
+    z-index: 8999;
+  }
+
+  @keyframes scandrift {
+    from { background-position: 0 0; }
+    to   { background-position: 0 100px; }
+  }
+  @keyframes flicker {
+    0%,100% { opacity: 0.10; }
+    2%      { opacity: 0.22; }
+    4%      { opacity: 0.08; }
+    8%      { opacity: 0.18; }
+    9%      { opacity: 0.10; }
+    50%     { opacity: 0.14; }
+    52%     { opacity: 0.06; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .crt-scanlines, .crt-flicker { animation: none; }
+    * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+    .cursor, .blink { animation: none !important; }
+  }
+
+  /* ---------- badge ---------- */
+  .badge {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 9500;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--green);
+    background: rgba(6, 12, 6, 0.82);
+    border: 1px solid var(--green-deep);
+    padding: 5px 10px;
+    text-shadow: var(--glow-green);
+    box-shadow: 0 0 12px rgba(51,255,102,0.15);
+  }
+
+  /* ---------- shell frame ---------- */
+  .shell {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 20px 22px 90px;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* ---------- top nav ---------- */
+  header.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border: 1px solid var(--amber-deep);
+    background: linear-gradient(180deg, rgba(20,14,0,0.35), rgba(8,10,8,0.2));
+    padding: 8px 14px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .brand .logo {
+    font-family: 'VT323', monospace;
+    font-size: 34px;
+    line-height: 1;
+    color: var(--amber);
+    text-shadow: var(--glow-amber);
+    letter-spacing: 0.02em;
+  }
+  .brand .logo .prompt { color: var(--green); text-shadow: var(--glow-green); }
+  .brand .sub {
+    font-size: 11px;
+    color: var(--amber-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  nav.tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  nav.tabs button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--green-dim);
+    background: transparent;
+    border: 1px solid var(--green-deep);
+    padding: 6px 12px;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: color 0.18s, border-color 0.18s, text-shadow 0.18s, background 0.18s;
+  }
+  nav.tabs button .k { color: var(--amber-dim); }
+  nav.tabs button:hover {
+    color: var(--green);
+    border-color: var(--green-dim);
+    text-shadow: var(--glow-green);
+    background: rgba(20,40,20,0.25);
+  }
+  nav.tabs button.active {
+    color: var(--amber);
+    border-color: var(--amber);
+    text-shadow: var(--glow-amber);
+    background: rgba(40,26,0,0.35);
+  }
+  nav.tabs button.active .k { color: var(--amber); }
+  nav.tabs button:focus-visible,
+  .btn:focus-visible,
+  .menu-item:focus-visible,
+  .lvl:focus-visible,
+  .point:focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: 2px;
+  }
+
+  /* ---------- screen transitions ---------- */
+  .screen { display: none; animation: screenIn 0.5s ease both; }
+  .screen.visible { display: block; }
+  @keyframes screenIn {
+    from { opacity: 0; transform: translateY(6px); filter: brightness(1.6) blur(0.6px); }
+    to   { opacity: 1; transform: translateY(0);   filter: none; }
+  }
+
+  /* generic panel */
+  .panel {
+    border: 1px solid var(--amber-deep);
+    background: var(--panel);
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+  }
+  .panel-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--amber-dim);
+    border-bottom: 1px dashed var(--amber-deep);
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .panel-title .dot { color: var(--green); }
+
+  /* blinking cursor block */
+  .cursor {
+    display: inline-block;
+    width: 0.62ch;
+    height: 1.05em;
+    background: var(--amber);
+    box-shadow: var(--glow-amber);
+    transform: translateY(0.16em);
+    animation: blink 1.05s steps(1) infinite;
+  }
+  .cursor.green { background: var(--green); box-shadow: var(--glow-green); }
+  @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+  .blink { animation: blink 1.05s steps(1) infinite; }
+
+  /* ============================================================
+     SCREEN A — HOME / BOOT
+     ============================================================ */
+  .home-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 900px) { .home-grid { grid-template-columns: 1fr; } }
+
+  .boot {
+    padding: 16px 18px;
+    min-height: 420px;
+  }
+  .boot .line {
+    white-space: pre-wrap;
+    font-size: 13.5px;
+    color: var(--green);
+    text-shadow: var(--glow-green);
+    opacity: 0;
+    margin: 2px 0;
+  }
+  .boot .line.dim { color: var(--green-dim); text-shadow: none; }
+  .boot .line.amber { color: var(--amber); text-shadow: var(--glow-amber); }
+  .boot .line.show { opacity: 1; }
+  .boot .ok { color: var(--amber); }
+
+  .hero-title {
+    font-family: 'VT323', monospace;
+    font-size: 92px;
+    line-height: 0.86;
+    color: var(--amber);
+    text-shadow: 0 0 6px rgba(255,176,0,0.7), 0 0 22px rgba(255,176,0,0.35);
+    margin: 6px 0 2px;
+    letter-spacing: 0.01em;
+  }
+  .hero-tag {
+    font-size: 14px;
+    color: var(--green);
+    text-shadow: var(--glow-green);
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .hero-tag2 {
+    font-size: 12px;
+    color: var(--amber-dim);
+    letter-spacing: 0.06em;
+    margin-bottom: 18px;
+  }
+
+  .menu { display: flex; flex-direction: column; gap: 10px; }
+  .menu-item {
+    text-align: left;
+    display: block;
+    width: 100%;
+    background: rgba(10,16,10,0.5);
+    border: 1px solid var(--green-deep);
+    border-left: 3px solid var(--green-deep);
+    color: var(--green);
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s, transform 0.12s, box-shadow 0.18s;
+  }
+  .menu-item:hover, .menu-item.sel {
+    border-color: var(--amber);
+    border-left-color: var(--amber);
+    background: rgba(30,20,0,0.4);
+    box-shadow: 0 0 18px rgba(255,176,0,0.12), inset 0 0 20px rgba(255,176,0,0.06);
+    transform: translateX(3px);
+  }
+  .menu-item .mi-key {
+    color: var(--amber);
+    text-shadow: var(--glow-amber);
+    font-size: 15px;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .menu-item .mi-title {
+    color: var(--green);
+    text-shadow: var(--glow-green);
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .menu-item:hover .mi-title, .menu-item.sel .mi-title {
+    color: var(--amber);
+    text-shadow: var(--glow-amber);
+  }
+  .menu-item .mi-desc {
+    color: var(--green-dim);
+    font-size: 12px;
+    margin-top: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  /* difficulty selector */
+  .difficulty {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px dashed var(--amber-deep);
+    background: rgba(20,14,0,0.25);
+  }
+  .difficulty .dh {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--amber-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .difficulty .dh b { color: var(--amber); text-shadow: var(--glow-amber); font-size: 14px; }
+  .levels { display: flex; gap: 5px; flex-wrap: wrap; }
+  .lvl {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    color: var(--green-dim);
+    background: rgba(8,14,8,0.6);
+    border: 1px solid var(--green-deep);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .lvl:hover { color: var(--green); border-color: var(--green-dim); text-shadow: var(--glow-green); }
+  .lvl.on {
+    color: var(--amber);
+    border-color: var(--amber);
+    background: rgba(40,26,0,0.5);
+    text-shadow: var(--glow-amber);
+    box-shadow: 0 0 12px rgba(255,176,0,0.25);
+  }
+  .lvl-caption { font-size: 11px; color: var(--green-dim); margin-top: 9px; min-height: 15px; }
+  .lvl-caption b { color: var(--green); }
+
+  .start-row { margin-top: 16px; display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    color: var(--bg0);
+    background: var(--amber);
+    border: 1px solid var(--amber);
+    padding: 8px 18px;
+    cursor: pointer;
+    font-weight: 600;
+    text-shadow: none;
+    box-shadow: 0 0 16px rgba(255,176,0,0.3);
+    transition: transform 0.12s, box-shadow 0.18s, background 0.18s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 0 26px rgba(255,176,0,0.5); background: #ffc23a; }
+  .btn.ghost {
+    background: transparent;
+    color: var(--green);
+    border-color: var(--green-deep);
+    text-shadow: var(--glow-green);
+    box-shadow: none;
+  }
+  .btn.ghost:hover { border-color: var(--green); background: rgba(20,40,20,0.3); }
+
+  /* ============================================================
+     SCREEN B — GAME BOARD (HERO)
+     ============================================================ */
+  .board-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .status-block {
+    border: 1px solid var(--amber-deep);
+    background: var(--panel);
+    padding: 8px 14px;
+    display: flex;
+    gap: 22px;
+    align-items: center;
+    flex: 1;
+    min-width: 260px;
+  }
+  .stat { display: flex; flex-direction: column; }
+  .stat .lbl { font-size: 10px; letter-spacing: 0.14em; color: var(--amber-dim); text-transform: uppercase; }
+  .stat .val { font-family: 'VT323', monospace; font-size: 26px; line-height: 1; }
+  .stat .val.amber { color: var(--amber); text-shadow: var(--glow-amber); }
+  .stat .val.green { color: var(--green); text-shadow: var(--glow-green); }
+
+  .turn-indicator {
+    border: 1px solid var(--amber);
+    background: rgba(40,26,0,0.4);
+    padding: 8px 18px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(255,176,0,0.18);
+    animation: turnpulse 2.4s ease-in-out infinite;
+  }
+  @keyframes turnpulse {
+    0%,100% { box-shadow: 0 0 14px rgba(255,176,0,0.14); }
+    50%     { box-shadow: 0 0 30px rgba(255,176,0,0.34); }
+  }
+  .turn-indicator .ti-sm { font-size: 10px; letter-spacing: 0.2em; color: var(--amber-dim); }
+  .turn-indicator .ti-big {
+    font-family: 'VT323', monospace;
+    font-size: 34px;
+    line-height: 0.9;
+    color: var(--amber);
+    text-shadow: var(--glow-amber);
+    letter-spacing: 0.03em;
+  }
+
+  /* the board */
+  .board-wrap {
+    border: 1px solid var(--amber-dim);
+    background:
+      linear-gradient(180deg, rgba(10,16,10,0.7), rgba(6,10,6,0.85));
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.65), 0 0 30px rgba(255,176,0,0.05);
+    padding: 10px;
+    position: relative;
+  }
+  /* faint dot-grid texture inside board */
+  .board-wrap::before {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    background-image: radial-gradient(rgba(51,255,102,0.05) 1px, transparent 1px);
+    background-size: 14px 14px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .coords {
+    display: grid;
+    grid-template-columns: 1fr 46px 1fr;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--amber-dim);
+    letter-spacing: 0.02em;
+    position: relative;
+    z-index: 2;
+  }
+  .coords .cnums { display: grid; grid-template-columns: repeat(6, 1fr); text-align: center; padding: 2px 0; }
+  .coords .cbar { text-align: center; color: var(--green-dim); font-size: 10px; align-self: center; letter-spacing: 0.1em; }
+
+  .board {
+    display: grid;
+    grid-template-columns: 1fr 46px 1fr 40px;
+    grid-template-rows: 1fr 26px 1fr;
+    gap: 0;
+    position: relative;
+    z-index: 2;
+    height: 460px;
+  }
+  /* quadrants */
+  .quad {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .bar {
+    background: repeating-linear-gradient(180deg, rgba(20,30,20,0.7) 0 6px, rgba(8,14,8,0.7) 6px 12px);
+    border-left: 1px solid var(--green-deep);
+    border-right: 1px solid var(--green-deep);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    position: relative;
+  }
+  .bar-label {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--green-dim);
+  }
+  .midbar {
+    grid-column: 1 / 5;
+    background: linear-gradient(90deg, rgba(255,176,0,0.06), rgba(51,255,102,0.06));
+    border-top: 1px solid var(--amber-deep);
+    border-bottom: 1px solid var(--amber-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--amber-dim);
+  }
+
+  /* tray (bear-off) */
+  .tray {
+    grid-row: 1 / 4;
+    grid-column: 4;
+    border-left: 1px solid var(--amber-deep);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 4px 3px;
+    background: rgba(8,12,8,0.5);
+  }
+  .tray .tstack { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .tray .tlbl { font-size: 9px; letter-spacing: 0.1em; color: var(--amber-dim); text-align: center; }
+  .tray-chip {
+    width: 26px; height: 7px; border-radius: 2px;
+  }
+  .tray-chip.amber { background: linear-gradient(180deg, var(--amber), var(--amber-dim)); box-shadow: 0 0 6px rgba(255,176,0,0.5); }
+  .tray-chip.green { background: linear-gradient(180deg, var(--green), var(--green-dim)); box-shadow: 0 0 6px rgba(51,255,102,0.5); }
+
+  /* a single point (triangle) */
+  .point {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+  .point .tri {
+    position: absolute;
+    left: 50%;
+    width: 78%;
+    height: 88%;
+    transform: translateX(-50%);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+  /* top row points hang down; bottom row points point up */
+  .quad.bottom .point .tri { clip-path: polygon(50% 0, 0 100%, 100% 100%); top: 12%; }
+  .quad.top .point .tri { top: 0; }
+  .tri.pa { background: linear-gradient(180deg, rgba(255,176,0,0.18), rgba(255,176,0,0.02)); border: 1px solid rgba(255,176,0,0.35); }
+  .tri.pb { background: linear-gradient(180deg, rgba(51,255,102,0.15), rgba(51,255,102,0.02)); border: 1px solid rgba(51,255,102,0.30); }
+  .quad.bottom .tri.pa { background: linear-gradient(0deg, rgba(255,176,0,0.18), rgba(255,176,0,0.02)); }
+  .quad.bottom .tri.pb { background: linear-gradient(0deg, rgba(51,255,102,0.15), rgba(51,255,102,0.02)); }
+
+  /* legal-move highlight */
+  .point.legal .tri {
+    border-color: var(--green);
+    box-shadow: 0 0 16px rgba(51,255,102,0.4), inset 0 0 14px rgba(51,255,102,0.18);
+    animation: legalpulse 1.4s ease-in-out infinite;
+  }
+  @keyframes legalpulse {
+    0%,100% { box-shadow: 0 0 10px rgba(51,255,102,0.28), inset 0 0 10px rgba(51,255,102,0.12); }
+    50%     { box-shadow: 0 0 22px rgba(51,255,102,0.6),  inset 0 0 18px rgba(51,255,102,0.25); }
+  }
+  .point:hover .tri {
+    box-shadow: 0 0 16px rgba(255,176,0,0.28), inset 0 0 12px rgba(255,176,0,0.12);
+  }
+
+  .point .pnum {
+    position: absolute;
+    font-size: 9px;
+    color: var(--amber-dim);
+    z-index: 4;
+  }
+  .quad.top .point .pnum { top: 2px; }
+  .quad.bottom .point .pnum { bottom: 2px; }
+
+  /* checker stack */
+  .stack {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding-top: 12px;
+    width: 100%;
+  }
+  .quad.bottom .stack { flex-direction: column-reverse; padding-top: 0; padding-bottom: 12px; justify-content: flex-start; }
+
+  .chk {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    line-height: 1;
+    flex: 0 0 auto;
+    margin-top: -3px;
+  }
+  .chk.first { margin-top: 0; }
+  .chk.amber {
+    color: #241700;
+    background: radial-gradient(circle at 35% 30%, #ffd873, var(--amber) 45%, var(--amber-dim) 100%);
+    border: 1px solid #ffdc80;
+    box-shadow: 0 0 8px rgba(255,176,0,0.55), inset 0 0 4px rgba(0,0,0,0.4);
+    text-shadow: none;
+  }
+  .chk.green {
+    color: #012a0f;
+    background: radial-gradient(circle at 35% 30%, #8fffb0, var(--green) 45%, var(--green-dim) 100%);
+    border: 1px solid #9dffb9;
+    box-shadow: 0 0 8px rgba(51,255,102,0.5), inset 0 0 4px rgba(0,0,0,0.4);
+  }
+  .chk .glyph { transform: translateY(-1px); }
+  .stack .more {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--amber);
+    text-shadow: var(--glow-amber);
+    margin-top: 1px;
+  }
+  .quad.bottom .stack .more { color: var(--green); text-shadow: var(--glow-green); }
+
+  /* bar checkers */
+  .bar-chk-zone { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+
+  /* bottom control area */
+  .board-bottom {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    margin-top: 12px;
+    align-items: center;
+  }
+  @media (max-width: 820px) { .board-bottom { grid-template-columns: 1fr; } }
+
+  .dice-cube {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid var(--amber-deep);
+    background: var(--panel);
+    padding: 10px 16px;
+  }
+  .die {
+    width: 52px; height: 52px;
+    border: 1px solid var(--amber);
+    background: rgba(30,20,0,0.5);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 6px;
+    box-shadow: 0 0 14px rgba(255,176,0,0.2), inset 0 0 10px rgba(0,0,0,0.4);
+    gap: 1px;
+  }
+  .die.green { border-color: var(--green); box-shadow: 0 0 14px rgba(51,255,102,0.2), inset 0 0 10px rgba(0,0,0,0.4); background: rgba(6,30,14,0.5); }
+  .pip { border-radius: 50%; align-self: center; justify-self: center; width: 8px; height: 8px; background: transparent; }
+  .die .pip.on { background: var(--amber); box-shadow: var(--glow-amber); }
+  .die.green .pip.on { background: var(--green); box-shadow: var(--glow-green); }
+  /* pip grid slots */
+  .p1{grid-area:1/1} .p2{grid-area:1/3} .p3{grid-area:2/2} .p4{grid-area:3/1} .p5{grid-area:3/3}
+  .p6{grid-area:1/2} .p7{grid-area:3/2} .p8{grid-area:2/1} .p9{grid-area:2/3}
+
+  .cube {
+    width: 52px; height: 52px;
+    border: 2px solid var(--green);
+    background: rgba(6,30,14,0.4);
+    display: grid; place-items: center;
+    box-shadow: 0 0 16px rgba(51,255,102,0.25);
+    position: relative;
+  }
+  .cube .cv { font-family: 'VT323', monospace; font-size: 34px; color: var(--green); text-shadow: var(--glow-green); }
+  .cube .clbl { position: absolute; bottom: -16px; left: 0; right: 0; text-align: center; font-size: 9px; color: var(--green-dim); letter-spacing: 0.1em; }
+
+  .cmd-hints {
+    text-align: center;
+    font-size: 13px;
+    color: var(--amber-dim);
+    letter-spacing: 0.04em;
+  }
+  .cmd-hints .kb { color: var(--green); text-shadow: var(--glow-green); }
+  .cmd-hints .kb b { color: var(--amber); text-shadow: var(--glow-amber); }
+
+  .controls { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .ctl {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    padding: 9px 18px;
+    background: rgba(10,16,10,0.5);
+    border: 1px solid var(--green-deep);
+    color: var(--green);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    text-shadow: var(--glow-green);
+    transition: all 0.16s;
+  }
+  .ctl .k { color: var(--amber); text-shadow: var(--glow-amber); font-weight: 600; }
+  .ctl:hover { border-color: var(--green); background: rgba(20,40,20,0.4); box-shadow: 0 0 16px rgba(51,255,102,0.2); }
+  .ctl.primary {
+    background: var(--amber);
+    color: var(--bg0);
+    border-color: var(--amber);
+    text-shadow: none;
+    box-shadow: 0 0 18px rgba(255,176,0,0.35);
+    font-weight: 600;
+  }
+  .ctl.primary .k { color: #3a2500; text-shadow: none; }
+  .ctl.primary:hover { background: #ffc23a; box-shadow: 0 0 28px rgba(255,176,0,0.55); }
+  .ctl.disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ============================================================
+     SCREEN C — FIBS LOBBY
+     ============================================================ */
+  .lobby-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .lobby-grid { grid-template-columns: 1fr; } }
+
+  .conn-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--green-deep);
+    background: rgba(6,20,10,0.4);
+    padding: 8px 14px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .conn-bar .cstat { color: var(--green); text-shadow: var(--glow-green); display: flex; align-items: center; gap: 8px; }
+  .conn-bar .cstat .led {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 8px var(--green);
+    animation: blink 1.8s steps(1) infinite;
+  }
+  .conn-bar .ident { color: var(--amber-dim); }
+  .conn-bar .ident b { color: var(--amber); text-shadow: var(--glow-amber); }
+
+  .who-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .who-table th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--amber-dim);
+    border-bottom: 1px solid var(--amber-deep);
+    padding: 6px 10px;
+    font-weight: 500;
+  }
+  .who-table td { padding: 7px 10px; border-bottom: 1px dashed rgba(255,176,0,0.12); }
+  .who-table tr.row:hover { background: rgba(20,40,20,0.22); }
+  .who-name { color: var(--green); text-shadow: var(--glow-green); font-weight: 500; }
+  .who-name .bt { color: var(--amber-dim); font-size: 11px; }
+  .who-rating { color: var(--amber); font-family: 'VT323', monospace; font-size: 19px; }
+  .who-status { font-size: 11px; }
+  .who-status .ready { color: var(--green); }
+  .who-status .busy { color: var(--amber-dim); }
+  .flag-rec {
+    color: var(--green);
+    border: 1px solid var(--green-dim);
+    background: rgba(20,60,30,0.3);
+    padding: 1px 7px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-shadow: var(--glow-green);
+    white-space: nowrap;
+  }
+  .flag-strong {
+    color: var(--red);
+    border: 1px solid rgba(255,90,77,0.4);
+    padding: 1px 7px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .mini-act {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--amber);
+    background: transparent;
+    border: 1px solid var(--amber-deep);
+    padding: 3px 9px;
+    cursor: pointer;
+    margin-right: 4px;
+    transition: all 0.15s;
+  }
+  .mini-act:hover { border-color: var(--amber); background: rgba(40,26,0,0.4); text-shadow: var(--glow-amber); }
+
+  .console {
+    border: 1px solid var(--green-deep);
+    background: rgba(4,10,6,0.7);
+    padding: 12px 14px;
+    font-size: 13px;
+    min-height: 240px;
+  }
+  .console .cl { margin: 3px 0; white-space: pre-wrap; }
+  .console .cl.sys { color: var(--green-dim); }
+  .console .cl.you { color: var(--amber); text-shadow: var(--glow-amber); }
+  .console .cl.srv { color: var(--green); text-shadow: var(--glow-green); }
+  .console .cl.tell { color: #7fd0ff; text-shadow: 0 0 6px rgba(120,200,255,0.4); }
+
+  .prompt-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--green-dim);
+    background: rgba(6,16,8,0.7);
+    padding: 9px 12px;
+    margin-top: 12px;
+    box-shadow: 0 0 16px rgba(51,255,102,0.08);
+  }
+  .prompt-line .ps { color: var(--green); text-shadow: var(--glow-green); font-weight: 600; }
+  .prompt-line input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--amber);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    text-shadow: var(--glow-amber);
+    caret-color: var(--amber);
+  }
+  .prompt-line input::placeholder { color: var(--amber-deep); }
+
+  .lobby-side .panel { margin-bottom: 14px; }
+  .stat-list { padding: 10px 14px; font-size: 13px; }
+  .stat-list .sl { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed rgba(51,255,102,0.12); }
+  .stat-list .sl .k { color: var(--green-dim); }
+  .stat-list .sl .v { color: var(--amber); text-shadow: var(--glow-amber); }
+  .stat-list .sl .v.g { color: var(--green); text-shadow: var(--glow-green); }
+
+  .helper { font-size: 11px; color: var(--amber-dim); letter-spacing: 0.03em; padding: 10px 14px; }
+  .helper code { color: var(--green); }
+
+  .footer-note {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--amber-deep);
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <!-- CRT overlays -->
+  <div class="crt-flicker"></div>
+  <div class="crt-scanlines"></div>
+  <div class="crt-vignette"></div>
+  <div class="badge">Retro Terminal &middot; mockup 2 of 4</div>
+
+  <div class="shell">
+    <!-- ===================== TOP NAV ===================== -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo"><span class="prompt">&gt;</span>fibscli<span class="cursor green"></span></div>
+        <div class="sub">crt backgammon client</div>
+      </div>
+      <nav class="tabs" id="tabs">
+        <button data-screen="home" class="active"><span class="k">[1]</span> HOME</button>
+        <button data-screen="game"><span class="k">[2]</span> BOARD</button>
+        <button data-screen="lobby"><span class="k">[3]</span> FIBS LOBBY</button>
+      </nav>
+    </header>
+
+    <!-- ===================== SCREEN A — HOME ===================== -->
+    <section id="home" class="screen visible">
+      <div class="home-grid">
+        <!-- boot log -->
+        <div class="panel boot" id="boot">
+          <div class="panel-title">// boot sequence <span class="dot">&#9679; online</span></div>
+          <div style="padding-top:10px" id="bootlines"></div>
+        </div>
+
+        <!-- menu -->
+        <div>
+          <div class="hero-title">fibscli</div>
+          <div class="hero-tag">a hacker's backgammon client for the internet.</div>
+          <div class="hero-tag2">play local · vs. gary gammon · or a live bot on fibs.com:4321</div>
+
+          <div class="panel" style="padding:14px;">
+            <div class="panel-title" style="margin:-14px -14px 14px; border-bottom:1px dashed var(--amber-deep);">// select mode <span class="dot">&#9662;</span></div>
+
+            <div class="menu" id="menu">
+              <button class="menu-item sel" data-mode="local">
+                <span class="mi-key">[1]</span><span class="mi-title">Local 2-Player</span>
+                <div class="mi-desc">hot-seat &mdash; two humans, one CRT, no network</div>
+              </button>
+
+              <button class="menu-item" data-mode="ai">
+                <span class="mi-key">[2]</span><span class="mi-title">Play vs Computer &mdash; Gary Gammon</span>
+                <div class="mi-desc">neural + heuristic engine &mdash; choose skill level 0&ndash;8</div>
+              </button>
+
+              <button class="menu-item" data-mode="fibs">
+                <span class="mi-key">[3]</span><span class="mi-title">Play a Bot on FIBS</span>
+                <div class="mi-desc">connect to the real fibs.com server &mdash; live bot lobby</div>
+              </button>
+            </div>
+
+            <!-- difficulty selector (shown for AI mode) -->
+            <div class="difficulty" id="difficulty">
+              <div class="dh"><span>gary gammon &mdash; skill level</span><b id="lvlBig">LVL 3</b></div>
+              <div class="levels" id="levels"></div>
+              <div class="lvl-caption" id="lvlCap"><b>Level 3</b> &mdash; neural engine, casual play</div>
+            </div>
+
+            <div class="start-row">
+              <button class="btn" id="startBtn" onclick="showScreen('game')">&#9656; START MATCH</button>
+              <button class="btn ghost" onclick="showScreen('lobby')">&gt; open fibs lobby</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SCREEN B — GAME BOARD ===================== -->
+    <section id="game" class="screen">
+      <!-- status + turn -->
+      <div class="board-top">
+        <div class="status-block">
+          <div class="stat">
+            <span class="lbl">&#9679; amber / you</span>
+            <span class="val amber">PIP 127</span>
+          </div>
+          <div class="stat">
+            <span class="lbl">&#9675; green / gary</span>
+            <span class="val green">PIP 141</span>
+          </div>
+          <div class="stat">
+            <span class="lbl">match</span>
+            <span class="val amber">2 <span style="font-size:13px;color:var(--amber-dim)">of 5 pts</span></span>
+          </div>
+        </div>
+        <div class="turn-indicator">
+          <span class="ti-sm">&#9654;&#9654; TURN</span>
+          <span class="ti-big">YOUR ROLL<span class="cursor"></span></span>
+        </div>
+      </div>
+
+      <!-- the board -->
+      <div class="board-wrap">
+        <!-- top coords 13..24 -->
+        <div class="coords">
+          <div class="cnums"><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span></div>
+          <div class="cbar">BAR</div>
+          <div class="cnums"><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span></div>
+        </div>
+
+        <div class="board" id="board">
+          <!-- top-left quad: points 13-18 -->
+          <div class="quad top" id="q-tl"></div>
+          <!-- bar (top half) -->
+          <div class="bar" style="grid-row:1;grid-column:2;">
+            <div class="bar-chk-zone" id="bar-green"></div>
+            <div class="bar-label">BAR</div>
+          </div>
+          <!-- top-right quad: points 19-24 -->
+          <div class="quad top" id="q-tr"></div>
+          <!-- tray -->
+          <div class="tray">
+            <div class="tstack" id="tray-top">
+              <div class="tlbl">OFF &#9675;</div>
+            </div>
+            <div class="tstack" id="tray-bot" style="flex-direction:column-reverse;">
+              <div class="tlbl">OFF &#9679;</div>
+            </div>
+          </div>
+
+          <!-- middle bar strip -->
+          <div class="midbar">
+            <span>&#9679; amber home &rarr; lower-right</span>
+            <span style="color:var(--green-dim)">&#9675; green home &rarr; upper-right</span>
+          </div>
+
+          <!-- bottom-left quad: points 12-7 -->
+          <div class="quad bottom" id="q-bl"></div>
+          <div class="bar" style="grid-row:3;grid-column:2;">
+            <div class="bar-label">BAR</div>
+            <div class="bar-chk-zone" id="bar-amber"></div>
+          </div>
+          <!-- bottom-right quad: points 6-1 -->
+          <div class="quad bottom" id="q-br"></div>
+        </div>
+
+        <!-- bottom coords 12..1 -->
+        <div class="coords">
+          <div class="cnums"><span>12</span><span>11</span><span>10</span><span>9</span><span>8</span><span>7</span></div>
+          <div class="cbar">BAR</div>
+          <div class="cnums"><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+        </div>
+      </div>
+
+      <!-- controls -->
+      <div class="board-bottom">
+        <div class="dice-cube">
+          <div class="die" title="die: 5">
+            <span class="pip on p1"></span><span class="pip on p2"></span>
+            <span class="pip on p3"></span>
+            <span class="pip on p4"></span><span class="pip on p5"></span>
+          </div>
+          <div class="die green" title="die: 3">
+            <span class="pip on p1"></span>
+            <span class="pip on p3"></span>
+            <span class="pip on p5"></span>
+          </div>
+          <div class="cube">
+            <span class="cv">2</span>
+            <span class="clbl">CUBE &middot; YOURS</span>
+          </div>
+        </div>
+
+        <div class="cmd-hints">
+          <span class="kb">[<b>r</b>]oll</span> &nbsp; <span class="kb">[<b>d</b>]ouble</span> &nbsp; <span class="kb">[<b>u</b>]ndo</span>
+          <div style="font-size:11px;margin-top:4px;color:var(--amber-deep)">move 8 &middot; 5-3 rolled &middot; legal: 18/13 13/10</div>
+        </div>
+
+        <div class="controls">
+          <button class="ctl primary"><span class="k">[R]</span> ROLL</button>
+          <button class="ctl"><span class="k">[D]</span> DOUBLE</button>
+          <button class="ctl"><span class="k">[U]</span> UNDO</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SCREEN C — FIBS LOBBY ===================== -->
+    <section id="lobby" class="screen">
+      <div class="conn-bar">
+        <div class="cstat"><span class="led"></span> connected to fibs.com:4321 &middot; CLIP v1.0 &middot; 30ms</div>
+        <div class="ident">logged in as <b>hax0r_chris</b> &middot; rating <b>1621</b> &middot; exp <b>247</b></div>
+      </div>
+
+      <div class="lobby-grid">
+        <!-- LEFT: who list + console + prompt -->
+        <div>
+          <div class="panel">
+            <div class="panel-title">// who &mdash; bots online <span class="dot">5 ready</span></div>
+            <table class="who-table">
+              <thead>
+                <tr><th>#</th><th>name</th><th>rating</th><th>status</th><th>flag</th><th>action</th></tr>
+              </thead>
+              <tbody id="whoBody"></tbody>
+            </table>
+          </div>
+
+          <div class="console" style="margin-top:14px;" id="console">
+            <div class="cl sys">* fibs.com &mdash; First Internet Backgammon Server</div>
+            <div class="cl sys">* type 'help' for commands. 42 users online, 5 bots ready.</div>
+            <div class="cl srv">BlunderBot tells you: hi hax0r_chris! ready when you are :)</div>
+            <div class="cl you">you tell BlunderBot: one game, 1 point?</div>
+            <div class="cl srv">BlunderBot tells you: sure! invite me anytime</div>
+            <div class="cl tell">* MonteCarlo is now playing GammonBot_XVI (rated).</div>
+            <div class="cl sys">* recommended: BlunderBot family (weak, good for rated wins).</div>
+          </div>
+
+          <div class="prompt-line">
+            <span class="ps">fibs&gt;</span>
+            <input id="fibsInput" type="text" spellcheck="false" value="invite BlunderBot 1" aria-label="fibs command" />
+            <span class="cursor"></span>
+          </div>
+        </div>
+
+        <!-- RIGHT: identity + tips -->
+        <div class="lobby-side">
+          <div class="panel">
+            <div class="panel-title">// session</div>
+            <div class="stat-list">
+              <div class="sl"><span class="k">handle</span><span class="v">hax0r_chris</span></div>
+              <div class="sl"><span class="k">rating</span><span class="v g">1621.4</span></div>
+              <div class="sl"><span class="k">experience</span><span class="v">247</span></div>
+              <div class="sl"><span class="k">saved match</span><span class="v g">vs BlunderBot_III</span></div>
+              <div class="sl"><span class="k">wins today</span><span class="v">3</span></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">// invite syntax</div>
+            <div class="helper">
+              <div><code>invite &lt;bot&gt; &lt;points&gt;</code> &mdash; start a match</div>
+              <div style="margin-top:6px"><code>watch &lt;name&gt;</code> &mdash; observe a game</div>
+              <div style="margin-top:6px"><code>who bots</code> &mdash; list ready bots</div>
+              <div style="margin-top:6px"><code>resume</code> &mdash; rejoin saved match</div>
+              <div style="margin-top:10px;color:var(--green)">tip: stick to <b>BlunderBot</b> for rated
+                wins &mdash; wildbg &amp; MonteCarlo are 1800&ndash;2100+.</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">// quick actions</div>
+            <div style="padding:12px 14px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn" onclick="showScreen('game')">&#9656; PLAY BlunderBot</button>
+              <button class="btn ghost" onclick="showScreen('home')">&lt; back to menu</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-note">fibscli &mdash; retro terminal mockup &middot; not wired to a backend &middot; who-list &amp; ratings are illustrative</div>
+    </section>
+  </div>
+
+<script>
+/* ============================================================
+   Screen switching
+   ============================================================ */
+const screens = ['home','game','lobby'];
+function showScreen(name) {
+  screens.forEach(s => {
+    const el = document.getElementById(s);
+    el.classList.toggle('visible', s === name);
+  });
+  document.querySelectorAll('#tabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.screen === name);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (name === 'home') runBoot();
+}
+document.querySelectorAll('#tabs button').forEach(b => {
+  b.addEventListener('click', () => showScreen(b.dataset.screen));
+});
+
+/* keyboard shortcuts 1/2/3 */
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === '1') showScreen('home');
+  if (e.key === '2') showScreen('game');
+  if (e.key === '3') showScreen('lobby');
+});
+
+/* ============================================================
+   HOME — boot sequence type-on
+   ============================================================ */
+const BOOT = [
+  { t: 'fibscli v2.6 // CRT phosphor build', c: 'amber' },
+  { t: 'initializing terminal ................ ', c: 'dim', ok: true },
+  { t: 'loading bg_engine (pure dart) ........ ', c: 'dim', ok: true },
+  { t: 'move generator + race solver ......... ', c: 'dim', ok: true },
+  { t: 'gary gammon neural weights ........... ', c: 'dim', ok: true },
+  { t: 'probing fibs.com:4321 ................ ', c: 'dim', ok: true },
+  { t: 'CLIP handshake / secure keychain ..... ', c: 'dim', ok: true },
+  { t: '', c: 'dim' },
+  { t: 'READY. select a mode to begin.', c: 'green' },
+];
+let bootTimer = null;
+function runBoot() {
+  const host = document.getElementById('bootlines');
+  if (!host) return;
+  if (bootTimer) clearTimeout(bootTimer);
+  host.innerHTML = '';
+  let i = 0;
+  const step = () => {
+    if (i >= BOOT.length) return;
+    const b = BOOT[i];
+    const div = document.createElement('div');
+    div.className = 'line ' + (b.c || '');
+    div.innerHTML = b.t + (b.ok ? '<span class="ok">[ OK ]</span>' : '') +
+      (i === BOOT.length - 1 ? ' <span class="cursor green"></span>' : '');
+    host.appendChild(div);
+    requestAnimationFrame(() => div.classList.add('show'));
+    i++;
+    bootTimer = setTimeout(step, b.t === '' ? 120 : (240 + Math.random()*120));
+  };
+  step();
+}
+
+/* ============================================================
+   HOME — menu selection + difficulty
+   ============================================================ */
+const menu = document.getElementById('menu');
+const difficulty = document.getElementById('difficulty');
+function selectMode(mode) {
+  menu.querySelectorAll('.menu-item').forEach(m => m.classList.toggle('sel', m.dataset.mode === mode));
+  difficulty.style.display = (mode === 'ai') ? 'block' : 'none';
+}
+menu.querySelectorAll('.menu-item').forEach(m => {
+  m.addEventListener('click', () => selectMode(m.dataset.mode));
+});
+selectMode('local');
+
+/* difficulty levels 0..8 */
+const LVL_CAPS = [
+  'pubeval heuristic — fastest, weakest',
+  'neural engine, very easy',
+  'neural engine, easy',
+  'neural engine, casual play',
+  'neural engine, club level',
+  'neural engine, strong club',
+  'neural engine, expert',
+  'neural engine, world class',
+  'neural engine, maximum strength',
+];
+const levels = document.getElementById('levels');
+const lvlBig = document.getElementById('lvlBig');
+const lvlCap = document.getElementById('lvlCap');
+let curLvl = 3;
+function renderLevels() {
+  levels.innerHTML = '';
+  for (let n = 0; n <= 8; n++) {
+    const b = document.createElement('button');
+    b.className = 'lvl' + (n === curLvl ? ' on' : '');
+    b.textContent = n;
+    b.setAttribute('aria-label', 'skill level ' + n);
+    b.addEventListener('click', () => { curLvl = n; updateLvl(); });
+    levels.appendChild(b);
+  }
+}
+function updateLvl() {
+  levels.querySelectorAll('.lvl').forEach((el, n) => el.classList.toggle('on', n === curLvl));
+  lvlBig.textContent = 'LVL ' + curLvl;
+  lvlCap.innerHTML = '<b>Level ' + curLvl + '</b> — ' + LVL_CAPS[curLvl];
+}
+renderLevels();
+
+/* ============================================================
+   GAME BOARD — build points & checkers
+   Board points 1..24. Checkers: {amber: n, green: n}
+   position: a plausible mid-game.
+   ============================================================ */
+// signed model: negative-ish "amber" (you), positive "green" (gary)
+// map point -> {color, count}
+const POS = {
+  24: { c:'green', n:2 },
+  19: { c:'green', n:4 },
+  18: { c:'amber', n:5 },
+  17: { c:'green', n:3 },
+  15: { c:'green', n:2 },
+  13: { c:'amber', n:3 },
+  12: { c:'amber', n:2 },
+  8:  { c:'amber', n:2 },
+  6:  { c:'amber', n:1 },
+  4:  { c:'green', n:2 },
+  1:  { c:'amber', n:1 },
+};
+const LEGAL = new Set([13, 10]); // highlighted legal destinations
+const glyphFor = c => c === 'amber' ? '&#9679;' : '&#9675;'; // ● / ○
+
+function buildPoint(pointNo, isBottom) {
+  const btn = document.createElement('button');
+  btn.className = 'point' + (LEGAL.has(pointNo) ? ' legal' : '');
+  btn.setAttribute('aria-label', 'point ' + pointNo);
+  // alternating triangle color by index
+  const tri = document.createElement('div');
+  const alt = (pointNo % 2 === 0) ? 'pa' : 'pb';
+  tri.className = 'tri ' + alt;
+  btn.appendChild(tri);
+
+  const num = document.createElement('div');
+  num.className = 'pnum';
+  num.textContent = pointNo;
+  btn.appendChild(num);
+
+  const stack = document.createElement('div');
+  stack.className = 'stack';
+  const p = POS[pointNo];
+  if (p) {
+    const shown = Math.min(p.n, 5);
+    for (let k = 0; k < shown; k++) {
+      const chk = document.createElement('div');
+      chk.className = 'chk ' + p.c + (k === 0 ? ' first' : '');
+      chk.innerHTML = '<span class="glyph">' + glyphFor(p.c) + '</span>';
+      stack.appendChild(chk);
+    }
+    if (p.n > 5) {
+      const more = document.createElement('div');
+      more.className = 'more';
+      more.textContent = '+' + (p.n - 5);
+      stack.appendChild(more);
+    }
+  }
+  btn.appendChild(stack);
+  return btn;
+}
+
+// top-left = points 13..18, top-right = 19..24
+// bottom-left = 12..7, bottom-right = 6..1
+function fillQuad(id, nums, isBottom) {
+  const q = document.getElementById(id);
+  nums.forEach(n => q.appendChild(buildPoint(n, isBottom)));
+}
+fillQuad('q-tl', [13,14,15,16,17,18], false);
+fillQuad('q-tr', [19,20,21,22,23,24], false);
+fillQuad('q-bl', [12,11,10,9,8,7], true);
+fillQuad('q-br', [6,5,4,3,2,1], true);
+
+/* bar checkers: one amber on the bar */
+(function fillBar() {
+  const amberBar = document.getElementById('bar-amber');
+  const c = document.createElement('div');
+  c.className = 'chk amber first';
+  c.innerHTML = '<span class="glyph">&#9679;</span>';
+  c.title = 'on the bar';
+  amberBar.appendChild(c);
+})();
+
+/* bear-off trays: a couple borne off each */
+(function fillTrays() {
+  const top = document.getElementById('tray-top');   // green off
+  const bot = document.getElementById('tray-bot');    // amber off
+  for (let i = 0; i < 2; i++) {
+    const g = document.createElement('div'); g.className = 'tray-chip green'; top.appendChild(g);
+  }
+  for (let i = 0; i < 3; i++) {
+    const a = document.createElement('div'); a.className = 'tray-chip amber'; bot.appendChild(a);
+  }
+})();
+
+/* ============================================================
+   LOBBY — who list rows
+   ============================================================ */
+const BOTS = [
+  { n:'BlunderBot',     bt:'blunderBot 1.0', r:1421, st:'ready', flag:'rec' },
+  { n:'BlunderBot_III', bt:'blunderBot 3.0', r:1388, st:'saved', flag:'rec' },
+  { n:'MonteCarlo',     bt:'MonteCarlo/gnu', r:1902, st:'busy',  flag:'strong' },
+  { n:'GammonBot',      bt:'gnubg 1.06',     r:1985, st:'ready', flag:'strong' },
+  { n:'wildbg',         bt:'wildbg neural',  r:2104, st:'ready', flag:'strong' },
+];
+const whoBody = document.getElementById('whoBody');
+BOTS.forEach((b, i) => {
+  const tr = document.createElement('tr');
+  tr.className = 'row';
+  const stCls = b.st === 'ready' ? 'ready' : 'busy';
+  const stTxt = b.st === 'ready' ? '&#9679; ready' : (b.st === 'saved' ? '&#9673; saved match' : '&#9675; playing');
+  const flag = b.flag === 'rec'
+    ? '<span class="flag-rec">&#9733; RECOMMENDED</span>'
+    : '<span class="flag-strong">&#9888; strong 1800+</span>';
+  tr.innerHTML =
+    '<td style="color:var(--amber-dim)">' + (i+1) + '</td>' +
+    '<td><span class="who-name">' + b.n + '</span><br><span class="who-name bt">' + b.bt + '</span></td>' +
+    '<td><span class="who-rating">' + b.r + '</span></td>' +
+    '<td class="who-status"><span class="' + stCls + '">' + stTxt + '</span></td>' +
+    '<td>' + flag + '</td>' +
+    '<td><button class="mini-act">invite</button><button class="mini-act">watch</button></td>';
+  whoBody.appendChild(tr);
+});
+
+/* wire prompt input to console (illustrative, no backend) */
+const fibsInput = document.getElementById('fibsInput');
+const consoleEl = document.getElementById('console');
+if (fibsInput) {
+  fibsInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && fibsInput.value.trim()) {
+      const line = document.createElement('div');
+      line.className = 'cl you';
+      line.textContent = 'fibs> ' + fibsInput.value.trim();
+      consoleEl.appendChild(line);
+      const reply = document.createElement('div');
+      reply.className = 'cl srv';
+      reply.textContent = '* command queued (mockup — not sent to server).';
+      consoleEl.appendChild(reply);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+      fibsInput.value = '';
+    }
+  });
+}
+
+/* boot on load */
+runBoot();
+</script>
+</body>
+</html>

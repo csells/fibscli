@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fibscli · redesign mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=Spectral:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12100e;
+    --panel:#1b1815;
+    --ink:#efe7d6;
+    --muted:#a8988a;
+    --line:rgba(239,231,214,.12);
+    --brass:#d8b45a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(216,180,90,.10), transparent 60%),
+      radial-gradient(900px 600px at 0% 110%, rgba(216,180,90,.06), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Spectral',serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    padding:clamp(28px,6vw,80px);
+  }
+  .wrap{max-width:1160px;margin:0 auto}
+  header{margin-bottom:clamp(36px,6vw,64px)}
+  .kicker{
+    font-family:'Spectral';font-weight:600;letter-spacing:.42em;text-transform:uppercase;
+    font-size:12px;color:var(--brass);margin-bottom:22px;
+    opacity:0;transform:translateY(10px);animation:rise .8s .05s forwards cubic-bezier(.2,.7,.2,1);
+  }
+  h1{
+    font-family:'Fraunces',serif;font-weight:340;font-size:clamp(44px,8vw,104px);
+    line-height:.94;letter-spacing:-.02em;margin-bottom:24px;
+    opacity:0;transform:translateY(16px);animation:rise .9s .12s forwards cubic-bezier(.2,.7,.2,1);
+  }
+  h1 em{font-style:italic;color:var(--brass)}
+  .lede{
+    max-width:620px;font-size:clamp(16px,2vw,20px);line-height:1.6;color:#cdbfad;
+    opacity:0;transform:translateY(14px);animation:rise .9s .2s forwards cubic-bezier(.2,.7,.2,1);
+  }
+  .lede b{color:var(--ink);font-weight:600}
+  .grid{
+    display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(18px,2.4vw,28px);
+  }
+  @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  a.card{
+    position:relative;display:block;text-decoration:none;color:inherit;
+    border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    background:var(--panel);min-height:280px;
+    transition:transform .5s cubic-bezier(.2,.7,.2,1),border-color .4s,box-shadow .5s;
+    opacity:0;transform:translateY(24px);
+  }
+  a.card:hover{transform:translateY(-6px);border-color:rgba(239,231,214,.28);box-shadow:0 30px 60px -30px rgba(0,0,0,.7)}
+  a.card:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+  .card .swatch{height:150px;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+  .card .body{padding:22px 24px 26px}
+  .num{
+    font-family:'Fraunces';font-style:italic;font-size:13px;letter-spacing:.05em;
+    color:var(--brass);margin-bottom:10px;display:block;
+  }
+  .card h2{font-family:'Fraunces';font-weight:400;font-size:26px;letter-spacing:-.01em;margin-bottom:8px}
+  .card p{font-size:14.5px;line-height:1.55;color:#b7a794}
+  .arrow{position:absolute;top:20px;right:22px;font-size:20px;color:var(--ink);opacity:.5;transition:transform .4s,opacity .4s}
+  a.card:hover .arrow{transform:translate(4px,-4px);opacity:1}
+
+  /* staggered entrance */
+  a.card:nth-child(1){animation:rise .8s .30s forwards cubic-bezier(.2,.7,.2,1)}
+  a.card:nth-child(2){animation:rise .8s .40s forwards cubic-bezier(.2,.7,.2,1)}
+  a.card:nth-child(3){animation:rise .8s .50s forwards cubic-bezier(.2,.7,.2,1)}
+  a.card:nth-child(4){animation:rise .8s .60s forwards cubic-bezier(.2,.7,.2,1)}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  /* --- swatch art per aesthetic --- */
+  .sw1{background:
+    linear-gradient(115deg,#2a1d15,#3b2a20 60%,#241a12);
+  }
+  .sw1::before{content:"";position:absolute;inset:0;
+    background:radial-gradient(120% 120% at 30% 20%,rgba(216,180,90,.28),transparent 55%);}
+  .sw1::after{content:"";position:absolute;inset:18px;border-radius:8px;
+    background:repeating-linear-gradient(90deg,#1e4034 0 14px,#1a3a2f 14px 28px);
+    box-shadow:inset 0 0 0 2px rgba(216,180,90,.5), inset 0 8px 24px rgba(0,0,0,.5);}
+
+  .sw2{background:#070a07}
+  .sw2::before{content:"fibs> invite BlunderBot 1_";position:absolute;inset:0;
+    display:flex;align-items:center;padding:0 22px;color:#ffb000;
+    font-family:'Spectral';font-size:15px;letter-spacing:.02em;
+    text-shadow:0 0 8px rgba(255,176,0,.7);}
+  .sw2::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(255,176,0,.09) 0 1px,transparent 1px 3px);}
+
+  .sw3{background:#f5f2eb}
+  .sw3::before{content:"13";position:absolute;left:22px;top:16px;font-family:'Fraunces';
+    font-size:46px;color:#16130f;font-style:italic}
+  .sw3::after{content:"";position:absolute;right:0;bottom:0;left:0;top:0;
+    background:
+      linear-gradient(90deg,transparent 48%,#16130f 48% 49%,transparent 49%),
+      repeating-linear-gradient(180deg,transparent 0 30px,rgba(22,19,15,.08) 30px 31px);
+  }
+  .sw3 .dot{position:absolute;width:34px;height:34px;border-radius:50%;right:60px;bottom:26px;background:#e1341e;box-shadow:0 8px 20px -6px rgba(225,52,30,.7)}
+
+  .sw4{background:radial-gradient(120% 120% at 20% 20%,#141a44,#060814 70%)}
+  .sw4::before{content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(60px 60px at 30% 55%,rgba(34,227,255,.9),transparent 65%),
+      radial-gradient(70px 70px at 62% 42%,rgba(255,61,203,.85),transparent 65%);
+    filter:blur(2px)}
+  .sw4::after{content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(60deg,transparent 0 22px,rgba(34,227,255,.08) 22px 23px)}
+
+  footer{margin-top:clamp(40px,6vw,72px);padding-top:22px;border-top:1px solid var(--line);
+    font-size:13.5px;color:#8f8172;line-height:1.7;
+    opacity:0;animation:rise .9s .7s forwards}
+  footer b{color:var(--brass);font-weight:600}
+  kbd{font-family:'Spectral';background:#231f1a;border:1px solid var(--line);border-radius:5px;padding:1px 7px;color:var(--ink);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">fibscli · design exploration</div>
+    <h1>Four ways to<br>reimagine the <em>board</em>.</h1>
+    <p class="lede">Same backgammon app — <b>local play, Gary Gammon AI, and the live FIBS client</b> — rendered in four committed aesthetic directions. Open each, walk <b>Home → Board → FIBS</b>, and pick the world this app should live in.</p>
+  </header>
+
+  <div class="grid">
+    <a class="card" href="1-analog-luxe.html">
+      <span class="arrow">↗</span>
+      <div class="swatch sw1"></div>
+      <div class="body">
+        <span class="num">01 — warm · tactile · light</span>
+        <h2>Analog Luxe</h2>
+        <p>Walnut, brass, and wool felt. Hand-turned checkers with real weight. A private backgammon club rendered in a browser.</p>
+      </div>
+    </a>
+
+    <a class="card" href="2-retro-terminal.html">
+      <span class="arrow">↗</span>
+      <div class="swatch sw2"></div>
+      <div class="body">
+        <span class="num">02 — nostalgic · monospace · dark</span>
+        <h2>Retro Terminal</h2>
+        <p>The name made literal. Amber phosphor, scanlines, and a blinking cursor — a 1990s FIBS client that never stopped glowing.</p>
+      </div>
+    </a>
+
+    <a class="card" href="3-modern-editorial.html">
+      <span class="arrow">↗</span>
+      <div class="swatch sw3"><span class="dot"></span></div>
+      <div class="body">
+        <span class="num">03 — confident · typographic · light</span>
+        <h2>Modern Editorial</h2>
+        <p>Ivory, ink, and one sharp vermillion. Gallery whitespace and a crisp geometric board — the design-forward answer to chess.com.</p>
+      </div>
+    </a>
+
+    <a class="card" href="4-neon-arcade.html">
+      <span class="arrow">↗</span>
+      <div class="swatch sw4"></div>
+      <div class="body">
+        <span class="num">04 — high-energy · glass · dark</span>
+        <h2>Neon Arcade</h2>
+        <p>Dark glass, cyan-vs-magenta glow, and dice that want to tumble. Backgammon as a dopamine-forward esport.</p>
+      </div>
+    </a>
+  </div>
+
+  <footer>
+    Each file is self-contained — <b>open it directly in a browser</b>, no build step. Use the in-page nav to move between <kbd>Home</kbd>, <kbd>Board</kbd>, and <kbd>FIBS</kbd>. These are throwaway visual mockups to choose a direction; none are wired to game logic.
+  </footer>
+</div>
+</body>
+</html>

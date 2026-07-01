@@ -124,7 +124,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // no more "Waiting for opponent…"; the result + escape hatch show instead
-    expect(find.text('You win! 🎉'), findsOneWidget);
+    expect(find.text('You win!'), findsOneWidget);
     expect(find.text('Back to lobby'), findsOneWidget);
 
     await tester.tap(find.text('Back to lobby'));

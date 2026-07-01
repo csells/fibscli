@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'model.dart';
+import 'theme.dart';
 
 // Fixed wall-clock duration for a single piece hop, independent of the distance
 // travelled, so every move shares a steady rhythm instead of short moves
@@ -18,63 +19,71 @@ const kHopAnimationDuration = Duration(milliseconds: 250);
 bool _isPlayerOne(int pieceID) =>
     GammonRules.playerFor(pieceID) == GammonPlayer.one;
 
+// Two editorial checkers: player one is a solid ink disc, player two a hollow
+// ivory disc ringed in ink -- the flat "solid vs. outline" pairing from the
+// design. A concentric inner ring gives each a little turned-edge definition,
+// and a selected/movable checker takes a vermillion ring.
 class PieceView extends StatelessWidget {
   PieceView({required this.layout, super.key})
-    : _gradeColors = _pieceColors[_isPlayerOne(layout.pieceID) ? 0 : 1],
-      _textColor = _isPlayerOne(layout.pieceID) ? Colors.white : Colors.black;
-  static final _pieceColors = [
-    [Colors.grey[800]!, Colors.black],
-    [Colors.white, Colors.grey[400]!],
-  ];
+    : _solid = _isPlayerOne(layout.pieceID);
 
-  final Color _textColor;
-  final List<Color> _gradeColors;
+  final bool _solid;
   final PieceLayout layout;
 
+  Color get _fill => _solid ? AppColors.ink : AppColors.ivory;
+  Color get _textColor => _solid ? AppColors.ivory : AppColors.ink;
+  // The faint concentric ring: light inside the dark disc, dark inside the
+  // light one.
+  Color get _innerRing =>
+      _solid ? const Color(0x3AFFFFFF) : const Color(0x4716130F);
+
   @override
-  Widget build(BuildContext context) => layout.edge
-      ? Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: _gradeColors),
-            border: Border.all(color: Colors.black, width: 1),
-          ),
-        )
-      : DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              colors: _gradeColors,
+  Widget build(BuildContext context) {
+    if (layout.edge) {
+      // A borne-off checker: a thin bar in the tray.
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: _fill,
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: AppColors.ink, width: _solid ? 0 : 1.5),
+        ),
+      );
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _fill,
+        border: Border.all(
+          color: layout.highlight ? AppColors.accent : AppColors.ink,
+          width: layout.highlight ? 2.5 : (_solid ? 1 : 2),
+        ),
+      ),
+      child: Center(
+        child: FractionallySizedBox(
+          widthFactor: .78,
+          heightFactor: .78,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: _innerRing),
             ),
-            border: Border.all(
-              color: layout.highlight ? Colors.yellow : Colors.black,
-              width: layout.highlight ? 2 : 1,
-            ),
-          ),
-          child: Center(
-            child: FractionallySizedBox(
-              widthFactor: .9,
-              child: SizedBox.expand(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      colors: [_gradeColors[1], _gradeColors[0]],
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      layout.label,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: _textColor),
-                    ),
-                  ),
+            child: Center(
+              child: Text(
+                layout.label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _textColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),
           ),
-        );
+        ),
+      ),
+    );
+  }
 }
 
 // The per-piece layout paths and start delays for animating a single move.

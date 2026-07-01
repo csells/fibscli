@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'model.dart';
+import 'theme.dart';
 
 class PipCountView extends StatelessWidget {
   const PipCountView({required this.layout, super.key, this.reversed = false});
@@ -15,7 +16,12 @@ class PipCountView extends StatelessWidget {
       child: Text(
         '${layout.pipCount}',
         textAlign: TextAlign.center,
-        style: const TextStyle(color: Colors.black, fontSize: 10),
+        style: const TextStyle(
+          color: AppColors.inkSoft,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
       ),
     ),
   );

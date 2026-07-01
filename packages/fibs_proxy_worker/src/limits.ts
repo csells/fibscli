@@ -1,0 +1,3 @@
+export const MAX_MESSAGE_BYTES = 8 * 1024;
+export const DEFAULT_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+export const DEFAULT_PRE_CLIENT_IDLE_TIMEOUT_MS = 30 * 1000;

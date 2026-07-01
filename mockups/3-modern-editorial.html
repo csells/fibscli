@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>fibscli — Modern Editorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ivory: #F5F2EB;
+    --bone: #EFEBE1;
+    --ink: #16130F;
+    --ink-soft: #4A443B;
+    --ink-faint: #8A8377;
+    --accent: #E1341E;
+    --stone: #D8D2C4;
+    --stone-deep: #C9C2B0;
+    --hair: #16130F;
+    --line: rgba(22,19,15,0.16);
+    --serif: 'Instrument Serif', Georgia, serif;
+    --sans: 'Public Sans', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--ivory);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-feature-settings: "tnum" 0;
+    line-height: 1.5;
+  }
+
+  .tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+  ::selection { background: var(--accent); color: var(--ivory); }
+
+  a { color: inherit; text-decoration: none; }
+
+  button {
+    font-family: var(--sans);
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: inherit;
+  }
+
+  /* ---------- Focus ---------- */
+  a:focus-visible,
+  button:focus-visible,
+  [tabindex]:focus-visible,
+  .mode-row:focus-visible,
+  .lvl:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+
+  /* ---------- Badge ---------- */
+  .badge {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 999;
+    background: var(--ink);
+    color: var(--ivory);
+    font-family: var(--sans);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    border-radius: 2px;
+    box-shadow: 0 6px 20px rgba(22,19,15,0.22);
+  }
+  .badge .dot { color: var(--accent); }
+
+  /* ---------- Shell ---------- */
+  .shell {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  /* ---------- Masthead / Nav ---------- */
+  header.masthead {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    background: rgba(245,242,235,0.86);
+    backdrop-filter: saturate(1.1) blur(8px);
+    border-bottom: 1px solid var(--hair);
+  }
+  .masthead-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 40px;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .wordmark {
+    font-family: var(--serif);
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+  }
+  .wordmark .fib { color: var(--ink); }
+  .wordmark .scli { color: var(--ink); font-style: italic; }
+  .wordmark .tick {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    display: inline-block;
+    border-radius: 50%;
+    transform: translateY(-2px);
+  }
+
+  nav.tabs {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+  nav.tabs button {
+    position: relative;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 8px 18px;
+    transition: color 0.25s ease;
+  }
+  nav.tabs button .idx {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 15px;
+    letter-spacing: 0;
+    margin-right: 7px;
+    color: var(--ink-faint);
+    transition: color 0.25s ease;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button:hover .idx { color: var(--accent); }
+  nav.tabs button.active { color: var(--ink); }
+  nav.tabs button.active .idx { color: var(--accent); }
+  nav.tabs button::after {
+    content: "";
+    position: absolute;
+    left: 18px; right: 18px;
+    bottom: 2px;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.34s cubic-bezier(0.22,0.61,0.36,1);
+  }
+  nav.tabs button.active::after { transform: scaleX(1); }
+
+  .masthead-status {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-faint);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .masthead-status .live {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 0 rgba(225,52,30,0.5);
+    animation: pulse 2.4s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(225,52,30,0.45); }
+    70% { box-shadow: 0 0 0 7px rgba(225,52,30,0); }
+    100% { box-shadow: 0 0 0 0 rgba(225,52,30,0); }
+  }
+
+  /* ---------- Sections ---------- */
+  section.screen { display: none; }
+  section.screen.visible { display: block; animation: sectionIn 0.5s ease both; }
+  @keyframes sectionIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---------- Staggered reveal utility ---------- */
+  .reveal { opacity: 0; transform: translateY(14px); }
+  .reveal.in { animation: rise 0.7s cubic-bezier(0.22,0.61,0.36,1) forwards; }
+  @keyframes rise {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Hairline draw-in */
+  .drawline {
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  .drawline.in { animation: draw 0.9s cubic-bezier(0.16,0.84,0.32,1) forwards; }
+  @keyframes draw { to { transform: scaleX(1); } }
+
+  /* ============================================================
+     SCREEN A — HOME
+     ============================================================ */
+  .home-wrap { padding: 20px 0 90px; }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 56px;
+    margin-top: 30px;
+    align-items: end;
+  }
+
+  .hero-title {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(66px, 9vw, 128px);
+    line-height: 0.92;
+    letter-spacing: -0.015em;
+    margin: 18px 0 0;
+  }
+  .hero-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .hero-sub {
+    margin-top: 28px;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: 44ch;
+    font-weight: 400;
+  }
+  .hero-sub b { color: var(--ink); font-weight: 600; }
+
+  .hero-side {
+    padding-bottom: 8px;
+  }
+  .hero-figure {
+    border: 1px solid var(--hair);
+    background: var(--bone);
+    padding: 26px 26px 22px;
+    position: relative;
+  }
+  .hero-figure .figlabel {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  .hero-figure .bignum {
+    font-family: var(--serif);
+    font-size: 92px;
+    line-height: 0.9;
+    margin: 6px 0 2px;
+  }
+  .hero-figure .bignum span { color: var(--accent); }
+  .hero-figure .figfoot {
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+    margin-top: 14px;
+    padding-top: 12px;
+    line-height: 1.4;
+  }
+  .mini-die {
+    position: absolute;
+    top: 20px; right: 22px;
+    width: 34px; height: 34px;
+    border: 1.5px solid var(--ink);
+    border-radius: 6px;
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    grid-template-rows: repeat(3,1fr);
+    padding: 5px;
+    background: var(--ivory);
+  }
+  .mini-die i { width: 4px; height: 4px; background: var(--ink); border-radius: 50%; align-self: center; justify-self: center; }
+
+  .rule-major {
+    height: 2px;
+    background: var(--ink);
+    margin: 62px 0 0;
+  }
+
+  .modes-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 22px;
+  }
+  .modes-head h2 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 30px;
+    margin: 0;
+    letter-spacing: 0.005em;
+  }
+  .modes-head .count {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+
+  .modes {
+    margin-top: 20px;
+    border-top: 1px solid var(--line);
+  }
+  .mode-row {
+    display: grid;
+    grid-template-columns: 62px 1fr auto;
+    gap: 30px;
+    align-items: center;
+    padding: 30px 8px 30px 4px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s ease, padding-left 0.3s ease;
+  }
+  .mode-row::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    transform: scaleY(0);
+    transform-origin: top center;
+    transition: transform 0.34s cubic-bezier(0.22,0.61,0.36,1);
+  }
+  .mode-row:hover { background: var(--bone); padding-left: 16px; }
+  .mode-row:hover::before { transform: scaleY(1); }
+
+  .mode-idx {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 46px;
+    line-height: 1;
+    color: var(--ink);
+    transition: color 0.3s ease;
+  }
+  .mode-row:hover .mode-idx { color: var(--accent); }
+
+  .mode-body h3 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 33px;
+    line-height: 1.05;
+    margin: 0 0 5px;
+    letter-spacing: 0.005em;
+  }
+  .mode-body p {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    max-width: 62ch;
+  }
+  .mode-tag {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink-faint);
+    border: 1px solid var(--line);
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-bottom: 9px;
+  }
+
+  .mode-cta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .mode-cta .arrow {
+    width: 40px; height: 40px;
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+  }
+  .mode-row:hover .mode-cta .arrow {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--ivory);
+    transform: translateX(4px);
+  }
+
+  /* Difficulty selector */
+  .difficulty {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .difficulty .dlabel {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink-faint);
+  }
+  .levels { display: flex; gap: 5px; }
+  .lvl {
+    width: 30px; height: 30px;
+    border: 1px solid var(--line);
+    background: var(--ivory);
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+    display: grid; place-items: center;
+    transition: all 0.2s ease;
+  }
+  .lvl:hover { border-color: var(--ink); color: var(--ink); }
+  .lvl.sel {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--ivory);
+  }
+  .lvl.sel.hot {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .diff-caption {
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-family: var(--serif);
+    font-size: 17px;
+  }
+  .diff-caption b { color: var(--accent); font-style: normal; font-family: var(--sans); font-size: 13px; font-weight: 700; }
+
+  /* ============================================================
+     SCREEN B — BOARD
+     ============================================================ */
+  .board-screen { padding: 26px 0 80px; }
+
+  .board-top {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: end;
+    gap: 24px;
+    margin-bottom: 22px;
+  }
+  .board-top .kicker {
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    font-weight: 600; color: var(--ink-faint);
+  }
+  .board-top h1 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 46px;
+    line-height: 0.95;
+    margin: 6px 0 0;
+  }
+  .turn-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--accent);
+    color: var(--ivory);
+    padding: 11px 20px 11px 16px;
+    border-radius: 2px;
+    box-shadow: 0 8px 24px rgba(225,52,30,0.28);
+  }
+  .turn-flag .tf-label {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    font-weight: 700; opacity: 0.85;
+  }
+  .turn-flag .tf-main {
+    font-family: var(--serif); font-size: 26px; line-height: 1;
+  }
+  .turn-flag .tf-checker {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--ivory);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.5);
+  }
+
+  .board-layout {
+    display: grid;
+    grid-template-columns: 1fr 232px;
+    gap: 26px;
+    align-items: start;
+  }
+
+  /* --- The Board --- */
+  .board-frame {
+    background: var(--bone);
+    border: 2px solid var(--ink);
+    padding: 0;
+    position: relative;
+  }
+
+  .quad-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 18px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .quad-labels span {
+    font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-faint);
+  }
+
+  .board-main {
+    display: grid;
+    grid-template-columns: 1fr 52px 1fr 60px;
+    /* left-quadrants | bar | right-quadrants | offtray */
+  }
+
+  .board-side { display: flex; flex-direction: column; }
+  .board-half {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    height: 236px;
+  }
+  .board-half.top { align-items: start; }
+  .board-half.bottom { align-items: end; }
+
+  .point {
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .point.bottom-p { justify-content: flex-end; }
+
+  /* triangle via svg fill */
+  .tri {
+    position: absolute;
+    left: 0; right: 0;
+    width: 100%;
+    height: 190px;
+    z-index: 0;
+  }
+  .board-half.top .tri { top: 0; }
+  .board-half.bottom .tri { bottom: 0; }
+
+  .pointnum {
+    position: absolute;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+    z-index: 3;
+  }
+  .board-half.top .pointnum { top: 3px; }
+  .board-half.bottom .pointnum { bottom: 3px; }
+
+  /* checkers stack */
+  .stack {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 0;
+    width: 100%;
+  }
+  .board-half.bottom .stack { flex-direction: column-reverse; }
+
+  .checker {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 10px;
+    font-weight: 700;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    position: relative;
+  }
+  .checker.solid {
+    background: var(--ink);
+    color: var(--ivory);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .checker.solid::after {
+    content:""; position:absolute; inset:5px; border-radius:50%;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22);
+  }
+  .checker.hollow {
+    background: var(--ivory);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 2px var(--ink), 0 1px 2px rgba(0,0,0,0.14);
+  }
+  .checker.hollow::after {
+    content:""; position:absolute; inset:5px; border-radius:50%;
+    box-shadow: inset 0 0 0 1px rgba(22,19,15,0.28);
+  }
+  .checker .cnt { font-variant-numeric: tabular-nums; }
+  .point:hover .checker:last-child { transform: translateY(-4px); box-shadow: 0 6px 12px rgba(0,0,0,0.22); }
+  .board-half.bottom .point:hover .checker:last-child { transform: translateY(4px); box-shadow: 0 -6px 12px rgba(0,0,0,0.22); }
+
+  /* legal move highlight */
+  .point.legal .tri { animation: legalGlow 2s ease-in-out infinite; }
+  @keyframes legalGlow {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  .point.legal::before {
+    content: "";
+    position: absolute;
+    width: 34px; height: 34px;
+    border: 2px dashed var(--accent);
+    border-radius: 50%;
+    z-index: 4;
+    animation: spin 9s linear infinite;
+  }
+  .board-half.top .point.legal::before { top: 78px; }
+  .board-half.bottom .point.legal::before { bottom: 78px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Bar */
+  .bar {
+    background: var(--stone);
+    border-left: 1px solid var(--ink);
+    border-right: 1px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+  }
+  .bar .bar-cap {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-faint);
+    padding: 8px 0;
+  }
+  .bar-stack {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 0;
+  }
+  .bar-slot-top, .bar-slot-bottom {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  .bar-slot-top { align-items: flex-start; padding-top: 22px; }
+  .bar-slot-bottom { align-items: flex-end; padding-bottom: 22px; }
+
+  /* Off tray */
+  .off-tray {
+    border-left: 1px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+  }
+  .off-cell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0;
+    gap: 4px;
+  }
+  .off-cell.top-off { border-bottom: 1px solid var(--line); justify-content: flex-start; }
+  .off-cell.bottom-off { justify-content: flex-end; }
+  .off-cap {
+    font-size: 8.5px; letter-spacing: 0.16em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-faint);
+    writing-mode: vertical-rl;
+  }
+  .off-chip {
+    width: 40px; height: 9px; border-radius: 2px;
+  }
+  .off-chip.solid { background: var(--ink); }
+  .off-chip.hollow { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .off-num {
+    font-family: var(--serif);
+    font-size: 30px; line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .off-num.accent { color: var(--accent); }
+
+  .board-foot {
+    display: flex; justify-content: space-between; align-items:center;
+    padding: 9px 18px;
+    border-top: 1px solid var(--line);
+  }
+  .board-foot span {
+    font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-faint);
+  }
+
+  /* --- Right rail --- */
+  .rail { display: flex; flex-direction: column; gap: 18px; }
+
+  .panel {
+    border: 1px solid var(--hair);
+    background: var(--ivory);
+  }
+  .panel-h {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-faint);
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .panel-b { padding: 14px; }
+
+  /* Dice + cube */
+  .rollrow { display: flex; align-items: center; gap: 14px; }
+  .die {
+    width: 52px; height: 52px;
+    border: 1.5px solid var(--ink);
+    border-radius: 9px;
+    background: var(--ivory);
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    grid-template-rows: repeat(3,1fr);
+    padding: 8px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+  }
+  .die.cast { animation: cast 0.5s cubic-bezier(0.34,1.4,0.5,1) both; }
+  @keyframes cast {
+    0% { transform: rotate(-16deg) scale(0.8); opacity: 0; }
+    100% { transform: rotate(0) scale(1); opacity: 1; }
+  }
+  .die i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); align-self:center; justify-self:center; }
+  .die i.on { visibility: visible; }
+  .die i.off { visibility: hidden; }
+
+  .cube {
+    width: 52px; height: 52px;
+    border: 1.5px solid var(--ink);
+    border-radius: 9px;
+    background: var(--ink);
+    color: var(--ivory);
+    display: grid; place-items: center;
+    position: relative;
+    margin-left: auto;
+  }
+  .cube .cv { font-family: var(--serif); font-size: 30px; line-height: 1; }
+  .cube .cx { position:absolute; top:4px; left:6px; font-size:8px; letter-spacing:0.1em; opacity:0.7; }
+
+  /* Pip counts */
+  .pips { display: flex; flex-direction: column; gap: 0; }
+  .pip-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0;
+  }
+  .pip-row + .pip-row { border-top: 1px solid var(--line); }
+  .pip-id { display: flex; align-items: center; gap: 10px; }
+  .pip-swatch { width: 18px; height: 18px; border-radius: 50%; }
+  .pip-swatch.solid { background: var(--ink); }
+  .pip-swatch.hollow { background: var(--ivory); box-shadow: inset 0 0 0 2px var(--ink); }
+  .pip-name { font-size: 12px; font-weight: 600; }
+  .pip-name small { display:block; font-weight: 400; color: var(--ink-faint); font-size: 10px; letter-spacing: 0.06em; }
+  .pip-val {
+    font-family: var(--serif);
+    font-size: 38px; line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .pip-row.you .pip-val { color: var(--accent); }
+
+  /* Controls */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .ctrl {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    border: 1.5px solid var(--ink);
+    border-radius: 3px;
+    font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+    font-weight: 700;
+    background: var(--ivory);
+    transition: all 0.2s ease;
+  }
+  .ctrl .k {
+    font-size: 9px; color: var(--ink-faint); font-weight: 600;
+    border: 1px solid var(--line); border-radius: 2px; padding: 2px 6px;
+    letter-spacing: 0.05em;
+  }
+  .ctrl.primary { background: var(--accent); border-color: var(--accent); color: var(--ivory); }
+  .ctrl.primary .k { color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.4); }
+  .ctrl:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.15); }
+  .ctrl.primary:hover { box-shadow: 0 8px 20px rgba(225,52,30,0.35); }
+  .ctrl.ghost { border-color: var(--line); color: var(--ink-soft); }
+  .ctrl.ghost:hover { border-color: var(--ink); color: var(--ink); }
+
+  .movelog {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .movelog .ml {
+    display: flex; gap: 10px; padding: 5px 0;
+    border-bottom: 1px dotted var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+  .movelog .ml:last-child { border-bottom: none; }
+  .movelog .ml .mn { color: var(--ink-faint); font-weight: 600; width: 22px; }
+  .movelog .ml .mv { font-weight: 500; color: var(--ink); }
+  .movelog .ml.me .mv { color: var(--accent); }
+
+  /* ============================================================
+     SCREEN C — FIBS LOBBY
+     ============================================================ */
+  .lobby { padding: 26px 0 90px; }
+
+  .lobby-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 30px;
+    padding-bottom: 22px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .lobby-head .kicker {
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    font-weight: 600; color: var(--accent);
+  }
+  .lobby-head h1 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 60px; line-height: 0.95; margin: 8px 0 0;
+    letter-spacing: -0.01em;
+  }
+  .lobby-head p {
+    margin: 12px 0 0; font-size: 15px; color: var(--ink-soft); max-width: 52ch;
+  }
+
+  .identity {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+  }
+  .conn-pill {
+    display: inline-flex; align-items: center; gap: 9px;
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 7px 14px 7px 12px;
+    font-size: 11px; letter-spacing: 0.06em; font-weight: 600;
+    background: var(--ivory);
+  }
+  .conn-pill .live { width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 2.4s infinite;}
+  .conn-pill b { color: var(--ink); }
+  .who {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .who .av {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--ink); color: var(--ivory);
+    display: grid; place-items: center;
+    font-family: var(--serif); font-size: 22px;
+  }
+  .who .wn { font-size: 13px; font-weight: 600; }
+  .who .wn small { display:block; font-weight:400; color: var(--ink-faint); font-size: 11px; }
+  .who .logout {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 700; color: var(--accent);
+    border: 1px solid var(--line); border-radius: 2px; padding: 6px 10px;
+    transition: all 0.2s ease;
+  }
+  .who .logout:hover { border-color: var(--accent); background: var(--accent); color: var(--ivory); }
+
+  .lobby-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 26px;
+  }
+  .lobby-toolbar h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 26px; margin: 0;
+  }
+  .lobby-toolbar .meta {
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600;
+    display: flex; gap: 20px;
+  }
+
+  table.index {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+  }
+  table.index thead th {
+    text-align: left;
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-faint);
+    padding: 10px 14px;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  table.index thead th.r { text-align: right; }
+  table.index thead th.c { text-align: center; }
+  table.index tbody td {
+    padding: 18px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  table.index tbody tr {
+    transition: background 0.2s ease;
+    position: relative;
+  }
+  table.index tbody tr:hover { background: var(--bone); }
+
+  .bot-idx {
+    font-family: var(--serif); font-style: italic; font-size: 24px;
+    color: var(--ink-faint); font-variant-numeric: tabular-nums;
+  }
+  .bot-name {
+    font-family: var(--serif); font-size: 25px; line-height: 1.05;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .bot-name .st {
+    width: 8px; height: 8px; border-radius: 50%; background: #3E9B5F;
+    flex-shrink: 0;
+  }
+  .bot-name .st.busy { background: var(--ink-faint); }
+  .bot-sub {
+    font-size: 12px; color: var(--ink-soft); margin-top: 3px;
+    font-family: var(--sans);
+  }
+  .flag-rec {
+    display: inline-block;
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 700; color: var(--ivory); background: var(--accent);
+    padding: 2px 7px; border-radius: 2px; margin-left: 4px;
+    vertical-align: middle;
+  }
+  .rating {
+    font-family: var(--serif); font-size: 30px;
+    font-variant-numeric: tabular-nums; text-align: right;
+  }
+  .rating small { font-family: var(--sans); font-size: 10px; color: var(--ink-faint); display:block; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+  .strength {
+    display: flex; gap: 3px; justify-content: center;
+  }
+  .strength i {
+    width: 6px; height: 18px; border-radius: 1px;
+    background: var(--line);
+  }
+  .strength i.on { background: var(--ink); }
+  .strength i.on.weak { background: #3E9B5F; }
+
+  .acts { display: flex; gap: 8px; justify-content: flex-end; }
+  .abtn {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    font-weight: 700;
+    padding: 9px 15px;
+    border: 1.5px solid var(--ink);
+    border-radius: 3px;
+    background: var(--ivory);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+  .abtn.invite { background: var(--ink); color: var(--ivory); }
+  .abtn.invite:hover { background: var(--accent); border-color: var(--accent); }
+  .abtn.invite.rec { background: var(--accent); border-color: var(--accent); }
+  .abtn.watch:hover { background: var(--ink); color: var(--ivory); }
+
+  .lobby-note {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 18px;
+    align-items: start;
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+  }
+  .lobby-note .qmark {
+    font-family: var(--serif); font-style: italic; font-size: 60px;
+    line-height: 0.7; color: var(--accent);
+  }
+  .lobby-note p {
+    margin: 0; font-size: 13.5px; color: var(--ink-soft); max-width: 74ch; line-height: 1.55;
+  }
+  .lobby-note b { color: var(--ink); }
+
+  /* responsive */
+  @media (max-width: 1120px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 30px; }
+    .hero-side { order: -1; max-width: 320px; }
+    .board-layout { grid-template-columns: 1fr; }
+    .rail { flex-direction: row; flex-wrap: wrap; }
+    .rail .panel { flex: 1 1 220px; }
+  }
+  @media (max-width: 720px) {
+    .shell, .masthead-inner { padding: 0 20px; }
+    .masthead-status { display: none; }
+    nav.tabs button { padding: 8px 10px; font-size: 10px; }
+    nav.tabs button .idx { display: none; }
+    .board-main { grid-template-columns: 1fr 40px 1fr 48px; }
+    .mode-row { grid-template-columns: 40px 1fr; }
+    .mode-cta { display: none; }
+    .lobby-head { grid-template-columns: 1fr; }
+    .identity { align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="badge">Modern Editorial <span class="dot">·</span> mockup 3 of 4</div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="wordmark">
+      <span class="fib">fib</span><span class="tick"></span><span class="scli">scli</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Screens">
+      <button class="tab active" data-screen="home" role="tab" aria-selected="true"><span class="idx">i.</span>Home</button>
+      <button class="tab" data-screen="board" role="tab" aria-selected="false"><span class="idx">ii.</span>Board</button>
+      <button class="tab" data-screen="lobby" role="tab" aria-selected="false"><span class="idx">iii.</span>FIBS Lobby</button>
+    </nav>
+    <div class="masthead-status">
+      <span class="live"></span> connected to <b>fibs.com</b>
+    </div>
+  </div>
+</header>
+
+<!-- ============ SCREEN A : HOME ============ -->
+<section class="screen visible" id="home" role="tabpanel">
+  <div class="shell home-wrap">
+    <div class="eyebrow reveal" data-delay="0">The Backgammon Review · Est. 1992 · Web Edition</div>
+
+    <div class="hero-grid">
+      <div>
+        <h1 class="hero-title reveal" data-delay="80">Roll,<br>double,<br><em>bear off.</em></h1>
+        <p class="hero-sub reveal" data-delay="200">A single-player parlor and a living window onto <b>FIBS</b>, the First Internet Backgammon Server — the same felt the world has played on since 1992, redrawn with a clean modern hand.</p>
+      </div>
+      <div class="hero-side reveal" data-delay="150">
+        <div class="hero-figure">
+          <div class="mini-die"><i></i><i style="grid-area:2/2"></i><i style="grid-area:3/3"></i></div>
+          <div class="figlabel">Points on the board</div>
+          <div class="bignum">24<span>.</span></div>
+          <div class="figfoot">Four quadrants. Thirty checkers. Twenty-one rolls of two dice. One very old, very deep game.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rule-major drawline" data-delay="260"></div>
+
+    <div class="modes-head reveal" data-delay="320">
+      <h2>Choose your table</h2>
+      <span class="count">Three ways to play</span>
+    </div>
+
+    <div class="modes">
+      <!-- Mode 1 -->
+      <div class="mode-row reveal" data-delay="380" data-goto="board" tabindex="0" role="button" aria-label="Local two player, hot seat">
+        <div class="mode-idx">01</div>
+        <div class="mode-body">
+          <span class="mode-tag">Hot-seat</span>
+          <h3>Local 2-Player</h3>
+          <p>Two players, one screen, one board. Pass the device between turns — no server, no wait, just the oldest way to play.</p>
+        </div>
+        <div class="mode-cta"><span>Play</span><span class="arrow" aria-hidden="true">→</span></div>
+      </div>
+
+      <!-- Mode 2 -->
+      <div class="mode-row reveal" data-delay="440" tabindex="0" role="button" aria-label="Play versus computer, Gary Gammon">
+        <div class="mode-idx">02</div>
+        <div class="mode-body">
+          <span class="mode-tag">vs. Computer</span>
+          <h3>Play Gary Gammon</h3>
+          <p>One opponent, nine settings. Level 0 is a light heuristic; levels 1–8 climb into a trained neural engine that will punish a loose blot.</p>
+          <div class="difficulty" onclick="event.stopPropagation()">
+            <span class="dlabel">Difficulty</span>
+            <div class="levels" id="levels" role="radiogroup" aria-label="Gary Gammon difficulty level"></div>
+            <span class="diff-caption" id="diffCaption">Level 3 — <b>club player</b></span>
+          </div>
+        </div>
+        <div class="mode-cta"><span>Play</span><span class="arrow" aria-hidden="true">→</span></div>
+      </div>
+
+      <!-- Mode 3 -->
+      <div class="mode-row reveal" data-delay="500" data-goto="lobby" tabindex="0" role="button" aria-label="Play a bot on FIBS">
+        <div class="mode-idx">03</div>
+        <div class="mode-body">
+          <span class="mode-tag">Live · fibs.com</span>
+          <h3>Play a Bot on FIBS</h3>
+          <p>Log in to the real First Internet Backgammon Server. Browse who is online, invite a bot, or watch a match already in play.</p>
+        </div>
+        <div class="mode-cta"><span>Connect</span><span class="arrow" aria-hidden="true">→</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCREEN B : BOARD ============ -->
+<section class="screen" id="board" role="tabpanel">
+  <div class="shell board-screen">
+    <div class="board-top">
+      <div>
+        <div class="kicker">Match to 5 · Game 2</div>
+        <h1>The Board</h1>
+      </div>
+      <div></div>
+      <div class="turn-flag reveal" data-delay="60">
+        <span class="tf-checker"></span>
+        <span>
+          <span class="tf-label">It is</span><br>
+          <span class="tf-main">Your roll</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="board-layout">
+      <!-- BOARD -->
+      <div class="board-frame reveal" data-delay="120">
+        <div class="quad-labels">
+          <span>Outer Board</span>
+          <span>Home Board · You</span>
+        </div>
+
+        <div class="board-main" id="boardMain">
+          <!-- LEFT SIDE (points 13-18 top, 12-7 bottom) -->
+          <div class="board-side" id="sideLeft"></div>
+          <!-- BAR -->
+          <div class="bar">
+            <div class="bar-cap">The Bar</div>
+            <div class="bar-slot-top" id="barTop"></div>
+            <div class="bar-slot-bottom" id="barBottom"></div>
+            <div class="bar-cap">The Bar</div>
+          </div>
+          <!-- RIGHT SIDE (points 19-24 top, 6-1 bottom) -->
+          <div class="board-side" id="sideRight"></div>
+          <!-- OFF TRAY -->
+          <div class="off-tray">
+            <div class="off-cell top-off">
+              <span class="off-cap">Opp Off</span>
+              <div class="off-chip hollow"></div>
+              <div class="off-chip hollow"></div>
+              <div class="off-num">2</div>
+            </div>
+            <div class="off-cell bottom-off">
+              <div class="off-num accent">3</div>
+              <div class="off-chip solid"></div>
+              <div class="off-chip solid"></div>
+              <div class="off-chip solid"></div>
+              <span class="off-cap">Your Off</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="board-foot">
+          <span>Bear-off Trays</span>
+          <span>15 Checkers · Each Side</span>
+        </div>
+      </div>
+
+      <!-- RIGHT RAIL -->
+      <div class="rail">
+        <div class="panel reveal" data-delay="200">
+          <div class="panel-h">The Roll <span>5 · 3</span></div>
+          <div class="panel-b">
+            <div class="rollrow">
+              <div class="die" id="die1"></div>
+              <div class="die" id="die2"></div>
+              <div class="cube"><span class="cx">×</span><span class="cv">2</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel reveal" data-delay="260">
+          <div class="panel-h">Pip Count</div>
+          <div class="panel-b">
+            <div class="pips">
+              <div class="pip-row you">
+                <div class="pip-id">
+                  <span class="pip-swatch solid"></span>
+                  <span class="pip-name">You<small>solid ink</small></span>
+                </div>
+                <span class="pip-val tnum">98</span>
+              </div>
+              <div class="pip-row">
+                <div class="pip-id">
+                  <span class="pip-swatch hollow"></span>
+                  <span class="pip-name">Gary Gammon<small>Lv. 3 · on roll next</small></span>
+                </div>
+                <span class="pip-val tnum">121</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel reveal" data-delay="320">
+          <div class="panel-h">Controls</div>
+          <div class="panel-b">
+            <div class="controls">
+              <button class="ctrl primary"><span>Roll</span><span class="k">R</span></button>
+              <button class="ctrl"><span>Double</span><span class="k">D</span></button>
+              <button class="ctrl ghost"><span>Undo</span><span class="k">⌘Z</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel reveal" data-delay="380">
+          <div class="panel-h">Move Log</div>
+          <div class="panel-b">
+            <div class="movelog">
+              <div class="ml me"><span class="mn">12</span><span class="mv">bar/22 13/8</span></div>
+              <div class="ml"><span class="mn">11</span><span class="mv">24/18 13/11</span></div>
+              <div class="ml me"><span class="mn">10</span><span class="mv">6/1* 8/5</span></div>
+              <div class="ml"><span class="mn">9</span><span class="mv">doubles → 2</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCREEN C : LOBBY ============ -->
+<section class="screen" id="lobby" role="tabpanel">
+  <div class="shell lobby">
+    <div class="lobby-head">
+      <div>
+        <div class="kicker reveal" data-delay="0">The Directory · Live from fibs.com:4321</div>
+        <h1 class="reveal" data-delay="80">Who's on<br>the server</h1>
+        <p class="reveal" data-delay="180">Since 1992, players and bots have logged in from around the world. Invite a bot to a rated match, or pull up a chair and watch.</p>
+      </div>
+      <div class="identity reveal" data-delay="140">
+        <span class="conn-pill"><span class="live"></span> Connected to <b>fibs.com</b></span>
+        <div class="who">
+          <div class="av">c</div>
+          <div class="wn">csells<small>1571 · rated</small></div>
+          <button class="logout">Log out</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="lobby-toolbar reveal" data-delay="220">
+      <h2>Bots online</h2>
+      <div class="meta"><span>5 available</span><span>Rating · FIBS scale</span></div>
+    </div>
+
+    <table class="index reveal" data-delay="280">
+      <thead>
+        <tr>
+          <th style="width:44px"></th>
+          <th>Bot</th>
+          <th class="c">Strength</th>
+          <th class="r">Rating</th>
+          <th class="r" style="width:210px">Table</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="bot-idx">01</td>
+          <td>
+            <div class="bot-name"><span class="st"></span>BlunderBot <span class="flag-rec">Recommended</span></div>
+            <div class="bot-sub">Deliberately weak · best for a rated win</div>
+          </td>
+          <td><div class="strength"><i class="on weak"></i><i></i><i></i><i></i><i></i></div></td>
+          <td class="rating tnum">1487<small>Beginner</small></td>
+          <td>
+            <div class="acts">
+              <button class="abtn invite rec">Invite</button>
+              <button class="abtn watch">Watch</button>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="bot-idx">02</td>
+          <td>
+            <div class="bot-name"><span class="st"></span>BlunderBot_III</div>
+            <div class="bot-sub">The blundering family, third generation</div>
+          </td>
+          <td><div class="strength"><i class="on weak"></i><i class="on weak"></i><i></i><i></i><i></i></div></td>
+          <td class="rating tnum">1602<small>Casual</small></td>
+          <td>
+            <div class="acts">
+              <button class="abtn invite">Invite</button>
+              <button class="abtn watch">Watch</button>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="bot-idx">03</td>
+          <td>
+            <div class="bot-name"><span class="st busy"></span>MonteCarlo</div>
+            <div class="bot-sub">Rollout-driven · currently in a match</div>
+          </td>
+          <td><div class="strength"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></td>
+          <td class="rating tnum">1893<small>Strong</small></td>
+          <td>
+            <div class="acts">
+              <button class="abtn invite" disabled style="opacity:.4;cursor:not-allowed">Invite</button>
+              <button class="abtn watch">Watch</button>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="bot-idx">04</td>
+          <td>
+            <div class="bot-name"><span class="st"></span>GammonBot</div>
+            <div class="bot-sub">A FIBS institution · unforgiving</div>
+          </td>
+          <td><div class="strength"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></td>
+          <td class="rating tnum">1946<small>Expert</small></td>
+          <td>
+            <div class="acts">
+              <button class="abtn invite">Invite</button>
+              <button class="abtn watch">Watch</button>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="bot-idx">05</td>
+          <td>
+            <div class="bot-name"><span class="st"></span>wildbg</div>
+            <div class="bot-sub">Neural net · reads a race cold</div>
+          </td>
+          <td><div class="strength"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></td>
+          <td class="rating tnum">2074<small>Master</small></td>
+          <td>
+            <div class="acts">
+              <button class="abtn invite">Invite</button>
+              <button class="abtn watch">Watch</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="lobby-note reveal" data-delay="340">
+      <div class="qmark">“</div>
+      <p>A gentle citizen wins gently. For a rated match you actually want to <b>win</b>, invite a <b>BlunderBot</b> — the stronger engines (MonteCarlo, GammonBot, wildbg) sit at 1800–2100+ and mostly hand out rated losses. Finish every match you start; never abandon an opponent mid-game.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Screen switching ----------
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var screens = {
+    home: document.getElementById('home'),
+    board: document.getElementById('board'),
+    lobby: document.getElementById('lobby')
+  };
+
+  function runReveals(scope) {
+    var els = scope.querySelectorAll('.reveal, .drawline');
+    els.forEach(function (el) {
+      el.classList.remove('in');
+      // force reflow so animation replays
+      void el.offsetWidth;
+      var delay = parseInt(el.getAttribute('data-delay') || '0', 10);
+      setTimeout(function () { el.classList.add('in'); }, delay);
+    });
+  }
+
+  function show(name) {
+    Object.keys(screens).forEach(function (k) {
+      var isTarget = (k === name);
+      screens[k].classList.toggle('visible', isTarget);
+    });
+    tabs.forEach(function (t) {
+      var active = t.getAttribute('data-screen') === name;
+      t.classList.toggle('active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    runReveals(screens[name]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { show(t.getAttribute('data-screen')); });
+  });
+
+  // mode rows that navigate
+  document.querySelectorAll('[data-goto]').forEach(function (row) {
+    function go() { show(row.getAttribute('data-goto')); }
+    row.addEventListener('click', go);
+    row.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+
+  // ---------- Difficulty levels 0-8 ----------
+  var levelsEl = document.getElementById('levels');
+  var caption = document.getElementById('diffCaption');
+  var descriptions = [
+    'heuristic — the gentle one',
+    'raw beginner',
+    'improving amateur',
+    'club player',
+    'solid intermediate',
+    'strong intermediate',
+    'tournament tough',
+    'expert',
+    'master — cube-perfect'
+  ];
+  var selected = 3;
+  for (var i = 0; i <= 8; i++) {
+    (function (n) {
+      var b = document.createElement('button');
+      b.className = 'lvl' + (n === selected ? ' sel' : '') + (n === 0 ? '' : '');
+      b.textContent = n;
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-label', 'Level ' + n);
+      b.setAttribute('aria-checked', n === selected ? 'true' : 'false');
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        selected = n;
+        Array.prototype.forEach.call(levelsEl.children, function (c, idx) {
+          var on = idx === n;
+          c.classList.toggle('sel', on);
+          c.classList.toggle('hot', on && n >= 7);
+          c.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+        caption.innerHTML = 'Level ' + n + ' — <b>' + descriptions[n] + '</b>';
+      });
+      levelsEl.appendChild(b);
+    })(i);
+  }
+
+  // ---------- Dice pip rendering ----------
+  // 3x3 grid indices 1..9
+  var pipMap = {
+    1: [5],
+    2: [1, 9],
+    3: [1, 5, 9],
+    4: [1, 3, 7, 9],
+    5: [1, 3, 5, 7, 9],
+    6: [1, 3, 4, 6, 7, 9]
+  };
+  function renderDie(el, value) {
+    el.innerHTML = '';
+    var on = pipMap[value];
+    for (var g = 1; g <= 9; g++) {
+      var dot = document.createElement('i');
+      dot.className = on.indexOf(g) >= 0 ? 'on' : 'off';
+      el.appendChild(dot);
+    }
+  }
+  var d1 = document.getElementById('die1');
+  var d2 = document.getElementById('die2');
+  renderDie(d1, 5);
+  renderDie(d2, 3);
+
+  // ---------- Board build ----------
+  // Point definition: number label + list of checkers.
+  // owner: 'you' (solid) / 'opp' (hollow); count shown on top checker when > shown discs
+  // We render up to 5 stacked discs; if count>5 we badge the top.
+  // Positions per FIBS-ish layout. This is a plausible mid-game.
+  // Top row left->right on the LEFT side: 13,14,15,16,17,18 ; RIGHT side: 19,20,21,22,23,24
+  // Bottom row left->right on LEFT side: 12,11,10,9,8,7 ; RIGHT side: 6,5,4,3,2,1
+  var positions = {
+    // point: {o:'you'|'opp', n: count}
+    24: { o: 'opp', n: 2 },
+    19: { o: 'you', n: 3 },
+    18: { o: 'opp', n: 1 },
+    17: { o: 'you', n: 3 },
+    15: { o: 'opp', n: 2 },
+    13: { o: 'opp', n: 4 },
+    12: { o: 'you', n: 2 },
+    8:  { o: 'you', n: 3 },
+    6:  { o: 'you', n: 4 },
+    5:  { o: 'opp', n: 3 },
+    4:  { o: 'opp', n: 1 }
+  };
+  var legalPoints = { 8: true, 4: true }; // highlighted legal-move targets
+
+  function makeChecker(owner, count, showCount) {
+    var c = document.createElement('div');
+    c.className = 'checker ' + (owner === 'you' ? 'solid' : 'hollow');
+    if (showCount) {
+      var s = document.createElement('span');
+      s.className = 'cnt';
+      s.textContent = count;
+      c.appendChild(s);
+    }
+    return c;
+  }
+
+  function buildPoint(number, half) {
+    var wrap = document.createElement('div');
+    wrap.className = 'point' + (half === 'bottom' ? ' bottom-p' : '');
+    if (legalPoints[number]) wrap.classList.add('legal');
+
+    // triangle color: alternate. Even points stone, odd ivory (restrained).
+    var fill = (number % 2 === 0) ? '#D8D2C4' : '#EFEBE1';
+    var tri = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    tri.setAttribute('class', 'tri');
+    tri.setAttribute('viewBox', '0 0 100 190');
+    tri.setAttribute('preserveAspectRatio', 'none');
+    var poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    if (half === 'top') {
+      poly.setAttribute('points', '8,0 92,0 50,182');
+    } else {
+      poly.setAttribute('points', '8,190 92,190 50,8');
+    }
+    poly.setAttribute('fill', fill);
+    poly.setAttribute('stroke', 'rgba(22,19,15,0.32)');
+    poly.setAttribute('stroke-width', '1');
+    tri.appendChild(poly);
+    wrap.appendChild(tri);
+
+    var num = document.createElement('div');
+    num.className = 'pointnum tnum';
+    num.textContent = number;
+    wrap.appendChild(num);
+
+    var pos = positions[number];
+    if (pos) {
+      var stack = document.createElement('div');
+      stack.className = 'stack';
+      var shown = Math.min(pos.n, 5);
+      for (var k = 0; k < shown; k++) {
+        var showCount = (pos.n > 5 && k === shown - 1);
+        stack.appendChild(makeChecker(pos.o, pos.n, showCount));
+      }
+      wrap.appendChild(stack);
+    }
+    return wrap;
+  }
+
+  function buildHalf(numbers, half) {
+    var h = document.createElement('div');
+    h.className = 'board-half ' + half;
+    numbers.forEach(function (n) { h.appendChild(buildPoint(n, half)); });
+    return h;
+  }
+
+  var sideLeft = document.getElementById('sideLeft');
+  sideLeft.appendChild(buildHalf([13, 14, 15, 16, 17, 18], 'top'));
+  sideLeft.appendChild(buildHalf([12, 11, 10, 9, 8, 7], 'bottom'));
+
+  var sideRight = document.getElementById('sideRight');
+  sideRight.appendChild(buildHalf([19, 20, 21, 22, 23, 24], 'top'));
+  sideRight.appendChild(buildHalf([6, 5, 4, 3, 2, 1], 'bottom'));
+
+  // Bar: one of your checkers on the bar
+  var barBottom = document.getElementById('barBottom');
+  var barStack = document.createElement('div');
+  barStack.className = 'bar-stack';
+  barStack.appendChild(makeChecker('you', 1, false));
+  barBottom.appendChild(barStack);
+
+  // ---------- Keyboard shortcut flavor on board ----------
+  document.addEventListener('keydown', function (e) {
+    if (!screens.board.classList.contains('visible')) return;
+    var k = e.key.toLowerCase();
+    if (k === 'r') flash(document.querySelector('.ctrl.primary'));
+    if (k === 'd') flash(document.querySelector('.ctrl:not(.primary):not(.ghost)'));
+  });
+  function flash(el) {
+    if (!el) return;
+    el.style.transform = 'translateY(-2px) scale(0.98)';
+    setTimeout(function () { el.style.transform = ''; }, 140);
+  }
+
+  // Re-cast dice when board tab opened
+  tabs.forEach(function (t) {
+    if (t.getAttribute('data-screen') === 'board') {
+      t.addEventListener('click', function () {
+        [d1, d2].forEach(function (d) {
+          d.classList.remove('cast'); void d.offsetWidth; d.classList.add('cast');
+        });
+      });
+    }
+  });
+
+  // initial reveal
+  runReveals(screens.home);
+})();
+</script>
+</body>
+</html>
