@@ -40,7 +40,7 @@ List<LegalTurn> enumerateLegalTurns(
     }
     for (final moveList in forced.values) {
       for (final move in moveList) {
-        final next = copyBoard(curBoard);
+        final next = GammonRules.copyBoard(curBoard);
         final deltas = GammonRules.applyMove(next, move); // mutates next
         if (deltas.isEmpty) continue;
         final rest = _removeHops(curDice, move.hops);
@@ -54,10 +54,6 @@ List<LegalTurn> enumerateLegalTurns(
   expand(board, dice, const []);
   return results;
 }
-
-/// A deep copy of a 26-cell engine board.
-List<List<int>> copyBoard(List<List<int>> board) =>
-    List<List<int>>.generate(board.length, (i) => List<int>.of(board[i]));
 
 /// A position fingerprint independent of piece ids: per pip, the (player1,
 /// player2) checker counts, as a flat list `[p1@0, p2@0, p1@1, p2@1, …]`. Two

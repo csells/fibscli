@@ -1,8 +1,8 @@
-import 'package:bg_engine/bg_engine.dart'; // exports copyBoard via turn_search
+import 'package:bg_engine/bg_engine.dart';
 import 'package:test/test.dart';
 
 Position _afterMove(List<List<int>> board, GammonMove move) {
-  final next = copyBoard(board);
+  final next = GammonRules.copyBoard(board);
   GammonRules.applyMove(next, move);
   return Position.fromBoard(next);
 }

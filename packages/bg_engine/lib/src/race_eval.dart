@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'ai/turn_search.dart';
 import 'board_signature.dart';
 import 'rules.dart';
 
@@ -220,48 +221,24 @@ class RaceEval {
   static List<int> _rollDice(int a, int b) => a == b ? [a, a, a, a] : [a, b];
 
   // Every distinct board reachable by playing a full turn with [rolls], using
-  // the maximum number of dice the rules require.
+  // the maximum number of dice the rules require. Rides the shared engine
+  // enumerator (which already enforces max-play), then dedups by netSignature
+  // so a position reached by two move orders isn't double-counted in the
+  // expectimax.
   static List<List<List<int>>> _turns(
     List<List<int>> board,
     GammonPlayer player,
     List<int> rolls,
   ) {
-    final byDepth = <int, List<List<List<int>>>>{};
-
-    void search(List<List<int>> current, List<int> remaining, int depth) {
-      var moved = false;
-      final tried = <int>{};
-      for (final die in remaining) {
-        if (!tried.add(die)) continue;
-        final movesByPip = GammonRules.getAllLegalMoves(current, player, [die]);
-        for (final moves in movesByPip.values) {
-          for (final move in moves) {
-            final next = _copy(current);
-            if (GammonRules.applyMove(next, move).isEmpty) continue;
-            moved = true;
-            search(next, List<int>.of(remaining)..remove(die), depth + 1);
-          }
-        }
-      }
-      if (!moved) (byDepth[depth] ??= []).add(current);
-    }
-
-    search(board, rolls, 0);
-    if (byDepth.isEmpty) return [board];
-
-    final maxDepth = byDepth.keys.reduce(max);
     final seen = <String>{};
     final result = <List<List<int>>>[];
-    for (final candidate in byDepth[maxDepth]!) {
-      if (seen.add(netSignature(candidate))) result.add(candidate);
+    for (final turn in enumerateLegalTurns(board, player, rolls)) {
+      if (seen.add(netSignature(turn.board))) result.add(turn.board);
     }
     return result;
   }
 
   // --- board helpers --------------------------------------------------------
-
-  static List<List<int>> _copy(List<List<int>> board) =>
-      List<List<int>>.generate(board.length, (i) => List<int>.from(board[i]));
 
   static bool _won(List<List<int>> board, GammonPlayer player) {
     final offPipNo = GammonRules.offPipNoFor(player);

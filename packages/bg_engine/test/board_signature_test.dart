@@ -15,7 +15,7 @@ void main() {
 
     test('distinguishes different positions', () {
       final a = GammonRules.initialBoard();
-      final b = copyBoard(a);
+      final b = GammonRules.copyBoard(a);
       GammonRules.applyMove(
         b,
         GammonMove(fromPipNo: 24, toPipNo: 23, hops: const [-1]),

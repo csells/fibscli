@@ -423,8 +423,11 @@ class GammonRules {
     return pool.first;
   }
 
-  static List<List<int>> _copyBoard(List<List<int>> board) =>
-      List<List<int>>.generate(board.length, (i) => List<int>.from(board[i]));
+  /// A deep copy of the engine board (each point list is copied), so callers
+  /// can try a move without mutating the original. The one canonical board copy
+  /// in the engine -- `turn_search`/`RaceEval` delegate here.
+  static List<List<int>> copyBoard(List<List<int>> board) =>
+      List<List<int>>.generate(board.length, (i) => List<int>.of(board[i]));
 
   /// The maximum number of dice (single hops) that can be legally played this
   /// turn, considering every move ordering. For non-doubles this is 0, 1, or 2;
@@ -447,7 +450,7 @@ class GammonRules {
       final movesByPip = getAllLegalMoves(board, player, [roll]);
       for (final moves in movesByPip.values) {
         for (final move in moves) {
-          final tempBoard = _copyBoard(board);
+          final tempBoard = copyBoard(board);
           final deltas = applyMove(tempBoard, move);
           if (deltas.isEmpty) continue;
           final depth = 1 + maxPlayableDice(tempBoard, player, remaining);
@@ -484,7 +487,7 @@ class GammonRules {
     for (final entry in all.entries) {
       final kept = <GammonMove>[];
       for (final move in entry.value) {
-        final tempBoard = _copyBoard(board);
+        final tempBoard = copyBoard(board);
         final deltas = applyMove(tempBoard, move);
         if (deltas.isEmpty) continue;
         final remaining = _rollsAfter(rolls, move.hops);
@@ -634,22 +637,18 @@ class GammonRules {
   static List<List<GammonDelta>> checkLegalMove(
     List<List<int>> board,
     GammonMove move,
-  ) {
-    // temp board state while checking each hop of the move
-    final tempBoard = List<List<int>>.generate(
-      board.length,
-      (i) => List.from(board[i]),
-    );
-    return applyMove(tempBoard, move);
-  }
+  ) => applyMove(copyBoard(board), move);
 
-  /// Whether [player] can move a checker from [fromPipNo] to [toPipNo] without
-  /// hitting (destination empty or own; bar checkers must come in first).
-  static bool canMove(
+  // Shared reachability guard for canMove/canHit: on-board coordinates, not
+  // from/to the off tray or into our own bar, bar checkers must enter first,
+  // and we actually own a checker on [fromPipNo]. Only the DESTINATION test
+  // (empty/own vs. lone opponent) differs between the two, so that stays in the
+  // callers.
+  static bool _canReach(
+    List<List<int>> board,
     GammonPlayer player,
     int fromPipNo,
     int toPipNo,
-    List<List<int>> board,
   ) {
     if (fromPipNo < 0 || fromPipNo > 25) return false;
     if (toPipNo < 0 || toPipNo > 25) return false;
@@ -663,10 +662,32 @@ class GammonRules {
     final hasBarPieces = board[barPipNo].any((pid) => playerFor(pid) == player);
     if (hasBarPieces && fromPipNo != barPipNo) return false;
 
-    if (!board[fromPipNo].any((p) => playerFor(p) == player)) return false;
+    return board[fromPipNo].any((p) => playerFor(p) == player);
+  }
+
+  // Remove and return the id of [player]'s top checker on [fromPipNo]. Shared
+  // by move/hit/bearOff, which all pick up the mover the same way.
+  static int _pickUp(
+    List<List<int>> board,
+    GammonPlayer player,
+    int fromPipNo,
+  ) {
+    final pieces = board[fromPipNo];
+    final index = pieces.lastIndexWhere((p) => playerFor(p) == player);
+    return pieces.removeAt(index);
+  }
+
+  /// Whether [player] can move a checker from [fromPipNo] to [toPipNo] without
+  /// hitting (destination empty or own; bar checkers must come in first).
+  static bool canMove(
+    GammonPlayer player,
+    int fromPipNo,
+    int toPipNo,
+    List<List<int>> board,
+  ) {
+    if (!_canReach(board, player, fromPipNo, toPipNo)) return false;
     if (board[toPipNo].isEmpty) return true;
-    if (playerFor(board[toPipNo][0]) == player) return true;
-    return false;
+    return playerFor(board[toPipNo][0]) == player;
   }
 
   /// Move a checker from [fromPipNo] to [toPipNo] (no hit), mutating [board]
@@ -678,11 +699,8 @@ class GammonRules {
     int toPipNo,
   ) {
     assert(canMove(player, fromPipNo, toPipNo, board));
-    final fromPieces = board[fromPipNo];
-    final index = fromPieces.lastIndexWhere((p) => playerFor(p) == player);
-    final id = fromPieces.removeAt(index);
-    final toPieces = board[toPipNo];
-    toPieces.add(id);
+    final id = _pickUp(board, player, fromPipNo);
+    board[toPipNo].add(id);
 
     return GammonDelta(
       kind: GammonDeltaKind.move,
@@ -700,22 +718,9 @@ class GammonRules {
     int fromPipNo,
     int toPipNo,
   ) {
-    if (fromPipNo < 0 || fromPipNo > 25) return false;
-    if (toPipNo < 0 || toPipNo > 25) return false;
-
-    final offPipNo = offPipNoFor(player);
-    final barPipNo = barPipNoFor(player);
-    if (fromPipNo == offPipNo) return false;
-    if (toPipNo == offPipNo) return false;
-    if (toPipNo == barPipNo) return false;
-
-    final hasBarPieces = board[barPipNo].any((pid) => playerFor(pid) == player);
-    if (hasBarPieces && fromPipNo != barPipNo) return false;
-
-    if (!board[fromPipNo].any((p) => playerFor(p) == player)) return false;
+    if (!_canReach(board, player, fromPipNo, toPipNo)) return false;
     if (board[toPipNo].length != 1) return false;
-    if (playerFor(board[toPipNo][0]) != player) return true;
-    return false;
+    return playerFor(board[toPipNo][0]) != player;
   }
 
   /// Hit the opponent blot on [toPipNo]: move our checker there and send the
@@ -727,9 +732,7 @@ class GammonRules {
     int toPipNo,
   ) {
     assert(canHit(board, player, fromPipNo, toPipNo));
-    final fromPieces = board[fromPipNo];
-    final fromIndex = fromPieces.lastIndexWhere((p) => playerFor(p) == player);
-    final fromId = fromPieces.removeAt(fromIndex);
+    final fromId = _pickUp(board, player, fromPipNo);
     final toPieces = board[toPipNo];
     final toIndex = toPieces.lastIndexWhere((p) => playerFor(p) != player);
     final toId = toPieces.removeAt(toIndex);
@@ -807,12 +810,9 @@ class GammonRules {
   ) {
     assert(canBearOff(board, player, fromPipNo, toPipNo));
 
-    final fromPieces = board[fromPipNo];
-    final index = fromPieces.lastIndexWhere((p) => playerFor(p) == player);
-    final id = fromPieces.removeAt(index);
+    final id = _pickUp(board, player, fromPipNo);
     final offPipNo = offPipNoFor(player);
-    final offPieces = board[offPipNo];
-    offPieces.add(id);
+    board[offPipNo].add(id);
 
     return GammonDelta(
       kind: GammonDeltaKind.bearoff,
