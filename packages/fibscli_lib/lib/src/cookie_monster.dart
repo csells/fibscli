@@ -75,6 +75,16 @@ class _CookieDough {
   final Map<String, String>? extras;
 }
 
+// A boolean-setting acknowledgement row: FIBS confirms a toggle with a prose
+// message, which we normalize to a FIBS_SettingsChange cookie carrying the
+// setting name and YES/NO. Collapses the otherwise-identical toggle-ack rows.
+_CookieDough _setting(String name, String value, String pattern) =>
+    _CookieDough(
+      cookie: FibsCookie.FIBS_SettingsChange,
+      re: RegExp(pattern),
+      extras: {'name': name, 'value': value},
+    );
+
 class CookieMonster {
   CookieMonsterState messageState = CookieMonsterState.FIBS_LOGIN_STATE;
   CookieMonsterState? oldMessageState;
@@ -883,16 +893,8 @@ class CookieMonster {
       cookie: FibsCookie.FIBS_NoInfo,
       re: RegExp('^No information found on user'),
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^You're away\. Please type 'back'"),
-      extras: {'name': 'away', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^Welcome back\.'),
-      extras: {'name': 'away', 'value': 'NO'},
-    ),
+    _setting('away', 'YES', r"^You're away\. Please type 'back'"),
+    _setting('away', 'NO', r'^Welcome back\.'),
   ];
 
   //--- Numeric messages ---------------------------------------------------
@@ -1048,182 +1050,96 @@ class CookieMonster {
       cookie: FibsCookie.FIBS_NoOne,
       re: RegExp(r'^\*\* There is no one called (?<name>[a-zA-Z_<>]+)'),
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You allow the use the server's 'pip' command\."),
-      extras: {'name': 'allowpip', 'value': 'YES'},
+    _setting(
+      'allowpip',
+      'YES',
+      r"^\*\* You allow the use the server's 'pip' command\.",
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(
-        r"^\*\* You don't allow the use of the server's 'pip' command\.",
-      ),
-      extras: {'name': 'allowpip', 'value': 'NO'},
+    _setting(
+      'allowpip',
+      'NO',
+      r"^\*\* You don't allow the use of the server's 'pip' command\.",
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* The board will be refreshed'),
-      extras: {'name': 'autoboard', 'value': 'YES'},
+    _setting('autoboard', 'YES', r'^\*\* The board will be refreshed'),
+    _setting('autoboard', 'NO', r"^\*\* The board won't be refreshed"),
+    _setting('autodouble', 'YES', r'^\*\* You agree that doublets'),
+    _setting('autodouble', 'NO', r"^\*\* You don't agree that doublets"),
+    _setting('automove', 'YES', r'^\*\* Forced moves will'),
+    _setting('automove', 'NO', r"^\*\* Forced moves won't"),
+    _setting('bell', 'YES', r'^\*\* Your terminal will ring'),
+    _setting('bell', 'NO', r"^\*\* Your terminal won't ring"),
+    _setting(
+      'crawford',
+      'YES',
+      r'^\*\* You insist on playing with the Crawford rule\.',
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* The board won't be refreshed"),
-      extras: {'name': 'autoboard', 'value': 'NO'},
+    _setting(
+      'crawford',
+      'NO',
+      r'^\*\* You would like to play without using the Crawford rule\.',
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* You agree that doublets'),
-      extras: {'name': 'autodouble', 'value': 'YES'},
+    _setting(
+      'double',
+      'YES',
+      r'^\*\* You will be asked if you want to double\.',
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You don't agree that doublets"),
-      extras: {'name': 'autodouble', 'value': 'NO'},
+    _setting(
+      'double',
+      'NO',
+      r"^\*\* You won't be asked if you want to double\.",
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* Forced moves will'),
-      extras: {'name': 'automove', 'value': 'YES'},
+    _setting('greedy', 'YES', r'^\*\* Will use automatic greedy bearoffs\.'),
+    _setting('greedy', 'NO', r"^\*\* Won't use automatic greedy bearoffs\."),
+    _setting('moreboards', 'YES', r'^\*\* Will send rawboards after rolling\.'),
+    _setting('moreboards', 'NO', r"^\*\* Won't send rawboards after rolling\."),
+    _setting(
+      'moves',
+      'YES',
+      r'^\*\* You want a list of moves after this game\.',
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* Forced moves won't"),
-      extras: {'name': 'automove', 'value': 'NO'},
+    _setting(
+      'moves',
+      'NO',
+      r"^\*\* You won't see a list of moves after this game\.",
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* Your terminal will ring'),
-      extras: {'name': 'bell', 'value': 'YES'},
+    _setting('notify', 'YES', r"^\*\* You'll be notified"),
+    _setting('notify', 'NO', r"^\*\* You won't be notified"),
+    _setting(
+      'ratings',
+      'YES',
+      r"^\*\* You'll see how the rating changes are calculated\.",
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* Your terminal won't ring"),
-      extras: {'name': 'bell', 'value': 'NO'},
+    _setting(
+      'ratings',
+      'NO',
+      r"^\*\* You won't see how the rating changes are calculated\.",
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* You insist on playing with the Crawford rule\.'),
-      extras: {'name': 'crawford', 'value': 'YES'},
+    _setting(
+      'ready',
+      'YES',
+      r"^\*\* You're now ready to invite or join someone\.",
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(
-        r'^\*\* You would like to play without using the Crawford rule\.',
-      ),
-      extras: {'name': 'crawford', 'value': 'NO'},
+    _setting(
+      'ready',
+      'NO',
+      r"^\*\* You're now refusing to play with someone\.",
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* You will be asked if you want to double\.'),
-      extras: {'name': 'double', 'value': 'YES'},
+    _setting('report', 'YES', r'^\*\* You will be informed'),
+    _setting('report', 'NO', r"^\*\* You won't be informed"),
+    _setting(
+      'silent',
+      'YES',
+      r'^\*\* You will hear what other players shout\.',
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You won't be asked if you want to double\."),
-      extras: {'name': 'double', 'value': 'NO'},
+    _setting(
+      'silent',
+      'NO',
+      r"^\*\* You won't hear what other players shout\.",
     ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* Will use automatic greedy bearoffs\.'),
-      extras: {'name': 'greedy', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* Won't use automatic greedy bearoffs\."),
-      extras: {'name': 'greedy', 'value': 'NO'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* Will send rawboards after rolling\.'),
-      extras: {'name': 'moreboards', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* Won't send rawboards after rolling\."),
-      extras: {'name': 'moreboards', 'value': 'NO'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* You want a list of moves after this game\.'),
-      extras: {'name': 'moves', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You won't see a list of moves after this game\."),
-      extras: {'name': 'moves', 'value': 'NO'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You'll be notified"),
-      extras: {'name': 'notify', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You won't be notified"),
-      extras: {'name': 'notify', 'value': 'NO'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You'll see how the rating changes are calculated\."),
-      extras: {'name': 'ratings', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(
-        r"^\*\* You won't see how the rating changes are calculated\.",
-      ),
-      extras: {'name': 'ratings', 'value': 'NO'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You're now ready to invite or join someone\."),
-      extras: {'name': 'ready', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You're now refusing to play with someone\."),
-      extras: {'name': 'ready', 'value': 'NO'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* You will be informed'),
-      extras: {'name': 'report', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You won't be informed"),
-      extras: {'name': 'report', 'value': 'NO'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* You will hear what other players shout\.'),
-      extras: {'name': 'silent', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r"^\*\* You won't hear what other players shout\."),
-      extras: {'name': 'silent', 'value': 'NO'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* You use telnet'),
-      extras: {'name': 'telnet', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* You use a client program'),
-      extras: {'name': 'telnet', 'value': 'NO'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* The server will wrap'),
-      extras: {'name': 'wrap', 'value': 'YES'},
-    ),
-    _CookieDough(
-      cookie: FibsCookie.FIBS_SettingsChange,
-      re: RegExp(r'^\*\* Your terminal knows how to wrap'),
-      extras: {'name': 'wrap', 'value': 'NO'},
-    ),
+    _setting('telnet', 'YES', r'^\*\* You use telnet'),
+    _setting('telnet', 'NO', r'^\*\* You use a client program'),
+    _setting('wrap', 'YES', r'^\*\* The server will wrap'),
+    _setting('wrap', 'NO', r'^\*\* Your terminal knows how to wrap'),
     _CookieDough(
       cookie: FibsCookie.FIBS_PlayerRefusingGames,
       re: RegExp(r'^\*\* [a-zA-Z_<>]+ is refusing games\.'),
