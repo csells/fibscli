@@ -63,4 +63,33 @@ void main() {
       expect(surfaced.clipboardText, contains('websocket died')); // copyable
     },
   );
+
+  // Crashes are retained (they survive the transient SnackBar) and bounded, so
+  // the user can review recent failures.
+  test('reportError retains a bounded error history', () {
+    errorHistory.clear();
+    for (var i = 0; i < 55; i++) {
+      reportError(StateError('boom $i'), null, context: 'op');
+    }
+    expect(errorHistory.length, 50); // capped
+    expect(errorHistory.first.detail, contains('boom 5')); // oldest dropped
+    expect(errorHistory.last.detail, contains('boom 54')); // newest kept
+  });
+
+  // A production deployment can observe failures off-device via a remote sink.
+  test('reportError forwards to the installed remote errorSink', () {
+    Object? seenError;
+    String? seenContext;
+    errorSink = (error, stack, context) {
+      seenError = error;
+      seenContext = context;
+    };
+    addTearDown(() => errorSink = null);
+
+    final err = StateError('connection reset');
+    reportError(err, StackTrace.current, context: 'fibs stream');
+
+    expect(seenError, same(err));
+    expect(seenContext, 'fibs stream');
+  });
 }
