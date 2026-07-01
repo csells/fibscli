@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bg_engine/bg_engine.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -67,6 +68,9 @@ class App extends StatefulWidget {
   // remembered credentials (password in platform secure storage). Set in
   // bootstrap before any UI builds; tests inject their own.
   static late SecureCredentialStore creds;
+  // Lets the app show error SnackBars from the global error handlers (which
+  // have no BuildContext) -- see _AppState._showError.
+  static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
   _AppState createState() => _AppState();
@@ -77,6 +81,11 @@ class _AppState extends State<App> {
   void initState() {
     super.initState();
 
+    // Surface uncaught errors to the user, not just the dev console:
+    // reportError (from the Flutter/zone global handlers) posts to appErrors,
+    // and we show it here with enough detail to act on.
+    appErrors.addListener(_showError);
+
     // SharedPreferences are already loaded by bootstrap(); just wire up the
     // tab-close handler. On web, send FIBS a courtesy `bye` when the tab
     // closes — best-effort: a dropped connection ends the session regardless.
@@ -86,8 +95,38 @@ class _AppState extends State<App> {
   }
 
   @override
+  void dispose() {
+    appErrors.removeListener(_showError);
+    super.dispose();
+  }
+
+  void _showError() {
+    final error = appErrors.value;
+    if (error == null) return;
+    App.scaffoldMessengerKey.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          backgroundColor: Colors.red[900],
+          duration: const Duration(seconds: 8),
+          // "Copy" gives the user the full message + detail to paste into a bug
+          // report -- the actionable affordance for an otherwise opaque crash.
+          action: SnackBarAction(
+            label: 'Copy',
+            textColor: Colors.white,
+            onPressed: () => unawaited(
+              Clipboard.setData(ClipboardData(text: error.clipboardText)),
+            ),
+          ),
+        ),
+      );
+  }
+
+  @override
   Widget build(BuildContext context) => MaterialApp(
     title: App.title,
+    scaffoldMessengerKey: App.scaffoldMessengerKey,
     theme: ThemeData(
       primarySwatch: Colors.green,
       visualDensity: VisualDensity.adaptivePlatformDensity,

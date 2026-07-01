@@ -44,4 +44,25 @@ void main() {
       expect(r.stackTrace, same(stack)); // and its stack
     },
   );
+
+  // #1 (reframed): the user must SEE uncaught errors, not just the dev console.
+  // reportError posts a user-facing AppError to appErrors with the context and
+  // enough detail (the error text) to act on -- retry, or copy into a report.
+  test(
+    'reportError surfaces a user-facing AppError with actionable detail',
+    () {
+      appErrors.value = null;
+      reportError(
+        StateError('websocket died'),
+        StackTrace.current,
+        context: 'login',
+      );
+
+      final surfaced = appErrors.value;
+      expect(surfaced, isNotNull);
+      expect(surfaced!.message, contains('login')); // what the user was doing
+      expect(surfaced.detail, contains('websocket died')); // the cause
+      expect(surfaced.clipboardText, contains('websocket died')); // copyable
+    },
+  );
 }
