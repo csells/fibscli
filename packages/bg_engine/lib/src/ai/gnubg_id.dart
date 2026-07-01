@@ -52,18 +52,14 @@ List<int> _sideCounts(List<List<int>> board, GammonPlayer player) {
     // gnubg point k (0-based) is the player's (k+1)-point; map to the engine
     // pip: player one counts up from pip 1, player two counts down from pip 24.
     final pip = player == GammonPlayer.one ? k + 1 : 24 - k;
-    counts[k] = _countFor(board[pip], player);
+    counts[k] = GammonRules.countAt(board, pip, player);
   }
-  counts[24] = _countFor(board[GammonRules.barPipNoFor(player)], player);
+  counts[24] = GammonRules.countAt(
+    board,
+    GammonRules.barPipNoFor(player),
+    player,
+  );
   return counts;
-}
-
-int _countFor(List<int> point, GammonPlayer player) {
-  var n = 0;
-  for (final id in point) {
-    if (GammonRules.playerFor(id) == player) n++;
-  }
-  return n;
 }
 
 /// Encode a GNU Backgammon **Match ID** for a cubeless money-game position that

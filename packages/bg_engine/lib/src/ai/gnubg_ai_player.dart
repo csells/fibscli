@@ -105,11 +105,8 @@ class GnubgAiPlayer extends BgAiPlayer {
         move.play,
       );
       if (target == null) continue;
-      for (final turn in turns) {
-        if (_listEquals(positionSignature(turn.board), target)) {
-          return BgTurn(turn.moves);
-        }
-      }
+      final match = matchTurnBySignature(turns, target);
+      if (match != null) return BgTurn(match.moves);
     }
     // The service answered but none of its ranked plays matched a legal turn.
     // We will NOT invent one -- report it so the user knows gnubg failed us.
@@ -215,14 +212,6 @@ class GnubgAiPlayer extends BgAiPlayer {
     final n = int.tryParse(t);
     if (n == null || n < 1 || n > 24) return null;
     return player == GammonPlayer.one ? n : 25 - n;
-  }
-
-  static bool _listEquals(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 }
 

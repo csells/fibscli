@@ -38,7 +38,7 @@ class Position {
   /// off / player2 bar; 1..24 = points; 25 = player1 bar / player2 off).
   factory Position.fromBoard(List<List<int>> board) {
     int countOf(int pip, GammonPlayer player) =>
-        board[pip].where((id) => GammonRules.playerFor(id) == player).length;
+        GammonRules.countAt(board, pip, player);
 
     final points = List<int>.filled(24, 0);
     for (var pip = 1; pip <= 24; pip++) {

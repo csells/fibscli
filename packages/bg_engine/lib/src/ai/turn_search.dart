@@ -74,6 +74,28 @@ List<int> positionSignature(List<List<int>> board) {
   return sig;
 }
 
+/// The first turn in [turns] whose resulting board matches [targetSignature]
+/// (a [positionSignature]), or null if none. Lets an external-engine adapter
+/// map the position that engine chose back to a concrete legal move sequence.
+/// Returns [LegalTurn] (not `BgTurn`) to stay independent of the AI-player API.
+LegalTurn? matchTurnBySignature(
+  List<LegalTurn> turns,
+  List<int> targetSignature,
+) {
+  for (final turn in turns) {
+    if (_sigEquals(positionSignature(turn.board), targetSignature)) return turn;
+  }
+  return null;
+}
+
+bool _sigEquals(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 List<int> _removeHops(List<int> dice, List<int> hops) {
   final remaining = List<int>.of(dice);
   for (final hop in hops) {

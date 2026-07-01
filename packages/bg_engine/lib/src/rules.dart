@@ -242,6 +242,17 @@ class GammonRules {
   static GammonPlayer playerFor(int pieceID) =>
       pieceID < 0 ? GammonPlayer.one : GammonPlayer.two;
 
+  /// The number of [player]'s checkers on [board] at [pip]. The one place the
+  /// "count a player's checkers on a point" idiom lives (callers used to
+  /// re-derive it via `.where(playerFor == player).length` all over).
+  static int countAt(List<List<int>> board, int pip, GammonPlayer player) {
+    var n = 0;
+    for (final id in board[pip]) {
+      if (playerFor(id) == player) n++;
+    }
+    return n;
+  }
+
   /// The ownership sign for [player] (player1 = -1, player2 = +1).
   static int signFor(GammonPlayer? player) =>
       player == GammonPlayer.one ? -1 : 1;

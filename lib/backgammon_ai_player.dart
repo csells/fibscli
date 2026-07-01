@@ -18,14 +18,6 @@ import 'package:bg_engine/bg_engine.dart';
 int _pipForDistance(GammonPlayer player, int d) =>
     player == GammonPlayer.one ? d : 25 - d;
 
-int _countAt(List<List<int>> board, int pip, GammonPlayer player) {
-  var n = 0;
-  for (final id in board[pip]) {
-    if (GammonRules.playerFor(id) == player) n++;
-  }
-  return n;
-}
-
 /// Convert a canonical engine [board] to a backgammon_ai [bgai.Board] from
 /// [onRoll]'s perspective (the on-roll player becomes Player A).
 bgai.Board toBackgammonAiBoard(List<List<int>> board, GammonPlayer onRoll) {
@@ -33,16 +25,16 @@ bgai.Board toBackgammonAiBoard(List<List<int>> board, GammonPlayer onRoll) {
   final a = List<int>.filled(24, 0);
   final b = List<int>.filled(24, 0);
   for (var d = 1; d <= 24; d++) {
-    a[d - 1] = _countAt(board, _pipForDistance(onRoll, d), onRoll);
-    b[d - 1] = _countAt(board, _pipForDistance(opp, d), opp);
+    a[d - 1] = GammonRules.countAt(board, _pipForDistance(onRoll, d), onRoll);
+    b[d - 1] = GammonRules.countAt(board, _pipForDistance(opp, d), opp);
   }
   return bgai.Board(
     aPoints: a,
     bPoints: b,
-    aBar: _countAt(board, GammonRules.barPipNoFor(onRoll), onRoll),
-    bBar: _countAt(board, GammonRules.barPipNoFor(opp), opp),
-    aOff: _countAt(board, GammonRules.offPipNoFor(onRoll), onRoll),
-    bOff: _countAt(board, GammonRules.offPipNoFor(opp), opp),
+    aBar: GammonRules.countAt(board, GammonRules.barPipNoFor(onRoll), onRoll),
+    bBar: GammonRules.countAt(board, GammonRules.barPipNoFor(opp), opp),
+    aOff: GammonRules.countAt(board, GammonRules.offPipNoFor(onRoll), onRoll),
+    bOff: GammonRules.countAt(board, GammonRules.offPipNoFor(opp), opp),
   );
 }
 
@@ -100,21 +92,10 @@ class BackgammonAiPlayer extends BgAiPlayer {
     if (result == null) return const BgTurn([]); // backgammon_ai forfeits
 
     final target = backgammonAiBoardSignature(result, position.onRoll);
-    for (final turn in turns) {
-      if (_listEquals(positionSignature(turn.board), target)) {
-        return BgTurn(turn.moves);
-      }
-    }
+    final match = matchTurnBySignature(turns, target);
+    if (match != null) return BgTurn(match.moves);
     // no match (shouldn't happen) -> don't stall the game
     return BgTurn(turns.first.moves);
-  }
-
-  static bool _listEquals(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 }
 
