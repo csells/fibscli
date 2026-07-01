@@ -20,7 +20,7 @@ void main() {
     await App.creds.load();
     App.fibs = FibsState.withTransport(FakeTransport());
 
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     await tester.pumpAndSettle();
 
     final passField = tester.widget<TextField>(

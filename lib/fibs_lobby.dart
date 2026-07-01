@@ -113,22 +113,40 @@ class WhoInfo {
   factory WhoInfo.from(CookieMessage cm) {
     assert(cm.cookie == FibsCookie.CLIP_WHO_INFO);
     return WhoInfo(
-      user: cm.crumb('name'),
-      opponent: CookieMonster.parseOptional(cm.crumb('opponent')) ?? '',
-      watching: CookieMonster.parseOptional(cm.crumb('watching')) ?? '',
-      ready: CookieMonster.parseBool(cm.crumbOrNull('ready')),
-      away: CookieMonster.parseBool(cm.crumbOrNull('away')),
-      rating: double.parse(cm.crumb('rating')),
-      experience: int.parse(cm.crumb('experience')),
+      user: cm.crumb(_kName),
+      opponent: CookieMonster.parseOptional(cm.crumb(_kOpponent)) ?? '',
+      watching: CookieMonster.parseOptional(cm.crumb(_kWatching)) ?? '',
+      ready: CookieMonster.parseBool(cm.crumbOrNull(_kReady)),
+      away: CookieMonster.parseBool(cm.crumbOrNull(_kAway)),
+      rating: double.parse(cm.crumb(_kRating)),
+      experience: int.parse(cm.crumb(_kExperience)),
       lastActive: DateTime.now().add(
-        Duration(seconds: int.parse(cm.crumb('idle'))),
+        Duration(seconds: int.parse(cm.crumb(_kIdle))),
       ),
-      lastLogin: CookieMonster.parseTimestamp(cm.crumb('login')),
-      hostname: cm.crumb('hostName'),
-      client: CookieMonster.parseOptional(cm.crumb('client')) ?? '',
-      email: CookieMonster.parseOptional(cm.crumb('email')) ?? '',
+      lastLogin: CookieMonster.parseTimestamp(cm.crumb(_kLogin)),
+      hostname: cm.crumb(_kHostName),
+      client: CookieMonster.parseOptional(cm.crumb(_kClient)) ?? '',
+      email: CookieMonster.parseOptional(cm.crumb(_kEmail)) ?? '',
     );
   }
+
+  // The crumb keys of a CLIP_WHO_INFO line, named in one place instead of as
+  // scattered string literals. They mirror the regex group names in
+  // fibscli_lib's cookie tables; if one ever drifts, cm.crumb throws a clear
+  // MissingCrumbError (see who_info_hostname_test).
+  static const _kName = 'name';
+  static const _kOpponent = 'opponent';
+  static const _kWatching = 'watching';
+  static const _kReady = 'ready';
+  static const _kAway = 'away';
+  static const _kRating = 'rating';
+  static const _kExperience = 'experience';
+  static const _kIdle = 'idle';
+  static const _kLogin = 'login';
+  static const _kHostName = 'hostName';
+  static const _kClient = 'client';
+  static const _kEmail = 'email';
+
   final String user;
   final String opponent;
   final String watching;

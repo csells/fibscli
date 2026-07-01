@@ -178,9 +178,11 @@ class LandingPage extends StatelessWidget {
             child: FilledButton.icon(
               icon: const Icon(Icons.smart_toy),
               label: const Text('Play a bot (FIBS)'),
-              onPressed: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute<void>(builder: (_) => const FibsPage())),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => FibsPage(fibs: App.fibs),
+                ),
+              ),
             ),
           ),
         ],

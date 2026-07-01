@@ -22,4 +22,23 @@ void main() {
     expect(PieceLayout.baseSlotOffset(19), const Offset(288, 21));
     expect(PieceLayout.baseSlotOffset(24), const Offset(468, 21));
   });
+
+  // The bar (centre) and off (right tray) columns were also extracted from
+  // magic literals into named constants. Pin a player-one checker on the bar
+  // and one borne off so a wrong _barX/_offBottomBaselineY/etc is caught here.
+  test('bar and off checkers sit at their named columns and baselines', () {
+    final board = List.generate(26, (_) => <int>[]);
+    board[25] = [-1]; // player one on the bar (index 25 = P1 bar)
+    board[0] = [-1]; // player one borne off (index 0 = P1 off)
+
+    final layouts = PieceLayout.getLayouts(board).toList();
+    expect(
+      layouts.firstWhere((l) => l.pipNo == 25).offset,
+      const Offset(246, 254), // _barX, _barBottomBaselineY
+    );
+    expect(
+      layouts.firstWhere((l) => l.pipNo == 0).offset,
+      const Offset(520, 386), // _offX, _offBottomBaselineY
+    );
+  });
 }

@@ -273,6 +273,15 @@ class PieceLayout {
   static const _topLeftX = 24.0;
   static const _topRightX = 288.0;
 
+  // The bar (center) and off (right tray) columns. Player one (bottom home)
+  // stacks down from its baseline; player two (top home) stacks up from its.
+  static const _barX = 246.0;
+  static const _barBottomBaselineY = 254.0; // player one, growing down
+  static const _barTopBaselineY = 138.0; // player two, growing up
+  static const _offX = 520.0;
+  static const _offBottomBaselineY = 386.0; // player one, growing up the tray
+  static const _offTopBaselineY = 22.0; // player two, growing down the tray
+
   final int pipNo;
   final int pieceID;
   final Offset offset;
@@ -374,13 +383,13 @@ class PieceLayout {
             ? pieceCount.toString()
             : '';
         final top = _isPlayerOne(pieceID)
-            ? 254.0 + _offset.dy * min(i, 2)
-            : 138.0 - _offset.dy * min(i, 2);
+            ? _barBottomBaselineY + _offset.dy * min(i, 2)
+            : _barTopBaselineY - _offset.dy * min(i, 2);
         final highlight = highlightedPiecePip && i == 0;
         yield PieceLayout(
           pipNo: barPipNo,
           pieceID: pieceID,
-          offset: Offset(246, top),
+          offset: Offset(_barX, top),
           label: label,
           highlight: highlight,
         );
@@ -397,12 +406,12 @@ class PieceLayout {
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];
         final top = _isPlayerOne(pieceID)
-            ? 386.0 - (_edgeSize.height + 1) * i
-            : 22.0 + (_edgeSize.height + 1) * i;
+            ? _offBottomBaselineY - (_edgeSize.height + 1) * i
+            : _offTopBaselineY + (_edgeSize.height + 1) * i;
         yield PieceLayout(
           pipNo: offPipNo,
           pieceID: pieceID,
-          offset: Offset(520, top),
+          offset: Offset(_offX, top),
           label: '',
           edge: true,
         );

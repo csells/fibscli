@@ -35,7 +35,7 @@ void main() {
     final fake = FakeTransport();
     App.fibs = FibsState.withTransport(fake);
 
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     await tester.pumpAndSettle();
 
     expect(App.fibs.loggedIn, isTrue); // connected on its own
@@ -47,7 +47,7 @@ void main() {
     final fake = FakeTransport();
     App.fibs = FibsState.withTransport(fake);
 
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     await tester.pumpAndSettle();
 
     expect(App.fibs.loggedIn, isFalse); // login screen waits for the user

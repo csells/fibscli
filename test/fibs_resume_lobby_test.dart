@@ -15,7 +15,7 @@ void main() {
     await App.fibs.login(user: 'me', pass: 'pw');
     // a `show savedgames` listing arrives on login
     fake.feed('  MG 0 0 - 1');
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     await tester.pumpAndSettle();
 
     // the unfinished match with MG is offered for resume
@@ -35,7 +35,7 @@ void main() {
     final fake = FakeTransport();
     App.fibs = FibsState.withTransport(fake);
     await App.fibs.login(user: 'me', pass: 'pw');
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     await tester.pumpAndSettle();
 
     fake.feed('MG wants to resume a saved match with you.');

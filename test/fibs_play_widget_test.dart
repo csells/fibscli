@@ -19,7 +19,7 @@ Future<FibsState> _startGame(
 }) async {
   App.fibs = FibsState.withTransport(fake);
   await App.fibs.login(user: 'joe_grammer', pass: 'x');
-  await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+  await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
   fake.feed(boardLine(p1dice: dice));
   await tester.pumpAndSettle();
   return App.fibs;
@@ -104,7 +104,7 @@ void main() {
     final fake = FakeTransport();
     App.fibs = FibsState.withTransport(fake);
     await App.fibs.login(user: 'me', pass: 'x');
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     await tester.pumpAndSettle();
     expect(find.text('Play for me'), findsNothing);
   });
@@ -115,7 +115,7 @@ void main() {
     final fake = FakeTransport();
     App.fibs = FibsState.withTransport(fake);
     await App.fibs.login(user: 'me', pass: 'x');
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     // a pure race: O (us) all home on 1-6, X home on 19-24, our roll 6 and 5
     fake.feed(
       'board:You:bot:1:0:0:0:2:2:3:2:3:3:0:0:0:0:0:0:0:0:0:0:0:0:-2:-2:-3:-2'

@@ -38,7 +38,12 @@ class FibsScope extends InheritedWidget {
 // The FIBS "play a bot" flow: connect, then watch a bot game (milestone 1).
 // Bots-only throughout — the who-list only ever shows bots.
 class FibsPage extends StatefulWidget {
-  const FibsPage({super.key});
+  const FibsPage({required this.fibs, super.key});
+
+  // Injected by the composition root (LandingPage) rather than read from the
+  // App.fibs global here -- FibsPage provides it to the whole subtree via
+  // FibsScope, so nothing in the FIBS UI reaches for the global directly.
+  final FibsState fibs;
 
   @override
   State<FibsPage> createState() => _FibsPageState();
@@ -51,13 +56,13 @@ class _FibsPageState extends State<FibsPage> {
   @override
   void initState() {
     super.initState();
-    _shownMessages = App.fibs.messages.length;
-    App.fibs.messages.addListener(_onMessages);
+    _shownMessages = widget.fibs.messages.length;
+    widget.fibs.messages.addListener(_onMessages);
   }
 
   @override
   void dispose() {
-    App.fibs.messages.removeListener(_onMessages);
+    widget.fibs.messages.removeListener(_onMessages);
     super.dispose();
   }
 
@@ -65,7 +70,7 @@ class _FibsPageState extends State<FibsPage> {
   // a SnackBar. Without this they were captured but never shown, so a declined
   // invite looked like a silent failure.
   void _onMessages() {
-    final messages = App.fibs.messages;
+    final messages = widget.fibs.messages;
     if (!mounted || messages.length <= _shownMessages) {
       _shownMessages = messages.length;
       return;
@@ -81,9 +86,9 @@ class _FibsPageState extends State<FibsPage> {
 
   @override
   Widget build(BuildContext context) => FibsScope(
-    fibs: App.fibs,
+    fibs: widget.fibs,
     child: ChangeNotifierBuilder<FibsState>(
-      notifier: App.fibs,
+      notifier: widget.fibs,
       builder: (context, fibs, child) {
         // This picks WHICH view to show. Each view listens to FibsState
         // itself (via its own ChangeNotifierBuilder) so it refreshes on

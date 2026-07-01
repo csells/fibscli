@@ -24,7 +24,7 @@ void main() {
     await _installEmptyCreds();
     App.fibs = FibsState.withTransport(FakeTransport());
 
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     await tester.pumpAndSettle();
 
     Checkbox checkbox() => tester.widget<Checkbox>(find.byType(Checkbox));

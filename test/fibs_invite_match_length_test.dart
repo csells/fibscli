@@ -28,7 +28,7 @@ void main() {
     await App.fibs.login(user: 'me', pass: 'pw');
     App.fibs.lobby.upsert(_bot('BlunderBot_II'));
 
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('BlunderBot_II'));
@@ -52,7 +52,7 @@ void main() {
     await App.fibs.login(user: 'me', pass: 'pw');
     App.fibs.lobby.upsert(_bot('wildbg', client: 'bot_1p_matches_only'));
 
-    await tester.pumpWidget(const MaterialApp(home: FibsPage()));
+    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('wildbg'));
