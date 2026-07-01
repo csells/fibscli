@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
 
@@ -13,6 +14,8 @@ import 'main.dart';
 import 'model.dart';
 import 'pieces.dart';
 import 'tinystate.dart';
+
+final _log = Logger('game_play_page');
 
 class GamePlayPage extends StatefulWidget {
   const GamePlayPage({
@@ -268,6 +271,13 @@ class _GameViewState extends State<GameView> {
       // The chosen engine couldn't supply a move (after its own retries). We do
       // NOT fabricate one -- tell the user and let them retry the engine.
       _reportEngineUnavailable(e.message);
+    } on Object catch (e, st) {
+      // Any OTHER engine failure (e.g. an unexpected throw from the external
+      // backgammon_ai engine) must not strand the game on the AI's turn -- the
+      // human can't move on the AI's behalf. Log it and surface it with the
+      // same Retry affordance so the game is always recoverable.
+      _log.warning('computer engine failed on its turn', e, st);
+      _reportEngineUnavailable('$e');
     } finally {
       _aiBusy = false;
       widget.controller.busy = false;
