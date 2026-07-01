@@ -1,9 +1,10 @@
 import 'package:fibscli/fibs_page.dart';
 import 'package:fibscli/fibs_state.dart'; // re-exports WhoInfo
-import 'package:fibscli/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_creds.dart';
 import 'fake_transport.dart';
 
 WhoInfo _bot(String user, {String client = 'ParlorBot'}) => WhoInfo(
@@ -22,13 +23,19 @@ WhoInfo _bot(String user, {String client = 'ParlorBot'}) => WhoInfo(
 );
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('invite dialog sends the chosen match length', (tester) async {
     final fake = FakeTransport();
-    App.fibs = FibsState.withTransport(fake);
-    await App.fibs.login(user: 'me', pass: 'pw');
-    App.fibs.lobby.upsert(_bot('BlunderBot_II'));
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'me', pass: 'pw');
+    fibs.lobby.upsert(_bot('BlunderBot_II'));
 
-    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('BlunderBot_II'));
@@ -48,11 +55,15 @@ void main() {
     tester,
   ) async {
     final fake = FakeTransport();
-    App.fibs = FibsState.withTransport(fake);
-    await App.fibs.login(user: 'me', pass: 'pw');
-    App.fibs.lobby.upsert(_bot('wildbg', client: 'bot_1p_matches_only'));
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'me', pass: 'pw');
+    fibs.lobby.upsert(_bot('wildbg', client: 'bot_1p_matches_only'));
 
-    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('wildbg'));

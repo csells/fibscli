@@ -1,10 +1,11 @@
 import 'package:fibscli/board_view.dart';
 import 'package:fibscli/fibs_page.dart';
 import 'package:fibscli/fibs_state.dart';
-import 'package:fibscli/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_creds.dart';
 import 'fake_transport.dart';
 
 // our own game: player1 is the literal "You"; an opening position, our turn (O)
@@ -17,12 +18,17 @@ Future<FibsState> _startGame(
   FakeTransport fake, {
   String dice = '6:3',
 }) async {
-  App.fibs = FibsState.withTransport(fake);
-  await App.fibs.login(user: 'joe_grammer', pass: 'x');
-  await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
+  SharedPreferences.setMockInitialValues({});
+  final fibs = FibsState.withTransport(fake);
+  await fibs.login(user: 'joe_grammer', pass: 'x');
+  await tester.pumpWidget(
+    MaterialApp(
+      home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+    ),
+  );
   fake.feed(boardLine(p1dice: dice));
   await tester.pumpAndSettle();
-  return App.fibs;
+  return fibs;
 }
 
 void main() {
@@ -41,9 +47,9 @@ void main() {
     tester,
   ) async {
     final fake = FakeTransport();
-    await _startGame(tester, fake, dice: '0:0');
+    final fibs = await _startGame(tester, fake, dice: '0:0');
 
-    expect(App.fibs.canRoll, isTrue);
+    expect(fibs.canRoll, isTrue);
     expect(find.text('Roll'), findsOneWidget);
 
     await tester.tap(find.text('Roll'));
@@ -55,12 +61,12 @@ void main() {
     tester,
   ) async {
     final fake = FakeTransport();
-    await _startGame(tester, fake);
+    final fibs = await _startGame(tester, fake);
 
     fake.feed("wildbg doubles. Type 'accept' or 'reject'.");
     await tester.pumpAndSettle();
 
-    expect(App.fibs.doubleOffered, isTrue);
+    expect(fibs.doubleOffered, isTrue);
     expect(find.text('Take'), findsOneWidget);
 
     await tester.tap(find.text('Take'));
@@ -102,9 +108,13 @@ void main() {
     tester,
   ) async {
     final fake = FakeTransport();
-    App.fibs = FibsState.withTransport(fake);
-    await App.fibs.login(user: 'me', pass: 'x');
-    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'me', pass: 'x');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Play for me'), findsNothing);
   });
@@ -113,9 +123,13 @@ void main() {
     tester,
   ) async {
     final fake = FakeTransport();
-    App.fibs = FibsState.withTransport(fake);
-    await App.fibs.login(user: 'me', pass: 'x');
-    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'me', pass: 'x');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+      ),
+    );
     // a pure race: O (us) all home on 1-6, X home on 19-24, our roll 6 and 5
     fake.feed(
       'board:You:bot:1:0:0:0:2:2:3:2:3:3:0:0:0:0:0:0:0:0:0:0:0:0:-2:-2:-3:-2'

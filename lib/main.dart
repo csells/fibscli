@@ -25,17 +25,26 @@ Future<void> main() async {
       reportError(details.exception, details.stack, context: 'flutter error');
   await runZonedGuarded(
     () async {
-      await bootstrap();
-      runApp(const App());
+      final deps = await bootstrap();
+      runApp(App(fibs: deps.fibs, creds: deps.creds));
     },
     (error, stack) => reportError(error, stack, context: 'uncaught zone error'),
   );
 }
 
-// Load persisted state before any UI builds, so App.creds is populated whenever
-// a widget reads it. The login view relies on this to read remembered
-// credentials synchronously (no load-race retry needed).
-Future<void> bootstrap({
+/// The app-level dependencies [bootstrap] builds and [main] threads into [App].
+/// Owning these as constructor-injected instances (rather than App statics)
+/// keeps the UI decoupled from a global and lets tests supply their own.
+class AppDeps {
+  AppDeps({required this.fibs, required this.creds});
+  final FibsState fibs;
+  final SecureCredentialStore creds;
+}
+
+// Load persisted state before any UI builds, then hand the ready-to-use
+// dependencies back to main(). The login view reads remembered credentials
+// synchronously from the injected store (no load-race retry needed).
+Future<AppDeps> bootstrap({
   SecretStore secretStore = const FlutterSecretStore(),
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,9 +53,9 @@ Future<void> bootstrap({
   // built-in pubeval (gnubg is registered separately once a URL is configured).
   AiRegistry.register(BackgammonAiPlayerFactory());
   final prefs = await SharedPreferences.getInstance();
-  App.creds = SecureCredentialStore(prefs, secretStore);
+  final creds = SecureCredentialStore(prefs, secretStore);
   try {
-    await App.creds.load();
+    await creds.load();
   } on Object catch (ex, st) {
     // Secure-storage reads can fail (locked keychain, missing libsecret, web
     // crypto hiccup) and may surface as either an Exception or an Error, so
@@ -54,22 +63,25 @@ Future<void> bootstrap({
     // startup -- the user can still type their credentials.
     Logger('bootstrap').warning('credential load failed', ex, st);
   }
+  final fibs = FibsState();
   // Wire end-of-session cleanup without FibsState depending on credentials:
   // an explicit logout forgets the remembered password.
-  App.fibs.onLogout = () => App.creds.forget();
+  fibs.onLogout = creds.forget;
+  return AppDeps(fibs: fibs, creds: creds);
 }
 
 class App extends StatefulWidget {
-  const App({super.key});
+  const App({required this.fibs, required this.creds, super.key});
+
+  // Constructor-injected (not App statics): the live FIBS connection and the
+  // remembered-credentials store, threaded down to the views.
+  final FibsState fibs;
+  final SecureCredentialStore creds;
 
   static const title = 'Backgammon';
-  // mutable so tests can swap in a fake-backed FibsState before pumping the UI
-  static FibsState fibs = FibsState();
-  // remembered credentials (password in platform secure storage). Set in
-  // bootstrap before any UI builds; tests inject their own.
-  static late SecureCredentialStore creds;
   // Lets the app show error SnackBars from the global error handlers (which
-  // have no BuildContext) -- see _AppState._showError.
+  // have no BuildContext) -- see _AppState._showError. A stable GlobalKey, not
+  // mutable app state.
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
@@ -90,7 +102,7 @@ class _AppState extends State<App> {
     // tab-close handler. On web, send FIBS a courtesy `bye` when the tab
     // closes — best-effort: a dropped connection ends the session regardless.
     onAppClose(() {
-      if (App.fibs.loggedIn) App.fibs.send('bye');
+      if (widget.fibs.loggedIn) widget.fibs.send('bye');
     });
   }
 
@@ -132,11 +144,12 @@ class _AppState extends State<App> {
       visualDensity: VisualDensity.adaptivePlatformDensity,
     ),
     debugShowCheckedModeBanner: false,
-    // listen to the FIBS singleton at the root so the app can react to
-    // connection state (and keeps the singleton owned here)
+    // listen to the FIBS instance at the root so the app can react to
+    // connection state (App owns it and hands it to the landing page)
     home: ChangeNotifierBuilder<FibsState>(
-      notifier: App.fibs,
-      builder: (context, fibs, child) => const LandingPage(),
+      notifier: widget.fibs,
+      builder: (context, fibs, child) =>
+          LandingPage(fibs: widget.fibs, creds: widget.creds),
     ),
   );
 }
@@ -144,7 +157,10 @@ class _AppState extends State<App> {
 // Pick a mode: the local hot-seat game, or play a bot over FIBS (milestone 1:
 // watch a bot game). Keeps the working local game as a first-class path.
 class LandingPage extends StatelessWidget {
-  const LandingPage({super.key});
+  const LandingPage({required this.fibs, required this.creds, super.key});
+
+  final FibsState fibs;
+  final SecureCredentialStore creds;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -180,7 +196,7 @@ class LandingPage extends StatelessWidget {
               label: const Text('Play a bot (FIBS)'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => FibsPage(fibs: App.fibs),
+                  builder: (_) => FibsPage(fibs: fibs, creds: creds),
                 ),
               ),
             ),

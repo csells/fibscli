@@ -3,16 +3,21 @@ part of 'fibs_page.dart';
 // The FIBS login/connect screen (autologin from remembered creds).
 
 class _LoginView extends StatefulWidget {
-  const _LoginView();
+  const _LoginView({required this.creds});
+
+  // The remembered-credentials store, injected (not the App.creds global).
+  final SecureCredentialStore creds;
 
   @override
   State<_LoginView> createState() => _LoginViewState();
 }
 
 class _LoginViewState extends State<_LoginView> {
-  late final _user = TextEditingController(text: App.creds.user ?? '');
-  late final _pass = TextEditingController(text: App.creds.password ?? '');
-  var _remember = App.creds.remember;
+  // `late` so these read widget.creds lazily on first build (widget isn't bound
+  // during field construction).
+  late final _user = TextEditingController(text: widget.creds.user ?? '');
+  late final _pass = TextEditingController(text: widget.creds.password ?? '');
+  late bool _remember = widget.creds.remember;
   var _busy = false;
   var _obscure = true;
   String? _error;
@@ -33,7 +38,7 @@ class _LoginViewState extends State<_LoginView> {
     // creds are loaded before any UI (see bootstrap), so they're available
     // synchronously here -- connect on our own when we have usable ones. The
     // callback re-checks loggedIn/busy against the (now-bound) _fibs.
-    if (App.creds.canAutologin) {
+    if (widget.creds.canAutologin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_fibs.loggedIn && !_busy) unawaited(_login());
       });
@@ -55,7 +60,7 @@ class _LoginViewState extends State<_LoginView> {
     try {
       final user = _user.text.trim();
       await _fibs.login(user: user, pass: _pass.text);
-      await App.creds.save(
+      await widget.creds.save(
         user: user,
         password: _pass.text,
         remember: _remember,

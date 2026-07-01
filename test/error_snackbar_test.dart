@@ -1,8 +1,11 @@
+import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/logging.dart';
 import 'package:fibscli/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'fake_creds.dart';
 
 void main() {
   setUp(() {
@@ -16,7 +19,7 @@ void main() {
   testWidgets('a reported error is surfaced to the user as a SnackBar', (
     tester,
   ) async {
-    await tester.pumpWidget(const App());
+    await tester.pumpWidget(App(fibs: FibsState(), creds: await fakeCreds()));
     await tester.pump(); // first frame
 
     expect(find.byType(SnackBar), findsNothing);

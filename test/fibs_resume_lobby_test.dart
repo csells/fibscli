@@ -1,21 +1,28 @@
 import 'package:fibscli/fibs_page.dart';
 import 'package:fibscli/fibs_state.dart';
-import 'package:fibscli/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_creds.dart';
 import 'fake_transport.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('the lobby lists a saved match and resumes it on tap', (
     tester,
   ) async {
     final fake = FakeTransport();
-    App.fibs = FibsState.withTransport(fake);
-    await App.fibs.login(user: 'me', pass: 'pw');
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'me', pass: 'pw');
     // a `show savedgames` listing arrives on login
     fake.feed('  MG 0 0 - 1');
-    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // the unfinished match with MG is offered for resume
@@ -33,9 +40,13 @@ void main() {
     tester,
   ) async {
     final fake = FakeTransport();
-    App.fibs = FibsState.withTransport(fake);
-    await App.fibs.login(user: 'me', pass: 'pw');
-    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'me', pass: 'pw');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     fake.feed('MG wants to resume a saved match with you.');

@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
+import 'credential_store.dart';
 import 'fibs_play_controller.dart';
 import 'fibs_state.dart';
 import 'game_board.dart';
-import 'main.dart';
 import 'tinystate.dart';
 
 part 'fibs_login_view.dart';
@@ -38,12 +38,13 @@ class FibsScope extends InheritedWidget {
 // The FIBS "play a bot" flow: connect, then watch a bot game (milestone 1).
 // Bots-only throughout — the who-list only ever shows bots.
 class FibsPage extends StatefulWidget {
-  const FibsPage({required this.fibs, super.key});
+  const FibsPage({required this.fibs, required this.creds, super.key});
 
-  // Injected by the composition root (LandingPage) rather than read from the
-  // App.fibs global here -- FibsPage provides it to the whole subtree via
-  // FibsScope, so nothing in the FIBS UI reaches for the global directly.
+  // Injected by the composition root (LandingPage) rather than read from App
+  // statics -- FibsPage provides [fibs] to the subtree via FibsScope and hands
+  // [creds] to the login view, so nothing in the FIBS UI reaches a global.
   final FibsState fibs;
+  final SecureCredentialStore creds;
 
   @override
   State<FibsPage> createState() => _FibsPageState();
@@ -93,7 +94,7 @@ class _FibsPageState extends State<FibsPage> {
         // This picks WHICH view to show. Each view listens to FibsState
         // itself (via its own ChangeNotifierBuilder) so it refreshes on
         // every board update even though it's a const child here.
-        if (!fibs.loggedIn) return const _LoginView();
+        if (!fibs.loggedIn) return _LoginView(creds: widget.creds);
         if (fibs.gameState != null) {
           // playing if we're one of the players, otherwise just watching
           return fibs.myColor != null ? const _PlayView() : const _WatchView();

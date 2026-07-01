@@ -1,7 +1,6 @@
 import 'package:fibscli/credential_store.dart';
 import 'package:fibscli/fibs_page.dart';
 import 'package:fibscli/fibs_state.dart';
-import 'package:fibscli/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,11 +15,15 @@ void main() {
     // logged-out, no remembered creds -> the login form (not autologin) shows
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    App.creds = SecureCredentialStore(prefs, FakeSecretStore());
-    await App.creds.load();
-    App.fibs = FibsState.withTransport(FakeTransport());
+    final creds = SecureCredentialStore(prefs, FakeSecretStore());
+    await creds.load();
+    final fibs = FibsState.withTransport(FakeTransport());
 
-    await tester.pumpWidget(MaterialApp(home: FibsPage(fibs: App.fibs)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: creds),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final passField = tester.widget<TextField>(

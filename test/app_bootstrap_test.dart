@@ -23,9 +23,9 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     SharedPreferences.setMockInitialValues({'user': 'joe_grammer'});
 
-    await bootstrap();
+    final deps = await bootstrap();
 
-    expect(App.creds.user, 'joe_grammer');
+    expect(deps.creds.user, 'joe_grammer');
   });
 
   test(
@@ -35,11 +35,11 @@ void main() {
       SharedPreferences.setMockInitialValues({'user': 'joe', 'remember': true});
 
       // Must not throw even though the secure-storage read blows up.
-      await bootstrap(secretStore: _ThrowingSecretStore());
+      final deps = await bootstrap(secretStore: _ThrowingSecretStore());
 
-      expect(App.creds.user, 'joe'); // username still recovered from prefs
+      expect(deps.creds.user, 'joe'); // username still recovered from prefs
       expect(
-        App.creds.password,
+        deps.creds.password,
         isNull,
       ); // no password recovered, but app is up
     },
