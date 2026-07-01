@@ -183,6 +183,14 @@ class MoveAnimation {
     for (final move in ordered) {
       final dest = take(toLayouts, usedTo, move.toPip);
       final src = take(fromLayouts, usedFrom, move.fromPip);
+      // A board diff should always pair a source and destination slot. If it
+      // ever doesn't, fail loudly in debug/tests instead of silently snapping
+      // the checker to place with no animation (which is invisible in a replay
+      // fixture that never hits the case).
+      assert(
+        dest != null && src != null,
+        'unmatched movement $move (from ${move.fromPip} to ${move.toPip})',
+      );
       if (dest == null || src == null) continue;
 
       // intermediate hops only when landing on a real point (1..24); bar/off
@@ -239,13 +247,13 @@ class PieceLayout {
 
   final int pipNo;
   final int pieceID;
-  final Offset? offset;
+  final Offset offset;
   final String label;
   final bool highlight;
   final bool edge;
 
   Size get size => edge ? _edgeSize : _pieceSize;
-  Rect get rect => offset! & size;
+  Rect get rect => offset & size;
 
   // The on-screen offset of the FIRST checker (stack base) on point [pipNo],
   // 1..24 -- the same geometry getLayouts assigns at stack height 0. Used to
@@ -299,7 +307,6 @@ class PieceLayout {
         if (pip.isEmpty) continue;
         assert(pip.every((p) => p.sign == pip[0].sign));
         final pieceCount = pip.length;
-        final dx = _offset.dx * i;
 
         for (var h = 0; h != pieceCount; ++h) {
           // if there's more than 5, the last one gets a label w/ the total number of pieces in the stack
@@ -310,45 +317,17 @@ class PieceLayout {
           final highlight = highlightedPiecePip && h == pieceCount - 1;
           final pieceID = pip[h];
 
-          if (pipNo >= 1 && pipNo <= 6) {
-            // bottom right
-            yield PieceLayout(
-              pipNo: pipNo,
-              pieceID: pieceID,
-              offset: Offset(468 - dx, 371 - dy),
-              label: label,
-              highlight: highlight,
-            );
-          } else if (pipNo >= 7 && pipNo <= 12) {
-            // bottom left
-            yield PieceLayout(
-              pipNo: pipNo,
-              pieceID: pieceID,
-              offset: Offset(204 - dx, 371 - dy),
-              label: label,
-              highlight: highlight,
-            );
-          } else if (pipNo >= 13 && pipNo <= 18) {
-            // top left
-            yield PieceLayout(
-              pipNo: pipNo,
-              pieceID: pieceID,
-              offset: Offset(24 + dx, 21 + dy),
-              label: label,
-              highlight: highlight,
-            );
-          } else if (pipNo >= 19 && pipNo <= 24) {
-            // top right
-            yield PieceLayout(
-              pipNo: pipNo,
-              pieceID: pieceID,
-              offset: Offset(288 + dx, 21 + dy),
-              label: label,
-              highlight: highlight,
-            );
-          } else {
-            assert(false);
-          }
+          // Base slot geometry lives in exactly one place (baseSlotOffset);
+          // stacks grow away from the baseline -- down (-dy) on the bottom
+          // quadrants, up (+dy) on the top.
+          final dyDir = pipNo <= 12 ? -1.0 : 1.0;
+          yield PieceLayout(
+            pipNo: pipNo,
+            pieceID: pieceID,
+            offset: baseSlotOffset(pipNo) + Offset(0, dyDir * dy),
+            label: label,
+            highlight: highlight,
+          );
         }
       }
     }

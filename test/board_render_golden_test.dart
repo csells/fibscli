@@ -22,8 +22,8 @@ String _render(List<List<int>> board) {
       return byPip != 0 ? byPip : a.pieceID.compareTo(b.pieceID);
     });
   String line(PieceLayout l) {
-    final dx = l.offset!.dx.toStringAsFixed(1);
-    final dy = l.offset!.dy.toStringAsFixed(1);
+    final dx = l.offset.dx.toStringAsFixed(1);
+    final dy = l.offset.dy.toStringAsFixed(1);
     return 'pip=${l.pipNo} id=${l.pieceID} off=($dx,$dy) '
         'edge=${l.edge} label="${l.label}"';
   }

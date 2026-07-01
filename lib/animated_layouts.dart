@@ -108,14 +108,11 @@ class PieceLayoutTween extends Tween<PieceLayout> {
 
   @override
   PieceLayout lerp(double t) => PieceLayout(
-    pipNo: 0, // used?
+    pipNo: 0, // unused during animation; only offset/rect are read
     pieceID: begin!.pieceID,
-    offset: Offset.lerp(
-      begin!.offset,
-      end!.offset,
-      t,
-    ), // only the offset changes
-    label: '', // used?
+    // begin/end offsets are non-null, so the interpolation is too
+    offset: Offset.lerp(begin!.offset, end!.offset, t)!,
+    label: '', // unused during animation
     highlight: begin!.highlight,
     edge: begin!.edge,
   );
