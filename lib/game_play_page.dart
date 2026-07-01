@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
 
@@ -146,13 +147,44 @@ class _GamePlayPageState extends State<GamePlayPage> {
 
 class GameViewController extends ChangeNotifier {
   bool _reversed = false;
-  var _canUndo = true;
-  var _canAutoBearOff = false;
+  GammonState? _game;
+
   // command hooks the GameView injects; invoked by the matching methods below
   late void Function() onUndo;
   late void Function() onNewGame;
   late void Function() onAutoBearOff;
   late void Function() onShowOdds;
+
+  // Bind the current game so the button-enable state is DERIVED, not mirrored:
+  // the controller listens to the game and re-notifies its own listeners (the
+  // app bar / FAB), so canUndo/canAutoBearOff can never desync from a forgotten
+  // setter call. Re-attaching on a new game swaps the listener.
+  void attach(GammonState game) {
+    if (identical(_game, game)) return;
+    _game?.removeListener(_notifySafely);
+    _game = game..addListener(_notifySafely);
+    _notifySafely();
+  }
+
+  // Notify listeners, but never during a build/layout pass -- the first attach
+  // happens inside GameView.initState (while the app bar above is still
+  // building), and a game change could also land mid-frame. Defer to after the
+  // frame in those cases.
+  void _notifySafely() {
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      notifyListeners();
+    } else {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (_game != null) notifyListeners();
+      });
+    }
+  }
+
+  // undo is available while a game is in progress (nothing to undo once over)
+  bool get canUndo => _game != null && !_game!.gameOver;
+  bool get canAutoBearOff => _game?.canAutoBearOff ?? false;
 
   bool get reversed => _reversed;
   set reversed(bool reversed) {
@@ -161,24 +193,16 @@ class GameViewController extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool get canUndo => _canUndo;
-  set canUndo(bool canUndo) {
-    if (_canUndo == canUndo) return;
-    _canUndo = canUndo;
-    notifyListeners();
-  }
-
-  bool get canAutoBearOff => _canAutoBearOff;
-  set canAutoBearOff(bool canAutoBearOff) {
-    if (_canAutoBearOff == canAutoBearOff) return;
-    _canAutoBearOff = canAutoBearOff;
-    notifyListeners();
-  }
-
   void undo() => onUndo();
   void newGame() => onNewGame();
   void autoBearOff() => onAutoBearOff();
   void showOdds() => onShowOdds();
+
+  @override
+  void dispose() {
+    _game?.removeListener(_notifySafely);
+    super.dispose();
+  }
 }
 
 class GameView extends StatefulWidget {
@@ -262,7 +286,7 @@ class _GameViewState extends State<GameView> {
     if (_game != null) _game!.removeListener(_gameChanged);
 
     _game = widget.createGame?.call() ?? GammonState();
-    widget.controller.canUndo = true;
+    widget.controller.attach(_game!); // derives canUndo/canAutoBearOff
     _game!.addListener(_gameChanged);
     _reset();
     unawaited(_maybePlayAi()); // the AI may be on roll first
@@ -338,7 +362,6 @@ class _GameViewState extends State<GameView> {
     if (!_game!.gameOver) return;
 
     _game!.removeListener(_gameChanged);
-    widget.controller.canUndo = false;
     final ok = await NewGameDialog.show(
       context,
       _game!.turnPlayer,
@@ -447,8 +470,9 @@ class _GameViewState extends State<GameView> {
   }
 
   void _reset() {
+    // canAutoBearOff/canUndo are derived on the controller from the attached
+    // game, so there's nothing to push here beyond the board's legal moves.
     setState(() => _legalMovesForPips = _game!.getAllLegalMoves());
-    widget.controller.canAutoBearOff = _game!.canAutoBearOff;
   }
 
   void _tapDice() {
