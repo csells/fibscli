@@ -195,7 +195,10 @@ class GameViewController extends ChangeNotifier {
   set busy(bool busy) {
     if (_busy == busy) return;
     _busy = busy;
-    notifyListeners();
+    // build-safe: the AI can start (busy = true) from _maybePlayAi during the
+    // initState-driven first build, when a raw notifyListeners would mark the
+    // app bar dirty mid-build.
+    _notifySafely();
   }
 
   // undo is available while a game is in progress (nothing to undo once over),
