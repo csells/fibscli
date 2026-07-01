@@ -12,22 +12,31 @@ class _PlayView extends StatefulWidget {
 }
 
 class _PlayViewState extends State<_PlayView> {
-  late final _controller = FibsPlayController();
+  // Injected from FibsScope in didChangeDependencies, not the App.fibs global.
+  late FibsState _fibs;
+  FibsPlayController? _controller;
   // Board orientation. FIBS already hands us the board from our own perspective
   // (home lower-right), so we never auto-flip; the flip button just toggles
   // this preference (pure view state, so it stays on the widget).
   bool _reversed = false;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fibs = FibsScope.of(context);
+    _controller ??= FibsPlayController(fibs: _fibs);
+  }
+
+  @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) =>
       ChangeNotifierBuilder<FibsPlayController>(
-        notifier: _controller,
+        notifier: _controller!,
         builder: (context, controller, child) => _buildBoard(controller),
       );
 
@@ -36,7 +45,7 @@ class _PlayViewState extends State<_PlayView> {
     // our move, when no notification fires)
     controller.syncTurn();
 
-    final fibs = App.fibs;
+    final fibs = _fibs;
     final opponent = fibs.board!.opponentNameFor(fibs.user);
 
     return Scaffold(
@@ -114,7 +123,7 @@ class _PlayViewState extends State<_PlayView> {
         ],
       ),
     );
-    if (ok ?? false) App.fibs.resign();
+    if (ok ?? false) _fibs.resign();
   }
 }
 

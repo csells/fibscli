@@ -16,6 +16,25 @@ part 'fibs_play_view.dart';
 
 final _log = Logger('fibs.login');
 
+// Provides the active FibsState to the FIBS view subtree, so the views read it
+// from context (FibsScope.of) instead of reaching the App.fibs global directly.
+// FibsPage is the one place that binds the app-level singleton into the tree;
+// everything below depends on this typed handle, not the global.
+class FibsScope extends InheritedWidget {
+  const FibsScope({required this.fibs, required super.child, super.key});
+
+  final FibsState fibs;
+
+  static FibsState of(BuildContext context) {
+    final scope = context.dependOnInheritedWidgetOfExactType<FibsScope>();
+    assert(scope != null, 'No FibsScope found in context');
+    return scope!.fibs;
+  }
+
+  @override
+  bool updateShouldNotify(FibsScope oldWidget) => fibs != oldWidget.fibs;
+}
+
 // The FIBS "play a bot" flow: connect, then watch a bot game (milestone 1).
 // Bots-only throughout — the who-list only ever shows bots.
 class FibsPage extends StatefulWidget {
@@ -61,18 +80,21 @@ class _FibsPageState extends State<FibsPage> {
   }
 
   @override
-  Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
-    notifier: App.fibs,
-    builder: (context, fibs, child) {
-      // This picks WHICH view to show. Each view listens to FibsState
-      // itself (via its own ChangeNotifierBuilder) so it refreshes on
-      // every board update even though it's a const child here.
-      if (!fibs.loggedIn) return const _LoginView();
-      if (fibs.gameState != null) {
-        // playing if we're one of the players, otherwise just watching
-        return fibs.myColor != null ? const _PlayView() : const _WatchView();
-      }
-      return const _BotListView();
-    },
+  Widget build(BuildContext context) => FibsScope(
+    fibs: App.fibs,
+    child: ChangeNotifierBuilder<FibsState>(
+      notifier: App.fibs,
+      builder: (context, fibs, child) {
+        // This picks WHICH view to show. Each view listens to FibsState
+        // itself (via its own ChangeNotifierBuilder) so it refreshes on
+        // every board update even though it's a const child here.
+        if (!fibs.loggedIn) return const _LoginView();
+        if (fibs.gameState != null) {
+          // playing if we're one of the players, otherwise just watching
+          return fibs.myColor != null ? const _PlayView() : const _WatchView();
+        }
+        return const _BotListView();
+      },
+    ),
   );
 }

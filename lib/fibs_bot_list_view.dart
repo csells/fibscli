@@ -16,8 +16,10 @@ class _BotListViewState extends State<_BotListView> {
   // but only as a test/e2e driver -- never wired to a button the user can press.
 
   @override
-  Widget build(BuildContext context) =>
-      ChangeNotifierBuilder<FibsState>(notifier: App.fibs, builder: _build);
+  Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
+    notifier: FibsScope.of(context),
+    builder: _build,
+  );
 
   Widget _build(BuildContext context, FibsState fibs, Widget? child) {
     final free = fibs.availableBots; // invite these
@@ -29,7 +31,7 @@ class _BotListViewState extends State<_BotListView> {
         title: const Text('Bots'),
         actions: [
           TextButton(
-            onPressed: () => unawaited(App.fibs.logout()),
+            onPressed: () => unawaited(fibs.logout()),
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -58,7 +60,7 @@ class _BotListViewState extends State<_BotListView> {
                     title: Text(opponent),
                     subtitle: const Text('unfinished match — tap to resume'),
                     trailing: const Icon(Icons.play_arrow),
-                    onTap: () => App.fibs.resumeSavedMatch(opponent),
+                    onTap: () => fibs.resumeSavedMatch(opponent),
                   ),
                 if (free.isNotEmpty)
                   const _SectionHeader('Play a bot (tap to invite)'),
@@ -86,7 +88,7 @@ class _BotListViewState extends State<_BotListView> {
                       '${who.rating.toStringAsFixed(0)}',
                     ),
                     trailing: const Icon(Icons.visibility),
-                    onTap: () => App.fibs.watch(who),
+                    onTap: () => fibs.watch(who),
                   ),
               ],
             ),
@@ -94,6 +96,7 @@ class _BotListViewState extends State<_BotListView> {
   }
 
   Future<void> _confirmInvite(BuildContext context, WhoInfo bot) async {
+    final fibs = FibsScope.of(context); // capture before the async gap
     // default to 1 for bots that only play 1-point matches, else a short 3-pt
     var length = bot.playsOnePointOnly ? 1 : 3;
     final ok = await showDialog<bool>(
@@ -145,7 +148,7 @@ class _BotListViewState extends State<_BotListView> {
         ),
       ),
     );
-    if (ok ?? false) App.fibs.invite(bot, matchLength: length);
+    if (ok ?? false) fibs.invite(bot, matchLength: length);
   }
 }
 

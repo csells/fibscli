@@ -16,15 +16,26 @@ class _LoginViewState extends State<_LoginView> {
   var _busy = false;
   var _obscure = true;
   String? _error;
+  // The active FibsState, injected from FibsScope (not the App.fibs global).
+  // Bound in didChangeDependencies (InheritedWidget lookups aren't allowed in
+  // initState), which runs before the post-frame autologin callback fires.
+  late FibsState _fibs;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fibs = FibsScope.of(context);
+  }
 
   @override
   void initState() {
     super.initState();
     // creds are loaded before any UI (see bootstrap), so they're available
-    // synchronously here -- connect on our own when we have usable ones.
-    if (!App.fibs.loggedIn && !_busy && App.creds.canAutologin) {
+    // synchronously here -- connect on our own when we have usable ones. The
+    // callback re-checks loggedIn/busy against the (now-bound) _fibs.
+    if (App.creds.canAutologin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !App.fibs.loggedIn && !_busy) unawaited(_login());
+        if (mounted && !_fibs.loggedIn && !_busy) unawaited(_login());
       });
     }
   }
@@ -43,7 +54,7 @@ class _LoginViewState extends State<_LoginView> {
     });
     try {
       final user = _user.text.trim();
-      await App.fibs.login(user: user, pass: _pass.text);
+      await _fibs.login(user: user, pass: _pass.text);
       await App.creds.save(
         user: user,
         password: _pass.text,

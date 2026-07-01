@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'board_animator.dart';
 import 'dice.dart';
 import 'fibs_state.dart';
-import 'main.dart';
 import 'model.dart';
 import 'pieces.dart';
 
@@ -19,7 +18,10 @@ import 'pieces.dart';
 // one). It listens to [FibsState] and notifies its own listeners (the view) on
 // every change.
 class FibsPlayController extends ChangeNotifier {
-  FibsPlayController({FibsState? fibs}) : _fibs = fibs ?? App.fibs {
+  // A named initializing formal can't target a private field (_fibs), so we
+  // assign in the initializer list instead.
+  // ignore: prefer_initializing_formals
+  FibsPlayController({required FibsState fibs}) : _fibs = fibs {
     _prevBoard = _boardCopy();
     _prevDice = _diceSnapshot();
     _fibs.addListener(_onFibsChanged);
