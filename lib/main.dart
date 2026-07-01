@@ -243,32 +243,101 @@ class LandingPage extends StatelessWidget {
     ),
   );
 
-  // Let the user pick an AI engine, then start a 1-player game with the
-  // computer playing player two.
+  // Let the user pick an AI engine (and a difficulty, for engines that offer
+  // levels), then start a 1-player game with the computer playing player two.
   Future<void> _playVsComputer(BuildContext context) async {
     final navigator = Navigator.of(context);
-    final factory = await showDialog<BgAiPlayerFactory>(
+    final messenger = ScaffoldMessenger.of(context);
+    final choice = await showDialog<AiChoice>(
       context: context,
-      builder: (context) => SimpleDialog(
+      builder: (_) => OpponentPicker(factories: AiRegistry.available),
+    );
+    if (choice == null) return;
+
+    // Building an engine can fail (e.g. a misconfigured service client).
+    // Surface it instead of letting the tap throw with no game started.
+    final BgAiPlayer ai;
+    try {
+      ai = choice.factory.create(level: choice.level);
+    } on Object catch (e, st) {
+      Logger('main').warning('failed to create AI engine', e, st);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not start ${choice.factory.name}: $e')),
+      );
+      return;
+    }
+    await navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => GamePlayPage(aiSide: GammonPlayer.two, ai: ai),
+      ),
+    );
+  }
+}
+
+/// The result of [OpponentPicker]: the chosen engine [factory] and, for engines
+/// that expose difficulty levels, the picked level (null for single-strength
+/// engines).
+class AiChoice {
+  /// Creates a choice of [factory] at the given [level].
+  const AiChoice(this.factory, this.level);
+
+  /// The chosen engine factory.
+  final BgAiPlayerFactory factory;
+
+  /// The chosen difficulty level, or null when the engine has no levels.
+  final String? level;
+}
+
+/// A modal that picks an AI engine and, for engines that offer difficulty
+/// levels, a level too. Pops with an [AiChoice], or null if cancelled. Building
+/// the engine is left to the caller so a construction failure can be surfaced.
+class OpponentPicker extends StatefulWidget {
+  /// Creates a picker over [factories] (typically `AiRegistry.available`).
+  const OpponentPicker({required this.factories, super.key});
+
+  /// The engines to offer.
+  final List<BgAiPlayerFactory> factories;
+
+  @override
+  State<OpponentPicker> createState() => _OpponentPickerState();
+}
+
+class _OpponentPickerState extends State<OpponentPicker> {
+  // Once a leveled engine is picked, we show its levels (a second step).
+  BgAiPlayerFactory? _leveling;
+
+  @override
+  Widget build(BuildContext context) {
+    final leveling = _leveling;
+    if (leveling == null) {
+      return SimpleDialog(
         title: const Text('Choose your opponent'),
         children: [
-          for (final f in AiRegistry.available)
+          for (final f in widget.factories)
             SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, f),
+              onPressed: () => f.levels.isEmpty
+                  ? Navigator.pop(context, AiChoice(f, null))
+                  : setState(() => _leveling = f),
               child: ListTile(
                 title: Text(f.name),
                 subtitle: f.description == null ? null : Text(f.description!),
+                trailing: f.levels.isEmpty
+                    ? null
+                    : const Icon(Icons.chevron_right),
               ),
             ),
         ],
-      ),
-    );
-    if (factory == null) return;
-    await navigator.push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            GamePlayPage(aiSide: GammonPlayer.two, ai: factory.create()),
-      ),
+      );
+    }
+    return SimpleDialog(
+      title: Text('${leveling.name} — difficulty'),
+      children: [
+        for (final level in leveling.levels)
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, AiChoice(leveling, level)),
+            child: ListTile(title: Text(level)),
+          ),
+      ],
     );
   }
 }
