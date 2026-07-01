@@ -152,6 +152,26 @@ void main() {
     expect(fibs.isGameOver, isFalse); // result cleared -> back to play
   });
 
+  test('an unexpected connection drop surfaces a notice', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    expect(fibs.messages, isEmpty);
+
+    fake.feedError(StateError('socket reset')); // server kick / network loss
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.messages.length, 1);
+    expect(fibs.messages.last.message, contains('connection'));
+    expect(fibs.gameState, isNull); // the session was reset
+  });
+
+  test('a deliberate logout surfaces no connection notice', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    await fibs.logout();
+    expect(fibs.messages, isEmpty); // logout is expected, not a drop
+  });
+
   test('after roll, canRoll is false and a second roll throws', () async {
     final fake = FakeTransport();
     final fibs = await _inGame(fake); // our turn, no dice

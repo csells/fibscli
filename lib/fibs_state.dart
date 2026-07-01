@@ -344,6 +344,12 @@ class FibsState extends ChangeNotifier {
   // an infinite login<->lobby flash. An explicit logout re-arms it.
   bool _autoLoginTried = false;
   bool get autoLoginTried => _autoLoginTried;
+
+  // True while WE are deliberately closing the connection (logout), so the
+  // resulting onDone/onError is silent. An unexpected drop (server kick, network
+  // loss) surfaces a "connection lost" notice instead of silently dumping the
+  // user back on the login screen.
+  bool _expectClose = false;
   void markAutoLoginTried() => _autoLoginTried = true;
 
   Future<void> login({required String user, required String pass}) async {
@@ -353,12 +359,13 @@ class FibsState extends ChangeNotifier {
     // login -- this is what makes retry-after-failed-login and login-after-
     // logout work. Drop any stale subscription first.
     await _sub?.cancel();
+    _expectClose = false; // a fresh connection: a drop from here is unexpected
     final conn = _makeTransport();
     _conn = conn;
     _sub = conn.stream.listen(
       _streamItem,
       onError: _onStreamError,
-      onDone: _reset,
+      onDone: _onStreamDone,
     );
     final cookie = await conn
         .login(user, pass)
@@ -406,6 +413,7 @@ class FibsState extends ChangeNotifier {
     // Guard the hook: a secure-storage failure (locked keychain, missing
     // libsecret, web-crypto hiccup) must NOT abort teardown and orphan the
     // socket -- tearing the connection down is the more important half.
+    _expectClose = true; // a deliberate close: the ensuing onDone stays silent
     try {
       await onLogout?.call();
     } on Object catch (ex, st) {
@@ -419,12 +427,28 @@ class FibsState extends ChangeNotifier {
     _reset();
   }
 
-  // A mid-session transport failure: surface it to the log and reset the
-  // session rather than letting it escape as an unhandled async error.
+  // The connection closed. If WE didn't ask for it (server kick, network loss),
+  // tell the user rather than silently dumping them on the login screen.
+  void _onStreamDone() {
+    final unexpected = !_expectClose;
+    _reset();
+    if (unexpected) _surfaceConnectionLost('Connection to FIBS lost.');
+  }
+
+  // A mid-session transport failure: log it, reset, and (if unexpected) surface
+  // it rather than letting it escape as an unhandled async error.
   void _onStreamError(Object error, StackTrace stackTrace) {
     _log.warning('FIBS stream error', error, stackTrace);
+    final unexpected = !_expectClose;
     _reset();
+    if (unexpected) _surfaceConnectionLost('FIBS connection error.');
   }
+
+  // Post a notice AFTER _reset (which clears messages) so the user sees why the
+  // session ended. Shown by FibsPage's message SnackBar over the login screen.
+  void _surfaceConnectionLost(String text) => messages.add(
+    FibsMessage(FibsCookie.FIBS_Unknown, 'FIBS', '$text Please log in again.'),
+  );
 
   void _reset() {
     lobby.clear();
