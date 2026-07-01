@@ -83,12 +83,12 @@ class _GamePlayPageState extends State<GamePlayPage> {
                 IconButton(
                   tooltip: 'auto bear off',
                   icon: const Icon(Icons.fast_forward),
-                  onPressed: _tapAutoBearOff,
+                  onPressed: controller.autoBearOff,
                 ),
               IconButton(
                 tooltip: 'win chances & cube advice',
                 icon: const Icon(Icons.insights),
-                onPressed: _tapOdds,
+                onPressed: controller.showOdds,
               ),
               IconButton(
                 tooltip: 'provide feedback',
@@ -108,13 +108,13 @@ class _GamePlayPageState extends State<GamePlayPage> {
               IconButton(
                 tooltip: 'new game',
                 icon: const Icon(Icons.fiber_new),
-                onPressed: controller.busy ? null : _tapNewGame,
+                onPressed: controller.busy ? null : controller.newGame,
               ),
             ],
           ),
           floatingActionButton: FloatingActionButton(
             tooltip: 'undo turn',
-            onPressed: controller.canUndo ? _tapUndo : null,
+            onPressed: controller.canUndo ? controller.undo : null,
             child: const Icon(Icons.undo),
           ),
           // hold first paint until prefs resolve (the controller reads
@@ -134,11 +134,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
         ),
       );
 
-  void _tapNewGame() => _controller.newGame();
   void _tapReverse() => _controller.reversed = !_controller.reversed;
-  void _tapUndo() => _controller.undo();
-  void _tapAutoBearOff() => _controller.autoBearOff();
-  void _tapOdds() => _controller.showOdds();
   void _tapFeedback() => unawaited(
     ul.launchUrl(Uri.parse('https://github.com/csells/fibscli/issues')),
   );
