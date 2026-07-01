@@ -37,10 +37,15 @@ class _LoginViewState extends State<_LoginView> {
     super.initState();
     // creds are loaded before any UI (see bootstrap), so they're available
     // synchronously here -- connect on our own when we have usable ones. The
-    // callback re-checks loggedIn/busy against the (now-bound) _fibs.
+    // callback re-checks loggedIn/busy against the (now-bound) _fibs, and the
+    // one-shot autoLoginTried guard stops a dropped connection from looping the
+    // login<->lobby flash (see FibsState.autoLoginTried).
     if (widget.creds.canAutologin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_fibs.loggedIn && !_busy) unawaited(_login());
+        if (mounted && !_fibs.loggedIn && !_busy && !_fibs.autoLoginTried) {
+          _fibs.markAutoLoginTried();
+          unawaited(_login());
+        }
       });
     }
   }

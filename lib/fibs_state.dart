@@ -322,6 +322,15 @@ class FibsState extends ChangeNotifier {
 
   bool get loggedIn => _conn?.connected ?? false;
 
+  // One-shot autologin guard: the login view attempts a remembered-credentials
+  // autologin at most once per session. Without this, a connection that drops
+  // right after login (e.g. FIBS kicking a duplicate login) recreates the login
+  // view, which re-fires autologin, which reconnects and gets dropped again --
+  // an infinite login<->lobby flash. An explicit logout re-arms it.
+  bool _autoLoginTried = false;
+  bool get autoLoginTried => _autoLoginTried;
+  void markAutoLoginTried() => _autoLoginTried = true;
+
   Future<void> login({required String user, required String pass}) async {
     assert(!loggedIn);
 
@@ -391,6 +400,7 @@ class FibsState extends ChangeNotifier {
     _sub = null;
     await conn
         ?.close(); // actually tear the connection down (no lingering socket)
+    _autoLoginTried = false; // a deliberate logout re-arms autologin
     _reset();
   }
 

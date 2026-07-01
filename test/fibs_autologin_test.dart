@@ -50,6 +50,42 @@ void main() {
     expect(fake.sent, contains('who')); // login sends `who`
   });
 
+  testWidgets('does NOT re-fire autologin once it has been tried', (
+    tester,
+  ) async {
+    // One-shot guard: a connection that drops after login must not loop the
+    // login<->lobby flash. With autoLoginTried already set (as it would be
+    // after the first attempt), a re-shown login view does NOT autologin.
+    final (creds, _) = await _installCreds(
+      user: 'joe',
+      password: 'hunter2',
+      remember: true,
+    );
+    final fake = FakeTransport();
+    final fibs = FibsState.withTransport(fake)..markAutoLoginTried();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: creds),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(fibs.loggedIn, isFalse); // did not auto-connect
+    expect(fake.sent, isEmpty); // nothing sent
+    expect(find.text('Connect'), findsOneWidget); // the login screen is shown
+  });
+
+  test('an explicit logout re-arms autologin', () async {
+    final fake = FakeTransport();
+    final fibs = FibsState.withTransport(fake)..markAutoLoginTried();
+    expect(fibs.autoLoginTried, isTrue);
+
+    await fibs.login(user: 'joe', pass: 'x');
+    await fibs.logout();
+    expect(fibs.autoLoginTried, isFalse); // logout re-arms it
+  });
+
   testWidgets('does NOT auto-connect without remembered creds', (tester) async {
     final (creds, _) = await _installCreds(user: 'joe'); // username only
     final fake = FakeTransport();
