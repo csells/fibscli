@@ -335,15 +335,19 @@ class PieceLayout {
 
     pipNosToHighlight ??= [];
 
+    // typed view over the raw board so this reads in domain terms (checkersAt/
+    // countAt/isVacantAt) instead of bare indices -- zero-cost (see GammonBoard)
+    final b = GammonBoard(board);
+
     // draw the pieces on the board
     for (var j = 0; j != 4; j++) {
       for (var i = 0; i != 6; ++i) {
         final pipNo = j * 6 + i + 1;
         final highlightedPiecePip = pipNosToHighlight.contains(pipNo);
-        final pip = board[pipNo];
-        if (pip.isEmpty) continue;
+        if (b.isVacantAt(pipNo)) continue;
+        final pip = b.checkersAt(pipNo);
         assert(pip.every((p) => _isPlayerOne(p) == _isPlayerOne(pip[0])));
-        final pieceCount = pip.length;
+        final pieceCount = b.countAt(pipNo);
 
         for (var h = 0; h != pieceCount; ++h) {
           // if there's more than 5, the last one gets a label w/ the total number of pieces in the stack
@@ -373,7 +377,8 @@ class PieceLayout {
     for (final player in GammonPlayer.values) {
       final barPipNo = GammonRules.barPipNoFor(player);
       final highlightedPiecePip = pipNosToHighlight.contains(barPipNo);
-      final pieces = board[barPipNo]
+      final pieces = b
+          .checkersAt(barPipNo)
           .where((p) => GammonRules.playerFor(p) == player)
           .toList();
       final pieceCount = pieces.length;
@@ -399,7 +404,8 @@ class PieceLayout {
     // draw the pieces born off
     for (final player in GammonPlayer.values) {
       final offPipNo = GammonRules.offPipNoFor(player);
-      final pieces = board[offPipNo]
+      final pieces = b
+          .checkersAt(offPipNo)
           .where((p) => GammonRules.playerFor(p) == player)
           .toList();
       final pieceCount = pieces.length;

@@ -104,7 +104,11 @@ class GammonState extends ChangeNotifier {
     _turnPlayer = turnPlayer;
   }
 
-  List<List<int>> get board => List.unmodifiable(_board);
+  // A typed view over the board -- callers get domain accessors (ownerAt,
+  // countAt, ...) while it stays a drop-in List<List<int>> (GammonBoard is a
+  // zero-cost extension type). Still unmodifiable: mutation goes through the
+  // rules engine, never the public board.
+  GammonBoard get board => GammonBoard(List.unmodifiable(_board));
   List<DieState> get dice => List.unmodifiable(_dice);
   GammonPlayer? get turnPlayer => _turnPlayer;
   bool get gameOver => _gameOver;
