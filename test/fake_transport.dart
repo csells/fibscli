@@ -39,3 +39,35 @@ class FakeTransport implements FibsTransport {
   // simulate a mid-session transport failure on the cookie stream
   void feedError(Object error, [StackTrace? st]) => _ctrl.addError(error, st);
 }
+
+// A transport with PRODUCTION-like semantics: a SINGLE-subscription stream and
+// a close() that actually closes it -- the traits the broadcast/no-op
+// [FakeTransport] hides. A closed instance can't be re-listened, so this must
+// be built fresh per login (via FibsState.withTransportFactory) to exercise
+// reconnect / re-login. [loginResult] is what login() resolves with.
+class StrictFakeTransport implements FibsTransport {
+  StrictFakeTransport(this.loginResult);
+  final FibsCookie loginResult;
+
+  final _ctrl = StreamController<CookieMessage>(); // single-subscription
+  var _connected = false;
+
+  @override
+  Future<FibsCookie> login(String user, String pass) async {
+    _connected = true;
+    return loginResult;
+  }
+
+  @override
+  void send(String s) {}
+  @override
+  Stream<CookieMessage> get stream => _ctrl.stream;
+  @override
+  Future<void> close() async {
+    _connected = false;
+    await _ctrl.close(); // real close, like FibsConnection
+  }
+
+  @override
+  bool get connected => _connected;
+}

@@ -51,16 +51,27 @@ class FibsState extends ChangeNotifier {
   // The proxy host/port the websocat bridge listens on (see README). Defaults
   // to the local bridge; overridable so tooling can target 127.0.0.1 directly.
   FibsState({String proxy = 'localhost', int port = 8080})
-    : _conn = FibsConnectionTransport(FibsConnection(proxy, port));
+    : _makeTransport = (() =>
+          FibsConnectionTransport(FibsConnection(proxy, port)));
 
   // Inject a transport (e.g. a fake) to drive the state without a live server.
-  FibsState.withTransport(this._conn);
+  FibsState.withTransport(FibsTransport transport)
+    : _makeTransport = (() => transport);
+
+  // Inject a transport FACTORY -- a fresh transport per login() -- so tests can
+  // exercise reconnect / re-login with production-like (single-subscription,
+  // real-close) transport semantics, which a single reused fake would hide.
+  FibsState.withTransportFactory(this._makeTransport);
 
   // the FIBS lobby roster (who-list + bot-only invite/watch queries)
   final lobby = FibsLobby();
   NotifierList<WhoInfo> get whoInfos => lobby.entries;
   final messages = NotifierList<FibsMessage>();
-  final FibsTransport _conn;
+  // A connection isn't reusable once closed (its stream controller is closed
+  // for good), so we build a FRESH transport per login instead of reusing one
+  // for the app's lifetime. Null before the first login / after teardown.
+  final FibsTransport Function() _makeTransport;
+  FibsTransport? _conn;
   StreamSubscription<CookieMessage>? _sub;
 
   // the immutable game/turn state machine: inbound cookies and our own actions
@@ -86,7 +97,7 @@ class FibsState extends ChangeNotifier {
   bool get mustJoin => _session.mustJoin;
 
   String? get user => _session.user;
-  bool get connected => _conn.connected;
+  bool get connected => _conn?.connected ?? false;
 
   // --- play state (only meaningful when we are a player, not just watching) --
 
@@ -174,18 +185,18 @@ class FibsState extends ChangeNotifier {
   // 3-point match so the doubling cube matters but games finish quickly.
   void invite(WhoInfo bot, {int matchLength = 3}) {
     assert(isBot(bot), 'bots only');
-    _conn.send('invite ${bot.user} $matchLength');
+    _conn?.send('invite ${bot.user} $matchLength');
   }
 
   // resume an unfinished match with [opponent]: inviting a player we have a
   // saved match with makes FIBS reload it instead of starting a new game. Good
   // citizenship (and connection-drop recovery) -- always finish saved matches.
-  void resumeSavedMatch(String opponent) => _conn.send('invite $opponent');
+  void resumeSavedMatch(String opponent) => _conn?.send('invite $opponent');
 
   // continue a resumed/next game when FIBS asks us to type 'join' (also accepts
   // an opponent's resume request tracked in [resumeRequestFrom])
   void joinGame() {
-    _conn.send('join');
+    _conn?.send('join');
     _session = _session.joined();
   }
 
@@ -199,7 +210,7 @@ class FibsState extends ChangeNotifier {
       );
     }
     _session = _session.startedRolling(); // canRoll false until our dice arrive
-    _conn.send('roll');
+    _conn?.send('roll');
   }
 
   // Submit a WHOLE turn the player built locally on the shared board (the same
@@ -216,7 +227,7 @@ class FibsState extends ChangeNotifier {
     }
     _session = _session.committed(); // canMoveNow off until the next board
     // an empty turn is a dance: FIBS auto-passes, so there's nothing to send.
-    if (moves.isNotEmpty) _conn.send(fibsTurnCommand(moves));
+    if (moves.isNotEmpty) _conn?.send(fibsTurnCommand(moves));
   }
 
   // Send a pre-built whole-turn `move ...` [command] and mark the turn
@@ -232,7 +243,7 @@ class FibsState extends ChangeNotifier {
       );
     }
     _session = _session.committed(); // canMoveNow false until the next board
-    _conn.send(command);
+    _conn?.send(command);
   }
 
   void offerDouble() {
@@ -244,14 +255,14 @@ class FibsState extends ChangeNotifier {
     }
     _session = _session
         .committed(); // we've acted this turn; await the response
-    _conn.send('double');
+    _conn?.send('double');
   }
 
   void acceptDouble() {
     if (!doubleOffered) {
       throw FibsStateError('acceptDouble: no double has been offered');
     }
-    _conn.send('accept');
+    _conn?.send('accept');
     _session = _session.doubleResolved();
   }
 
@@ -259,14 +270,14 @@ class FibsState extends ChangeNotifier {
     if (!doubleOffered) {
       throw FibsStateError('rejectDouble: no double has been offered');
     }
-    _conn.send('reject');
+    _conn?.send('reject');
     _session = _session.doubleResolved();
   }
 
-  void resign() => _conn.send('resign n'); // resign a normal loss
+  void resign() => _conn?.send('resign n'); // resign a normal loss
 
   void leaveGame() {
-    _conn.send('leave');
+    _conn?.send('leave');
     _session = _session.outOfGame();
     notifyListeners();
   }
@@ -278,34 +289,42 @@ class FibsState extends ChangeNotifier {
   void watch(WhoInfo who) {
     assert(isBot(who), 'bots only');
     _session = _session.outOfGame();
-    _conn.send('watch ${who.user}');
+    _conn?.send('watch ${who.user}');
     notifyListeners();
   }
 
   void stopWatching() {
-    _conn.send('unwatch');
+    _conn?.send('unwatch');
     _session = _session.outOfGame();
     notifyListeners();
   }
 
-  bool get loggedIn => _conn.connected;
+  bool get loggedIn => _conn?.connected ?? false;
 
   Future<void> login({required String user, required String pass}) async {
     assert(!loggedIn);
 
-    _sub = _conn.stream.listen(
+    // A connection can't be reused once closed, so build a FRESH transport per
+    // login -- this is what makes retry-after-failed-login and login-after-
+    // logout work. Drop any stale subscription first.
+    await _sub?.cancel();
+    final conn = _makeTransport();
+    _conn = conn;
+    _sub = conn.stream.listen(
       _streamItem,
       onError: _onStreamError,
       onDone: _reset,
     );
-    final cookie = await _conn
+    final cookie = await conn
         .login(user, pass)
         .timeout(
           const Duration(seconds: 3),
           onTimeout: () => FibsCookie.FIBS_Timeout,
         );
     if (cookie != FibsCookie.CLIP_WELCOME) {
-      await _conn.close();
+      await _sub?.cancel(); // don't leave the failed session's listener live
+      _sub = null;
+      await conn.close();
       throw Exception(
         cookie == FibsCookie.FIBS_Timeout
             ? 'unable to connect; check your internet connection'
@@ -316,32 +335,41 @@ class FibsState extends ChangeNotifier {
     _session = _session.loggedInAs(user);
     // raw board frames are required for parsing; moreboards is toggled on from
     // CLIP_OWN_INFO below so FIBS sends a board after every roll/move
-    _conn.send('set boardstyle 3');
+    _conn?.send('set boardstyle 3');
     // Explicitly request the who-list. FIBS pushes it automatically on a fresh
     // login, but not reliably on a quick reconnect -- asking for it makes the
     // bot list populate every time instead of sometimes hanging on "waiting for
     // the who-list".
-    _conn.send('who');
+    _conn?.send('who');
     // Ask FIBS for our unfinished saved matches. FIBS does NOT volunteer the
     // listing on login -- you have to request it -- and its lines (handled as
     // FIBS_SavedMatch) populate savedMatches so the lobby can offer "Resume a
     // saved match". (FIBS never re-invites you itself; resuming re-invites the
     // opponent, which makes FIBS reload the saved game.)
-    _conn.send('show savedgames');
+    _conn?.send('show savedgames');
     notifyListeners();
   }
 
   Future<void> logout() async {
-    if (loggedIn) _conn.send('bye');
+    final conn = _conn;
+    if (loggedIn) conn?.send('bye');
     // an explicit logout means "don't auto-reconnect": let the app forget the
     // remembered password so the next launch shows the login screen instead of
     // signing back in. (Closing the tab is a different thing -- it keeps
     // remember -- so this hook fires only here, never on tab-close/drop.)
-    await onLogout?.call();
+    //
+    // Guard the hook: a secure-storage failure (locked keychain, missing
+    // libsecret, web-crypto hiccup) must NOT abort teardown and orphan the
+    // socket -- tearing the connection down is the more important half.
+    try {
+      await onLogout?.call();
+    } on Object catch (ex, st) {
+      _log.warning('logout hook failed; tearing down anyway', ex, st);
+    }
     await _sub?.cancel();
     _sub = null;
-    await _conn
-        .close(); // actually tear the connection down (no lingering socket)
+    await conn
+        ?.close(); // actually tear the connection down (no lingering socket)
     _reset();
   }
 
@@ -359,5 +387,5 @@ class FibsState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void send(String cmd) => _conn.send(cmd);
+  void send(String cmd) => _conn?.send(cmd);
 }

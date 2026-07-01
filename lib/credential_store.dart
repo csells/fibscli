@@ -1,5 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+final _log = Logger('credential_store');
 
 // A tiny key/value secret store — the seam over flutter_secure_storage so the
 // credential store can be unit-tested with an in-memory fake (and the
@@ -94,7 +97,20 @@ class SecureCredentialStore {
   Future<void> forget() async {
     _password = null;
     _remember = false;
+    // Flip the pref FIRST: next launch gates auto-login on remember, so this
+    // alone guarantees the login screen even if the secret delete below fails.
     await _prefs.setBool(_rememberKey, false);
-    await _secret.delete(_passKey);
+    // Best-effort delete: a failure leaves a harmless orphaned secret (never
+    // read once remember=false), so log and continue rather than throwing (a
+    // throw here must not abort the logout teardown that awaits us).
+    try {
+      await _secret.delete(_passKey);
+    } on Object catch (ex, st) {
+      _log.warning(
+        'secret delete failed on forget (orphaned, harmless)',
+        ex,
+        st,
+      );
+    }
   }
 }
