@@ -108,7 +108,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
               IconButton(
                 tooltip: 'new game',
                 icon: const Icon(Icons.fiber_new),
-                onPressed: _tapNewGame,
+                onPressed: controller.busy ? null : _tapNewGame,
               ),
             ],
           ),
@@ -186,9 +186,22 @@ class GameViewController extends ChangeNotifier {
     }
   }
 
-  // undo is available while a game is in progress (nothing to undo once over)
-  bool get canUndo => _game != null && !_game!.gameOver;
-  bool get canAutoBearOff => _game?.canAutoBearOff ?? false;
+  // True while the computer is playing its turn (the view drives this). The
+  // board is already locked by IgnorePointer; the app-bar/FAB actions must lock
+  // too, or the human could undo/new-game/auto-bear-off mid-AI-turn and mutate
+  // the board out from under the AI's already-computed move plan.
+  bool _busy = false;
+  bool get busy => _busy;
+  set busy(bool busy) {
+    if (_busy == busy) return;
+    _busy = busy;
+    notifyListeners();
+  }
+
+  // undo is available while a game is in progress (nothing to undo once over),
+  // and never while the AI is mid-turn.
+  bool get canUndo => !_busy && _game != null && !_game!.gameOver;
+  bool get canAutoBearOff => !_busy && (_game?.canAutoBearOff ?? false);
 
   bool get reversed => _reversed;
   set reversed(bool reversed) {
@@ -256,13 +269,18 @@ class _GameViewState extends State<GameView> {
   void initState() {
     super.initState();
 
+    // Every mutating command no-ops while the AI is mid-turn -- the buttons are
+    // also disabled via controller.busy, but guard here too so nothing can
+    // mutate/replace the board out from under the running AI move plan.
     widget.controller.onUndo = () {
+      if (_aiBusy) return;
       assert(!_game!.gameOver);
       _game!.undoTurn();
       _reset();
     };
 
     widget.controller.onNewGame = () async {
+      if (_aiBusy) return;
       final ok = _game!.gameOver
           ? true
           : await QuitGameDialog.show(context); // result can return null
@@ -270,6 +288,7 @@ class _GameViewState extends State<GameView> {
     };
 
     widget.controller.onAutoBearOff = () {
+      if (_aiBusy) return;
       assert(_game!.canAutoBearOff);
       _game!.autoBearOff();
       _reset();
@@ -307,6 +326,7 @@ class _GameViewState extends State<GameView> {
     if (_game == null || _game!.gameOver) return;
     if (_game!.turnPlayer != widget.aiSide) return;
     _aiBusy = true;
+    widget.controller.busy = true; // lock the app-bar/FAB with the board
     try {
       await _pace(widget.aiThinkDelay);
       if (!mounted || _game == null || _game!.gameOver) return;
@@ -328,6 +348,7 @@ class _GameViewState extends State<GameView> {
       _reportEngineUnavailable(e.message);
     } finally {
       _aiBusy = false;
+      widget.controller.busy = false;
     }
   }
 
