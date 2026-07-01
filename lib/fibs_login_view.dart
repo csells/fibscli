@@ -5,7 +5,7 @@ part of 'fibs_page.dart';
 class _LoginView extends StatefulWidget {
   const _LoginView({required this.creds});
 
-  // The remembered-credentials store, injected (not the App.creds global).
+  // The remembered-credentials store, injected by FibsPage.
   final SecureCredentialStore creds;
 
   @override
@@ -21,9 +21,9 @@ class _LoginViewState extends State<_LoginView> {
   var _busy = false;
   var _obscure = true;
   String? _error;
-  // The active FibsState, injected from FibsScope (not the App.fibs global).
-  // Bound in didChangeDependencies (InheritedWidget lookups aren't allowed in
-  // initState), which runs before the post-frame autologin callback fires.
+  // The active FibsState, read from FibsScope. Bound in didChangeDependencies
+  // (InheritedWidget lookups aren't allowed in initState), which runs before
+  // the post-frame autologin callback fires.
   late FibsState _fibs;
 
   @override

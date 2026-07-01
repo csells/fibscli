@@ -3,10 +3,8 @@ import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  // Regression: the CLIP who-info regex names its host group `hostName`, but
-  // WhoInfo.from read `crumbs['hostname']` (lowercase) -> every entry's host
-  // was silently the empty string. Parse a real who-info line end-to-end so
-  // the test pins the exact crumb key the parser emits.
+  // Parse a real who-info line end-to-end so the test pins the exact crumb key
+  // the parser emits (the CLIP who-info regex names its host group `hostName`).
   test('WhoInfo.from populates hostname from a parsed who-info line', () {
     final monster = CookieMonster()
       ..messageState = CookieMonsterState.FIBS_RUN_STATE;

@@ -23,10 +23,10 @@ class _PendingCubeAi extends BgAiPlayer {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  // Regression: _tapCube offered a double to the AI, awaited its response, then
-  // called _game.acceptDouble()/_reset() (setState) WITHOUT re-checking mounted.
-  // Popping the page during the (HTTP-slow, for gnubg) response resumed on a
-  // disposed State -> "setState() called after dispose()".
+  // The cube tap offers a double to the AI and awaits its response; if the page
+  // is popped during that await (the gnubg response can be HTTP-slow), _tapCube
+  // must re-check mounted before touching _game/_reset -- no setState on a
+  // disposed State.
   testWidgets('cube tap does not setState after the page is popped mid-await', (
     tester,
   ) async {

@@ -33,8 +33,8 @@ Future<void> main() async {
 }
 
 /// The app-level dependencies [bootstrap] builds and [main] threads into [App].
-/// Owning these as constructor-injected instances (rather than App statics)
-/// keeps the UI decoupled from a global and lets tests supply their own.
+/// Constructor-injected so the UI stays decoupled from global state and tests
+/// can supply their own (see `specs/architecture/decisions.md`).
 class AppDeps {
   AppDeps({required this.fibs, required this.creds});
   final FibsState fibs;
@@ -73,15 +73,14 @@ Future<AppDeps> bootstrap({
 class App extends StatefulWidget {
   const App({required this.fibs, required this.creds, super.key});
 
-  // Constructor-injected (not App statics): the live FIBS connection and the
-  // remembered-credentials store, threaded down to the views.
+  // The live FIBS connection and the remembered-credentials store, threaded
+  // down to the views.
   final FibsState fibs;
   final SecureCredentialStore creds;
 
   static const title = 'Backgammon';
-  // Lets the app show error SnackBars from the global error handlers (which
-  // have no BuildContext) -- see _AppState._showError. A stable GlobalKey, not
-  // mutable app state.
+  // Lets the app show error SnackBars from the global error handlers, which
+  // have no BuildContext of their own -- see _AppState._showError.
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override

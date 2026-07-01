@@ -12,9 +12,9 @@ FibsBoard parseBoard(String raw) {
 }
 
 // Every individual legal move for the on-roll player as a FIBS `move` command.
-// Production only ever submits whole turns, so this enumeration (formerly
-// FibsPlay.legalMoveCommands) now lives here purely to keep the coverage that a
-// real captured position generates the bot's real move via the shared frame.
+// Production only ever submits whole turns; this enumeration lives here to keep
+// the coverage that a real captured position generates the bot's real move via
+// the shared frame.
 List<String> _legalMoveCommands(FibsBoard fb, List<int> dice) {
   final byPip = GammonRules.getForcedLegalMoves(
     fb.position.toBoard(),
@@ -41,11 +41,10 @@ void main() {
     });
 
     test('rendered position honors mirroring (agrees with move-gen frame)', () {
-      // Regression: FibsBoard.position mapped FIBS cells by identity and
-      // ignored isMirrored, so a WATCHED mirrored game rendered reflected --
-      // disagreeing with the move-gen path (which normalizes via mirror). Both
-      // must share ONE engine frame. Oracle: the mirrored mapping the move-gen
-      // path is proven correct in (reproduces the bot's real 13-9 9-7 below).
+      // FibsBoard.position honors isMirrored, so a WATCHED mirrored game maps
+      // onto the SAME engine frame the move-gen path normalizes to (rather than
+      // rendering reflected). Oracle: the mirrored mapping reproduces the bot's
+      // real 13-9 9-7 play below.
       final fb = parseBoard(beforeBlunderMove);
       int mirror(int p) => fb.isMirrored ? 25 - p : p;
       final oracle = Position(

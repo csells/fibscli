@@ -9,9 +9,8 @@ import 'fake_secret_store.dart';
 import 'fake_transport.dart';
 
 void main() {
-  // Fix 3: App.creds/App.fibs are retired -- both are constructor-injected.
-  // The login view is driven by the creds it was GIVEN, not a global: a store
-  // with a remembered username prefills the FIBS-user field with it.
+  // The login view is driven by the creds it was given (constructor-injected):
+  // a store with a remembered username prefills the FIBS-user field with it.
   testWidgets('the login view prefills from the injected creds', (
     tester,
   ) async {

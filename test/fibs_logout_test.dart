@@ -48,10 +48,9 @@ void main() {
     },
   );
 
-  // Regression: logout awaited the onLogout hook (App.creds.forget ->
-  // secure-storage delete) BEFORE tearing the connection down. A storage
-  // failure escaped logout() and skipped cancel/close/reset -- orphaning the
-  // FIBS socket and leaving the session reporting live.
+  // logout tears the connection down even if the onLogout hook (a
+  // secure-storage delete) throws -- a hook failure must not skip
+  // cancel/close/reset and orphan the FIBS socket.
   test('logout tears down even if the onLogout hook throws', () async {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake);
@@ -65,11 +64,11 @@ void main() {
     expect(fake.connected, isFalse);
   });
 
-  // Regression: a FibsConnection can't be reused once closed (single-sub stream
-  // + real close), but FibsState reused one for the app's lifetime, so retry-
-  // after-failed-login (and login-after-logout) threw "Stream has already been
-  // listened to". A fresh transport per login fixes it. The broadcast/no-op
-  // FakeTransport hid this; StrictFakeTransport reproduces the real semantics.
+  // A FibsConnection can't be reused once closed (single-sub stream + real
+  // close), so FibsState creates a fresh transport per login -- retry-after-
+  // failed-login and login-after-logout both work. StrictFakeTransport
+  // reproduces the real single-subscription semantics (a broadcast/no-op
+  // FakeTransport wouldn't exercise them).
   test(
     're-login works after a failed login (production-like transport)',
     () async {

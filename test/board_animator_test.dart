@@ -54,10 +54,9 @@ void main() {
     expect(animator.layouts, isEmpty);
   });
 
-  // Regression: play() asserted _layouts.isEmpty, so a second move started
-  // before the first settled (a fast double-tap, or an AI move on the tail of
-  // the human's animation) threw / clobbered the in-flight tweens. play() now
-  // serializes: the second waits for the first to finish.
+  // play() serializes: a second move that starts before the first settles (a
+  // fast double-tap, or an AI move on the tail of the human's animation) waits
+  // for the first to finish rather than clobbering the in-flight tweens.
   test('a second play() while animating serializes, not asserts', () async {
     final animator = BoardAnimator();
     final order = <String>[];

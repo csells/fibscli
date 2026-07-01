@@ -2,10 +2,9 @@ import 'package:bg_engine/bg_engine.dart';
 import 'package:test/test.dart';
 
 void main() {
-  // #4: the board is now a typed domain structure (GammonBoard) rather than a
-  // bare List<List<int>> every caller re-derives ownership/counts from. Pin the
-  // typed accessors AND that it's still a drop-in list (zero-cost extension
-  // type), so consumers can migrate gradually.
+  // The board is a typed domain structure (GammonBoard) over the raw list. Pin
+  // its typed accessors AND that it's still a drop-in List<List<int>> (a
+  // zero-cost extension type), so callers can use either surface.
   test('GammonBoard exposes typed accessors and stays a drop-in list', () {
     final raw = List.generate(26, (_) => <int>[]);
     raw[6] = [-1, -2, -3]; // three player-one checkers (negative ids)

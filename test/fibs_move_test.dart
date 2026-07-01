@@ -2,9 +2,8 @@ import 'package:fibscli/fibs_move.dart';
 import 'package:fibscli/model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// A one-move turn renders exactly like the (deleted) single-move commands did,
-// since both go through the same _hopPairs; these single-move cases preserve
-// the bar/off/overshoot coverage that used to live in fibsMoveCommand tests.
+// A one-move turn goes through the same _hopPairs path as a multi-move turn;
+// these single-move cases cover the bar/off/overshoot rendering.
 String _one(GammonMove move) => fibsTurnCommand([move]);
 
 void main() {

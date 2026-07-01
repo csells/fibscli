@@ -9,8 +9,8 @@ import 'pieces.dart';
 /// local game and the FIBS play view) drive the SAME animator -- they differ
 /// only in how they *build* a [MoveAnimation] (the local game tweens through
 /// each hop with hit-delays via [MoveAnimation.forMove]; FIBS diffs whole
-/// boards via [MoveAnimation.between]). This is the stateful coordination both
-/// used to hand-roll and drift on; it now lives in one tested place.
+/// boards via [MoveAnimation.between]). Centralizing the in-flight tween
+/// lifecycle here keeps it in one tested place.
 class BoardAnimator extends ChangeNotifier {
   final _layouts = <int?, List<PieceLayout>>{};
   final _delays = <int?, Duration>{};

@@ -12,7 +12,7 @@ class _PlayView extends StatefulWidget {
 }
 
 class _PlayViewState extends State<_PlayView> {
-  // Injected from FibsScope in didChangeDependencies, not the App.fibs global.
+  // Read from FibsScope in didChangeDependencies.
   late FibsState _fibs;
   FibsPlayController? _controller;
   // Board orientation. FIBS already hands us the board from our own perspective

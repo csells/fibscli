@@ -243,8 +243,8 @@ class GammonRules {
       pieceID < 0 ? GammonPlayer.one : GammonPlayer.two;
 
   /// The number of [player]'s checkers on [board] at [pip]. The one place the
-  /// "count a player's checkers on a point" idiom lives (callers used to
-  /// re-derive it via `.where(playerFor == player).length` all over).
+  /// "count a player's checkers on a point" idiom lives, so callers don't
+  /// re-derive it via `.where(playerFor == player).length`.
   static int countAt(List<List<int>> board, int pip, GammonPlayer player) {
     var n = 0;
     for (final id in board[pip]) {

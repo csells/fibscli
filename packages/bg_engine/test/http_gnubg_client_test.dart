@@ -75,9 +75,9 @@ void main() {
       dice: const [3, 1],
     );
 
-    // Regression: a hung service left the request awaiting forever (freezing
-    // the AI turn); the retry loop only catches thrown Exceptions, and a hang
-    // throws nothing. A bounded timeout makes it a catchable TimeoutException.
+    // A hung service must not leave the request awaiting forever (freezing the
+    // AI turn). The retry loop only catches thrown Exceptions and a hang throws
+    // nothing, so a bounded timeout turns it into a catchable TimeoutException.
     test('a hung service times out instead of hanging forever', () async {
       final mock = MockClient(
         (_) => Completer<Response>().future,
@@ -93,15 +93,15 @@ void main() {
       );
     });
 
-    // Regression: a valid-HTTP-but-wrong-shape body threw a raw TypeError (an
-    // Error), which escaped the adapter's `on Exception catch` retry/unavailable
-    // path. It must surface as a catchable Exception.
+    // A valid-HTTP-but-wrong-shape body must surface as a catchable Exception,
+    // not a raw TypeError (an Error) that would escape the adapter's
+    // `on Exception catch` retry/unavailable path.
     test('a malformed 200 body throws an Exception, not a raw Error', () async {
       final mock = MockClient(
         (_) async => Response(
           jsonEncode({
             'moves': [
-              {'equity': 0.1}, // 'play' missing -> old code: TypeError
+              {'equity': 0.1}, // 'play' missing
             ],
           }),
           200,

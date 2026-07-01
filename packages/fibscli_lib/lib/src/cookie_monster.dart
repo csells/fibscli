@@ -49,7 +49,7 @@ part 'fibs_cookie.dart';
 
 /// Thrown when a REQUIRED crumb is absent -- a clear, boundary-local error that
 /// names the cookie and the key, instead of a null-check crash far from the
-/// parse or a silently-empty value (the class of the hostName bug).
+/// parse or a silently-empty value at a distant use site.
 class MissingCrumbError implements Exception {
   MissingCrumbError(this.cookie, this.key);
   final FibsCookie cookie;

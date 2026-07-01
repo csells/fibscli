@@ -47,9 +47,7 @@ class DieView extends StatelessWidget {
             colors: _gradeColors,
           ),
         ),
-        // spots sit directly on the die face; previously a solid-colored
-        // inner circle nearly filled the die and read as a "bulge",
-        // especially on the white die against its grey gradient (issue #17)
+        // spots sit directly on the die face (no inner circle behind them)
         child: Stack(
           children: [
             for (final rect in layout.getSpotRects())

@@ -3,9 +3,8 @@ import 'package:fibscli/model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  // Regression: recommendedCubeAction dereferenced _turnPlayer! and threw when
-  // nobody was on roll (e.g. a state built with turnPlayer: null), unlike its
-  // sibling winProbabilityFor which guards. It now returns noDouble.
+  // recommendedCubeAction returns noDouble when nobody is on roll (e.g. a state
+  // built with turnPlayer: null), matching winProbabilityFor's guard.
   test('recommendedCubeAction is noDouble when nobody is on roll', () {
     final game = GammonState.from(
       board: GammonRules.initialBoard(),

@@ -15,7 +15,7 @@ import 'model.dart';
 //
 // Lobby roster and chat are deliberately NOT part of the session -- those are
 // growing collections with their own notifier semantics; this type models the
-// single board/turn state machine that used to be a tangle of mutable flags.
+// single board/turn state as one immutable snapshot.
 @immutable
 class FibsSession {
   const FibsSession({

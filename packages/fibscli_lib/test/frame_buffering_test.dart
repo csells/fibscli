@@ -5,11 +5,11 @@ int whoCount(List<CookieMessage> cms) =>
     cms.where((cm) => cm.cookie == FibsCookie.CLIP_WHO_INFO).length;
 
 void main() {
-  // Regression: _receive decided whether to buffer the incomplete trailing line
-  // from the state at the START of the frame. A single frame can cross the
-  // MOTD_END -> RUN transition, after which an incomplete who-list line must be
-  // held for the next frame -- but buffering was still off, so the partial line
-  // was mis-parsed and its continuation (arriving prefix-less next frame) lost.
+  // A single frame can cross the MOTD_END -> RUN transition; after it, an
+  // incomplete who-list line must be held for the next frame. _receive decides
+  // whether to buffer the trailing line from the state AFTER the frame's
+  // complete lines, so a partial line that appears post-transition is held
+  // (not mis-parsed and its prefix-less continuation lost next frame).
   test('a who-line split across MOTD_END is buffered, not lost', () {
     final conn = FibsConnection('localhost', 8080);
 

@@ -165,9 +165,8 @@ class FibsState extends ChangeNotifier {
   }
 
   // Reduce a resume/join prompt and immediately send `join` so the saved game
-  // loads on its own. This is the seamless half of resume: FIBS sometimes
-  // reloads the match and sends a board directly, but otherwise it waits for a
-  // join -- which used to need a manual tap, so resuming worked only sometimes.
+  // loads on its own. FIBS sometimes reloads the match and sends a board
+  // directly; otherwise it waits for a `join`, which this sends automatically.
   void _applyAndAutoJoin(CookieMessage cm) {
     _session = _session.reduce(cm);
     if (_session.mustJoin || _session.resumeRequestFrom != null) {

@@ -17,9 +17,8 @@ part 'fibs_play_view.dart';
 final _log = Logger('fibs.login');
 
 // Provides the active FibsState to the FIBS view subtree, so the views read it
-// from context (FibsScope.of) instead of reaching the App.fibs global directly.
-// FibsPage is the one place that binds the app-level singleton into the tree;
-// everything below depends on this typed handle, not the global.
+// from context (FibsScope.of). FibsPage binds the injected FibsState into the
+// tree here; everything below depends on this handle.
 class FibsScope extends InheritedWidget {
   const FibsScope({required this.fibs, required super.child, super.key});
 
@@ -40,9 +39,8 @@ class FibsScope extends InheritedWidget {
 class FibsPage extends StatefulWidget {
   const FibsPage({required this.fibs, required this.creds, super.key});
 
-  // Injected by the composition root (LandingPage) rather than read from App
-  // statics -- FibsPage provides [fibs] to the subtree via FibsScope and hands
-  // [creds] to the login view, so nothing in the FIBS UI reaches a global.
+  // Injected by the composition root (LandingPage). FibsPage provides [fibs] to
+  // the subtree via FibsScope and hands [creds] to the login view.
   final FibsState fibs;
   final SecureCredentialStore creds;
 

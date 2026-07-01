@@ -3,11 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 void main() {
-  // Regression: setupLogging() attached a new Logger.root listener on every
-  // call, so calling it in main() (moved there so the FlutterError handler has
-  // a sink) AND again in bootstrap would double-log every record. It's now
-  // idempotent -- the second call is a no-op. (Fresh test file => fresh module
-  // state, so this is the first setup in the isolate.)
+  // setupLogging is idempotent: a second call is a no-op, so it can run in
+  // main() (giving the FlutterError handler a sink) and again in bootstrap
+  // without double-logging. (Fresh test file => first setup in the isolate.)
   test('setupLogging attaches exactly one sink even if called twice', () async {
     var first = 0;
     var second = 0;
@@ -20,10 +18,10 @@ void main() {
     expect(second, 0); // the second call did not attach a duplicate sink
   });
 
-  // #3: uncaught errors are reported through ONE centralized seam
-  // (package:logging), carrying the operation context, the error, and the
-  // stack -- so the FlutterError handler and the zone handler format
-  // identically and a single sink sees every crash.
+  // Uncaught errors are reported through ONE centralized seam
+  // (package:logging), carrying the operation context, error, and stack -- so
+  // the FlutterError handler and the zone handler format identically and a
+  // single sink sees every crash.
   test(
     'reportError routes error + context + stack to package:logging',
     () async {
@@ -45,7 +43,7 @@ void main() {
     },
   );
 
-  // #1 (reframed): the user must SEE uncaught errors, not just the dev console.
+  // Uncaught errors are shown to the user, not just the dev console:
   // reportError posts a user-facing AppError to appErrors with the context and
   // enough detail (the error text) to act on -- retry, or copy into a report.
   test(

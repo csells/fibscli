@@ -13,9 +13,9 @@ void main() {
     appErrors.value = null;
   });
 
-  // #1 (reframed): an uncaught error reported from anywhere (here, the global
-  // handlers' reportError) is shown to the USER as a SnackBar carrying the
-  // context + a Copy action -- not silently dropped into the dev console.
+  // An uncaught error reported from anywhere (here, the global handlers'
+  // reportError) is shown to the USER as a SnackBar carrying the context + a
+  // Copy action -- not silently dropped into the dev console.
   testWidgets('a reported error is surfaced to the user as a SnackBar', (
     tester,
   ) async {

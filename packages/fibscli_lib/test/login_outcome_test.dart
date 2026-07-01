@@ -2,11 +2,11 @@ import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:test/test.dart';
 
 void main() {
-  // Regression: the sentcred handshake used found.single, which THREW when one
-  // websocket frame carried several matching cookies (a failed login sends
-  // bogus "** ..." lines plus a re-`login:` prompt). The throw escaped into the
-  // stream callback, so the login completer never completed and the caller
-  // waited out its 3s timeout reporting a bogus "unable to connect".
+  // The sentcred handshake picks the login outcome by precedence, never
+  // `.single` -- one websocket frame can carry several matching cookies (a
+  // failed login sends bogus "** ..." lines plus a re-`login:` prompt), and a
+  // throw there would escape the stream callback so the login completer never
+  // completes and the caller waits out its 3s timeout.
   test('a multi-match failed-login frame is picked, not thrown on', () {
     final outcome = FibsConnection.loginOutcome([
       FibsCookie.FIBS_FailedLogin,

@@ -93,8 +93,8 @@ void main() {
     final fake = FakeTransport();
     final fibs = await _startGame(tester, fake); // O on roll, mirrored frame
 
-    // O's checkers are on 24/13/8/6 and must move DOWN toward the 1-point;
-    // the old bug highlighted 6->9 etc. (up, away from home).
+    // O's checkers are on 24/13/8/6 and must move DOWN toward the 1-point (not
+    // up, away from home).
     final byPip = fibs.gameState!.getAllLegalMoves();
     expect(byPip.keys, contains(24));
     for (final moves in byPip.values) {

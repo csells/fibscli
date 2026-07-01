@@ -8,10 +8,10 @@ import 'board_builder.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // Regression: the board is IgnorePointer-locked while the computer plays its
-  // turn, but canUndo/canAutoBearOff derived only from the game, so the app-bar
-  // / undo-FAB stayed live -- letting the human undo/new-game/auto-bear-off
-  // mid-AI-turn and mutate the board out from under the AI's cached move plan.
+  // While the computer plays its turn the board is IgnorePointer-locked; the
+  // app-bar / undo-FAB lock too (canUndo/canAutoBearOff gate on busy), so the
+  // human can't undo/new-game/auto-bear-off mid-AI-turn and mutate the board
+  // out from under the AI's cached move plan.
   test('busy (AI turn) disables undo and auto-bear-off', () {
     final controller = GameViewController();
     // a pure-race position, player one on roll (so canAutoBearOff is true idle)

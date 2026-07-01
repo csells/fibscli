@@ -157,6 +157,8 @@ App-wide singletons live as statics on `App` in `main.dart` (`App.fibs`, `App.pr
 
 Prefer `final` over type annotations; single quotes; relative imports for local files (`always_use_package_imports: false`). `missing_required_param`, `missing_return`, and `parameter_assignments` are errors, not warnings.
 
+**Comments describe the CURRENT implementation only** — never the history of how the code got there. No "Regression:", "was X, now Y", "used to…", "extracted from…", "#N/Fix N", or "the old bug" narratives in source, comments, or specs. A comment should read the same whether it was written on day one or after ten refactors. Test comments state the behavior/contract the test pins, not the bug that motivated it. The one place "why we chose X over Y" belongs is the single ADR log at `specs/architecture/decisions.md`.
+
 ## Specs
 
-Design docs live under `specs/`. **`specs/architecture/` files must NOT be numbered** — name them by topic (e.g. `game-modes-and-ai-players.md`), and give the doc a plain `# Title` heading with no numeric prefix. Numbered/sequential filenames are only for `specs/plans/`.
+Design docs live under `specs/`. **`specs/architecture/` files must NOT be numbered** — name them by topic (e.g. `game-modes-and-ai-players.md`), and give the doc a plain `# Title` heading with no numeric prefix. Numbered/sequential filenames are only for `specs/plans/`. Architectural decisions (the "why", including deliberately-not-done choices) go in the single ADR log `specs/architecture/decisions.md`, not in source comments.

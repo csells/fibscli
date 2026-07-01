@@ -2,12 +2,11 @@ import 'package:fibscli/pieces.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  // #5: baseSlotOffset's quadrant geometry was extracted from magic literals
-  // into named constants (_bottomRightX/_topRowY/...). This pins the exact
-  // slot origin of the first + last pip of each of the 4 quadrants, so a
-  // fat-fingered constant (or a lost -dx/+dx direction) is caught, not just
-  // discovered as a visual glitch. Columns step by 36px toward board centre:
-  // -dx on the right/bottom sides, +dx on the left/top.
+  // baseSlotOffset's quadrant geometry lives in named constants
+  // (_bottomRightX/_topRowY/...). Pin the exact slot origin of the first + last
+  // pip of each of the 4 quadrants, so a wrong constant (or a lost -dx/+dx
+  // direction) is caught here rather than as a visual glitch. Columns step by
+  // 36px toward board centre: -dx on the right/bottom sides, +dx on the top/left.
   test('baseSlotOffset places each quadrant at its named origin', () {
     // bottom-right quadrant (pips 1..6), baseline y = 371, origin x = 468
     expect(PieceLayout.baseSlotOffset(1), const Offset(468, 371));

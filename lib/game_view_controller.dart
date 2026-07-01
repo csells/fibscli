@@ -6,8 +6,8 @@ import 'model.dart';
 /// Mediates between [GammonState] and the rendered game screen: it owns the
 /// board-orientation and AI-busy flags, DERIVES the app-bar/FAB enable state
 /// from the bound game (so it can't desync), and exposes command hooks the
-/// `GameView` wires up. Extracted from game_play_page.dart so the view file
-/// isn't also home to this ChangeNotifier.
+/// `GameView` wires up. Lives in its own file so game_play_page.dart is just
+/// the board screen and its widgets.
 class GameViewController extends ChangeNotifier {
   bool _reversed = false;
   GammonState? _game;

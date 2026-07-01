@@ -19,8 +19,8 @@ class _RecordingAi extends BgAiPlayer {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  // Regression: the AI engine (widget.ai) was never disposed, leaking the gnubg
-  // adapter's http.Client per game. GameView.dispose now releases it.
+  // GameView.dispose releases the AI engine (widget.ai) -- otherwise the gnubg
+  // adapter's http.Client would leak per game.
   testWidgets('disposing the game page disposes the AI engine', (tester) async {
     final ai = _RecordingAi();
     // aiSide null -> the AI never plays, but it's still owned and must be freed
