@@ -43,6 +43,8 @@
 import 'package:quiver/strings.dart';
 
 part 'cookie_tables.dart';
+part 'cookie_tables_alpha.dart';
+part 'cookie_tables_stars.dart';
 part 'fibs_cookie.dart';
 
 /// Thrown when a REQUIRED crumb is absent -- a clear, boundary-local error that
