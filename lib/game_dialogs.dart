@@ -6,6 +6,23 @@ import 'model.dart';
 // just the board screen + its controller. Each is a plain StatelessWidget with
 // a static `show` helper returning the user's choice.
 
+// A cancel (returns false) / confirm (returns true) action pair, shared by the
+// yes/no dialogs.
+List<Widget> _confirmActions(
+  BuildContext context, {
+  required String cancel,
+  required String confirm,
+}) => [
+  OutlinedButton(
+    onPressed: () => Navigator.pop(context, false),
+    child: Padding(padding: const EdgeInsets.all(8), child: Text(cancel)),
+  ),
+  ElevatedButton(
+    onPressed: () => Navigator.pop(context, true),
+    child: Padding(padding: const EdgeInsets.all(8), child: Text(confirm)),
+  ),
+];
+
 class QuitGameDialog extends StatelessWidget {
   const QuitGameDialog({super.key});
 
@@ -13,22 +30,11 @@ class QuitGameDialog extends StatelessWidget {
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Game Already In Progress'),
     content: const Text('OK to quit current game?'),
-    actions: [
-      OutlinedButton(
-        child: const Padding(
-          padding: EdgeInsets.all(8),
-          child: Text('Keep Playing'),
-        ),
-        onPressed: () => Navigator.pop(context, false),
-      ),
-      ElevatedButton(
-        child: const Padding(
-          padding: EdgeInsets.all(8),
-          child: Text('Quit Game'),
-        ),
-        onPressed: () => Navigator.pop(context, true),
-      ),
-    ],
+    actions: _confirmActions(
+      context,
+      cancel: 'Keep Playing',
+      confirm: 'Quit Game',
+    ),
   );
 
   static Future<bool?> show(BuildContext context) => showDialog<bool>(
@@ -109,22 +115,7 @@ class DoubleOfferDialog extends StatelessWidget {
     return AlertDialog(
       title: Text('Player $doublerNo doubles to $newValue'),
       content: Text('Player $opponentNo, do you accept?'),
-      actions: [
-        OutlinedButton(
-          child: const Padding(
-            padding: EdgeInsets.all(8),
-            child: Text('Decline'),
-          ),
-          onPressed: () => Navigator.pop(context, false),
-        ),
-        ElevatedButton(
-          child: const Padding(
-            padding: EdgeInsets.all(8),
-            child: Text('Accept'),
-          ),
-          onPressed: () => Navigator.pop(context, true),
-        ),
-      ],
+      actions: _confirmActions(context, cancel: 'Decline', confirm: 'Accept'),
     );
   }
 
@@ -155,22 +146,11 @@ class NewGameDialog extends StatelessWidget {
         const Text('Would you like to play another game?'),
       ],
     ),
-    actions: [
-      OutlinedButton(
-        child: const Padding(
-          padding: EdgeInsets.all(8),
-          child: Text('No, Thanks'),
-        ),
-        onPressed: () => Navigator.pop(context, false),
-      ),
-      ElevatedButton(
-        child: const Padding(
-          padding: EdgeInsets.all(8),
-          child: Text('Yes, Please!'),
-        ),
-        onPressed: () => Navigator.pop(context, true),
-      ),
-    ],
+    actions: _confirmActions(
+      context,
+      cancel: 'No, Thanks',
+      confirm: 'Yes, Please!',
+    ),
   );
 
   static Future<bool?> show(
