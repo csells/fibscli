@@ -9,34 +9,11 @@ import 'model.dart';
 class FibsPlay {
   FibsPlay._();
 
-  // FIBS pos <-> engine pos under the frame's orientation (self-inverse)
-  static int _pos(FibsBoard fb, int p) => fb.isMirrored ? 25 - p : p;
-
   // Build the position in the engine's canonical frame from a FIBS board, as a
-  // mutable board the engine can apply moves to.
-  static List<List<int>> _canonicalBoard(FibsBoard fb) {
-    final board = List<List<int>>.generate(26, (_) => <int>[]);
-    var nx = 0;
-    var no = 0;
-    void place(int pos, int count) {
-      for (var i = 0; i != count.abs(); ++i) {
-        nx += count < 0 ? 1 : 0;
-        no += count > 0 ? 1 : 0;
-        board[pos].add(count < 0 ? -nx : no);
-      }
-    }
-
-    for (var p = 1; p <= 24; ++p) {
-      place(_pos(fb, p), fb.points[p]);
-    }
-    // bars/off go to canonical positions: X=player1 (bar 25, off 0),
-    // O=player2 (bar 0, off 25) -- independent of mirroring.
-    place(25, -fb.xBar);
-    place(0, fb.oBar);
-    place(0, -fb.xOff);
-    place(25, fb.oOff);
-    return board;
-  }
+  // mutable board the engine can apply moves to. This is the SAME frame the
+  // renderer shows ([FibsBoard.position]) -- one normalization, so what you see
+  // and what we generate/commit can never diverge (both honor `mirror`).
+  static List<List<int>> _canonicalBoard(FibsBoard fb) => fb.position.toBoard();
 
   // Every individual legal move for the on-roll player, as FIBS `move` commands
   // (used for highlighting/validation, not for committing a turn).
@@ -139,7 +116,7 @@ class FibsPlay {
     String label(int canonicalPos) {
       if (canonicalPos == barPip) return 'bar';
       if (canonicalPos == offPip) return 'off';
-      return '${_pos(fb, canonicalPos)}';
+      return '${fb.mirror(canonicalPos)}'; // engine pip -> FIBS coord
     }
 
     final hops = <String>[];

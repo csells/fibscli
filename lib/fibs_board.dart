@@ -60,6 +60,11 @@ class FibsBoard {
   // 1-6; positive=O moves toward 24, home 19-24) exactly when player1's color
   // and direction agree; otherwise the board is mirrored (pos i <-> 25-i).
   bool get isMirrored => player1Color != direction;
+
+  // Map a FIBS pip (1..24) to its engine pip under this frame's orientation
+  // (self-inverse). Both rendering (`position`) and move generation
+  // (`FibsPlay`) MUST normalize through this so they share one engine frame.
+  int mirror(int p) => isMirrored ? 25 - p : p;
   final List<int> player1Dice;
   final List<int> player2Dice;
   final int cube;
@@ -130,12 +135,13 @@ class FibsBoard {
     return dice.any((d) => d == 0) ? const [] : dice;
   }
 
-  // The checker layout as a typed, immutable [Position]. The FIBS frame already
-  // matches the engine's sign convention on the points (positive = O = player
-  // two, negative = X = player one), so they map by identity; the off/bar
+  // The checker layout as a typed, immutable [Position], normalized to the
+  // engine's fixed frame. The FIBS points match the engine's sign convention
+  // (positive = O = player two, negative = X = player one) but may be MIRRORED
+  // (pos i <-> 25-i), so we read each engine pip through [mirror]; the off/bar
   // counts come from the color-routed [xOff]/[oOff]/[xBar]/[oBar] getters.
   Position get position => Position(
-    points: [for (var pip = 1; pip <= 24; pip++) points[pip]],
+    points: [for (var pip = 1; pip <= 24; pip++) points[mirror(pip)]],
     oneBar: xBar, // X = player one
     twoBar: oBar, // O = player two
     oneOff: xOff,

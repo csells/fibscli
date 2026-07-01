@@ -1,5 +1,6 @@
 import 'package:fibscli/fibs_board.dart';
 import 'package:fibscli/fibs_play.dart';
+import 'package:fibscli/model.dart';
 import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,6 +22,24 @@ void main() {
   group('FibsPlay.legalMoveCommands (M2, from live data)', () {
     test('the frame is mirrored vs the engine', () {
       expect(parseBoard(beforeBlunderMove).isMirrored, isTrue);
+    });
+
+    test('rendered position honors mirroring (agrees with move-gen frame)', () {
+      // Regression: FibsBoard.position mapped FIBS cells by identity and
+      // ignored isMirrored, so a WATCHED mirrored game rendered reflected --
+      // disagreeing with the move-gen path (which normalizes via mirror). Both
+      // must share ONE engine frame. Oracle: the mirrored mapping the move-gen
+      // path is proven correct in (reproduces the bot's real 13-9 9-7 below).
+      final fb = parseBoard(beforeBlunderMove);
+      int mirror(int p) => fb.isMirrored ? 25 - p : p;
+      final oracle = Position(
+        points: [for (var p = 1; p <= 24; p++) fb.points[mirror(p)]],
+        oneBar: fb.xBar,
+        twoBar: fb.oBar,
+        oneOff: fb.xOff,
+        twoOff: fb.oOff,
+      );
+      expect(fb.position, oracle);
     });
 
     test("reproduces the bot's real 13-9 9-7 move as a legal option", () {

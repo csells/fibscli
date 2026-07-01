@@ -124,7 +124,7 @@ class WhoInfo {
         Duration(seconds: int.parse(cm.crumbs!['idle']!)),
       ),
       lastLogin: CookieMonster.parseTimestamp(cm.crumbs!['login']!),
-      hostname: cm.crumbs!['hostname'] ?? '',
+      hostname: cm.crumbs!['hostName']!,
       client: CookieMonster.parseOptional(cm.crumbs!['client']!) ?? '',
       email: CookieMonster.parseOptional(cm.crumbs!['email']!) ?? '',
     );

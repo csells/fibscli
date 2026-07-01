@@ -1,0 +1,24 @@
+import 'package:fibscli/fibs_lobby.dart';
+import 'package:fibscli_lib/fibscli_lib.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  // Regression: the CLIP who-info regex names its host group `hostName`, but
+  // WhoInfo.from read `crumbs['hostname']` (lowercase) -> every entry's host
+  // was silently the empty string. Parse a real who-info line end-to-end so
+  // the test pins the exact crumb key the parser emits.
+  test('WhoInfo.from populates hostname from a parsed who-info line', () {
+    final monster = CookieMonster()
+      ..messageState = CookieMonsterState.FIBS_RUN_STATE;
+
+    // fields: name opp watching ready away rating exp idle login host client
+    final cm = monster.eatCookie(
+      '5 BlunderBot_III - - 1 0 1500.00 100 5 1049300000 '
+      'fibs.com ParlorBot bot@example.com',
+    );
+    expect(cm.cookie, FibsCookie.CLIP_WHO_INFO);
+
+    final who = WhoInfo.from(cm);
+    expect(who.hostname, 'fibs.com');
+  });
+}
