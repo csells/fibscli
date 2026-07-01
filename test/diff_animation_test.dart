@@ -62,6 +62,24 @@ void main() {
     }
   });
 
+  test('a bear-off animates the mover, not a same-pip bar checker', () {
+    // Engine pip 25 is BOTH player1's bar and player2's off. player2 bears a
+    // checker off (its 24-point -> off) while player1 sits on the bar. The
+    // mover is player2's checker; player1's bar checker must stay put. take()
+    // was owner-blind and picked the (first-emitted) bar layout, so the bar
+    // checker animated instead of the borne-off one.
+    final from = List<List<int>>.generate(26, (_) => <int>[]);
+    from[24].add(1); // player2 checker on its 24-point
+    from[25].add(-1); // player1 checker on the bar
+    final to = List<List<int>>.generate(26, (_) => <int>[]);
+    to[25].addAll([-1, 1]); // player1 still on bar; player2 checker borne off
+
+    final anim = MoveAnimation.between(from, to);
+    expect(anim.layouts.length, 1); // exactly one checker moved
+    expect(anim.layouts.keys.single, isPositive); // player2's, not the bar (-1)
+    expect(anim.layouts.containsKey(-1), isFalse);
+  });
+
   test('a single-die move has no intermediate frame even with dice', () {
     final from = List<List<int>>.generate(26, (_) => <int>[]);
     from[24].add(-1);

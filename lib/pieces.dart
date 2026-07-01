@@ -162,9 +162,19 @@ class MoveAnimation {
     final usedTo = <PieceLayout>{};
     final layouts = <int?, List<PieceLayout>>{};
 
-    PieceLayout? take(List<PieceLayout> pool, Set<PieceLayout> used, int pip) {
+    // Owner-aware: engine pips 0 and 25 are each shared between one player's
+    // bar and the other player's off, so a pip alone doesn't identify a checker
+    // -- match the mover's colour too, or a bear-off could pick the opponent's
+    // same-pip bar checker (which must stay put).
+    PieceLayout? take(
+      List<PieceLayout> pool,
+      Set<PieceLayout> used,
+      int pip,
+      GammonPlayer player,
+    ) {
+      final sign = player == GammonPlayer.one ? -1 : 1;
       for (final l in pool) {
-        if (l.pipNo == pip && !used.contains(l)) {
+        if (l.pipNo == pip && l.pieceID.sign == sign && !used.contains(l)) {
           used.add(l);
           return l;
         }
@@ -181,8 +191,8 @@ class MoveAnimation {
       ..sort((a, b) => travel(b).compareTo(travel(a)));
 
     for (final move in ordered) {
-      final dest = take(toLayouts, usedTo, move.toPip);
-      final src = take(fromLayouts, usedFrom, move.fromPip);
+      final dest = take(toLayouts, usedTo, move.toPip, move.player);
+      final src = take(fromLayouts, usedFrom, move.fromPip, move.player);
       // A board diff should always pair a source and destination slot. If it
       // ever doesn't, fail loudly in debug/tests instead of silently snapping
       // the checker to place with no animation (which is invisible in a replay
