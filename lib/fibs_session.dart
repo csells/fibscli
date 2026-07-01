@@ -76,6 +76,12 @@ class FibsSession {
   bool get canRoll =>
       isMyTurn && effectiveDice.isEmpty && !rolling && !committedTurn;
 
+  // the current game has finished (someone borne off all 15)
+  bool get isGameOver => board?.isGameOver ?? false;
+
+  // the winner's color when the game is over (null mid-game / when watching)
+  GammonPlayer? get winner => board?.winner;
+
   // The rendered game model (+ our just-rolled dice when FIBS delivered them
   // via "You roll x and y" without a fresh board). In a game WE play it's the
   // viewer board -- we are always engine player one, so the fixed renderer puts

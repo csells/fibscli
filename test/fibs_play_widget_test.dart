@@ -13,6 +13,16 @@ String boardLine({String turn = '1', String p1dice = '6:3'}) =>
     'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
     ':2:0:$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
 
+// a finished game where we (player1 "You" = X) have borne off all 15.
+String gameOverLine() => [
+  'board', 'You', 'wildbg', '1', '0', '0',
+  List.filled(26, 0).join(':'),
+  '0', // turnColor 0 = game over
+  '0:0', '0:0', '1', '1', '1', '0',
+  '-1', '-1', '0', '25',
+  '15', '0', '0', '0', '0', '0', '0', '0', // xOff = 15 (we win)
+].join(':');
+
 Future<FibsState> _startGame(
   WidgetTester tester,
   FakeTransport fake, {
@@ -102,6 +112,24 @@ void main() {
         expect(m.toPipNo, lessThan(m.fromPipNo), reason: 'moves head home');
       }
     }
+  });
+
+  testWidgets('a finished game shows the result and a Back to lobby button', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake); // in the play view
+
+    fake.feed(gameOverLine()); // we bear off all 15 -> game over
+    await tester.pumpAndSettle();
+
+    // no more "Waiting for opponent…"; the result + escape hatch show instead
+    expect(find.text('You win! 🎉'), findsOneWidget);
+    expect(find.text('Back to lobby'), findsOneWidget);
+
+    await tester.tap(find.text('Back to lobby'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bots'), findsOneWidget); // back at the lobby
   });
 
   testWidgets('the lobby has no "Play for me" (cheating on FIBS)', (

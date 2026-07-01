@@ -113,6 +113,16 @@ class FibsState extends ChangeNotifier {
   bool get canMoveNow => _session.canMoveNow;
   bool get canRoll => _session.canRoll;
 
+  // The current game has finished (someone borne off all 15).
+  bool get isGameOver => _session.isGameOver;
+
+  // Whether WE won the finished game (false = the opponent won). Null while a
+  // game is in progress.
+  bool? get didIWin {
+    final winner = _session.winner;
+    return winner == null ? null : winner == _session.myColor;
+  }
+
   // Whether a who-list entry is a bot. The detection policy (allowlists +
   // precision-first rationale) lives in BotPolicy so it can evolve without
   // touching this connection/state machine.
@@ -282,6 +292,13 @@ class FibsState extends ChangeNotifier {
 
   void leaveGame() {
     _conn?.send('leave');
+    _session = _session.outOfGame();
+    notifyListeners();
+  }
+
+  // Dismiss a finished game and return to the lobby. The game is already over
+  // server-side, so there's nothing to `leave` -- just clear the local board.
+  void returnToLobby() {
     _session = _session.outOfGame();
     notifyListeners();
   }

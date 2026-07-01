@@ -96,7 +96,10 @@ class _PlayViewState extends State<_PlayView> {
               ),
             ),
           ),
-          _Controls(fibs: fibs, turnComplete: controller.turnComplete),
+          if (fibs.isGameOver)
+            _GameOverBar(fibs: fibs)
+          else
+            _Controls(fibs: fibs, turnComplete: controller.turnComplete),
         ],
       ),
     );
@@ -124,6 +127,45 @@ class _PlayViewState extends State<_PlayView> {
       ),
     );
     if (ok ?? false) _fibs.resign();
+  }
+}
+
+// Shown in place of the controls once the game is over: the result plus a way
+// back to the lobby (the game is already finished server-side).
+class _GameOverBar extends StatelessWidget {
+  const _GameOverBar({required this.fibs});
+  final FibsState fibs;
+
+  @override
+  Widget build(BuildContext context) {
+    final won = fibs.didIWin;
+    final label = won == null
+        ? 'Game over'
+        : won
+        ? 'You win! 🎉'
+        : 'You lose';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      color: Colors.black26,
+      child: Wrap(
+        spacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          ElevatedButton(
+            onPressed: fibs.returnToLobby,
+            child: const Text('Back to lobby'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

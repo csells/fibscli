@@ -245,4 +245,28 @@ void main() {
       expect(off, isTrue, reason: 'an O home position can bear off to pip 0');
     });
   });
+
+  group('game over', () {
+    test('a board with X borne off all 15 is game over, X wins', () {
+      final cm = parse(fibsBoardLine(List.filled(26, 0), turn: 0, xOff: 15));
+      final board = FibsBoard.fromCrumbs(cm.crumbs!);
+      expect(board.isGameOver, isTrue);
+      expect(board.winner, GammonPlayer.one); // X == player one
+    });
+
+    test('a board with O borne off all 15 is game over, O wins', () {
+      final cm = parse(fibsBoardLine(List.filled(26, 0), turn: 0, oOff: 15));
+      final board = FibsBoard.fromCrumbs(cm.crumbs!);
+      expect(board.isGameOver, isTrue);
+      expect(board.winner, GammonPlayer.two); // O == player two
+    });
+
+    test('a mid-game board is not over and has no winner', () {
+      final board = FibsBoard.fromCrumbs(
+        parse(fibsBoardLine(opening, turn: 1)).crumbs!,
+      );
+      expect(board.isGameOver, isFalse);
+      expect(board.winner, isNull);
+    });
+  });
 }

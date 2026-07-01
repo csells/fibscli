@@ -134,6 +134,22 @@ class FibsBoard {
             .two // O
       : null;
 
+  // The game is over when FIBS reports no one on roll (turnColor 0) or a player
+  // has borne off all 15 checkers.
+  bool get isGameOver => turnColor == 0 || player1Off == 15 || player2Off == 15;
+
+  // The winner's engine color (whoever borne off all 15), or null mid-game. The
+  // off counts are keyed to player1/player2, so route through player1Color.
+  GammonPlayer? get winner {
+    if (player1Off == 15) {
+      return _player1IsX ? GammonPlayer.one : GammonPlayer.two;
+    }
+    if (player2Off == 15) {
+      return _player1IsX ? GammonPlayer.two : GammonPlayer.one;
+    }
+    return null;
+  }
+
   // the dice of whoever is on roll (the player whose color == turnColor),
   // empty until someone has rolled
   List<int> get activeDice {

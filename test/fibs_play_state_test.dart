@@ -23,7 +23,45 @@ Future<FibsState> _inGame(
   return fibs;
 }
 
+// a finished game: player1 ("You" = X) has borne off all 15, turnColor 0.
+String gameOverLine({int xOff = 15, int oOff = 0}) => [
+  'board', 'You', 'bot', '1', '0', '0',
+  List.filled(26, 0).join(':'),
+  '0', // turnColor 0 = game over
+  '0:0', '0:0', '1', '1', '1', '0',
+  '-1', '-1', '0', '25',
+  '$xOff', '$oOff', '0', '0', '0', '0', '0', '0',
+].join(':');
+
 void main() {
+  test(
+    'a game-over board surfaces the result; returnToLobby clears it',
+    () async {
+      final fake = FakeTransport();
+      final fibs = await _inGame(fake); // in a game
+      fake.feed(gameOverLine(xOff: 15)); // we (You=X) bore off all 15
+      await Future<void>.delayed(Duration.zero);
+
+      expect(fibs.isGameOver, isTrue);
+      expect(fibs.didIWin, isTrue);
+      expect(fibs.gameState, isNotNull); // still showing the final board
+
+      fibs.returnToLobby();
+      expect(fibs.gameState, isNull); // back to the lobby
+      expect(fibs.isGameOver, isFalse);
+    },
+  );
+
+  test('a game the opponent won reports didIWin false', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    fake.feed(gameOverLine(xOff: 0, oOff: 15)); // opponent (O) bore off all 15
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.isGameOver, isTrue);
+    expect(fibs.didIWin, isFalse);
+  });
+
   test('after roll, canRoll is false and a second roll throws', () async {
     final fake = FakeTransport();
     final fibs = await _inGame(fake); // our turn, no dice

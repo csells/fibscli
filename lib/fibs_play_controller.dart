@@ -65,6 +65,12 @@ class FibsPlayController extends ChangeNotifier {
   /// outcome, so it's tedium reduction, not the bot playing for us).
   bool get canAutoBearOff => _turn != null && GammonRules.isRace(_turn!.board);
 
+  // Once enabled, keep auto-playing our bear-off turns as they come. FIBS deals
+  // dice one turn at a time (so, unlike the local game, we can't finish the
+  // race in a single action), but we can spare the user a tap on every one of
+  // turns until contact resumes or the game ends.
+  bool _autoBearOff = false;
+
   /// Our turn, a move started, and no more legal moves -> ready to submit.
   bool get turnComplete => _turn != null && _turn!.getAllLegalMoves().isEmpty;
 
@@ -86,6 +92,17 @@ class FibsPlayController extends ChangeNotifier {
 
   void _onFibsChanged() {
     syncTurn();
+
+    // Continue an enabled auto-bear-off onto our next turn (a fresh, un-started
+    // race turn). Stop the moment contact resumes -- then it's a real decision
+    // again and the user takes over.
+    if (_autoBearOff && _turn != null && _moves.isEmpty) {
+      if (GammonRules.isRace(_turn!.board)) {
+        _playAutoBearOffTurn();
+      } else {
+        _autoBearOff = false;
+      }
+    }
 
     final cur = _fibs.gameState?.board;
     if (cur != null) {
@@ -134,9 +151,17 @@ class FibsPlayController extends ChangeNotifier {
     return true;
   }
 
-  /// Play the whole current turn greedily (via the engine's shared bear-off
-  /// policy) and submit it. Only sensible in a pure race ([canAutoBearOff]).
+  /// Enable auto bear-off and play the current turn. Stays enabled so each of
+  /// our subsequent race turns plays itself (see [_onFibsChanged]). Only
+  /// sensible in a pure race ([canAutoBearOff]).
   void autoBearOff() {
+    _autoBearOff = true;
+    _playAutoBearOffTurn();
+  }
+
+  // Play the current turn greedily (via the engine's shared bear-off policy)
+  // and submit it.
+  void _playAutoBearOffTurn() {
     final turn = _turn;
     if (turn == null) return;
     final dice = turn.dice
