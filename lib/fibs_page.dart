@@ -3,13 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
-import 'board_animator.dart';
-import 'dice.dart';
+import 'fibs_play_controller.dart';
 import 'fibs_state.dart';
 import 'game_board.dart';
 import 'main.dart';
-import 'model.dart';
-import 'pieces.dart';
 import 'tinystate.dart';
 
 final _log = Logger('fibs.login');
@@ -395,205 +392,35 @@ class _PlayView extends StatefulWidget {
 }
 
 class _PlayViewState extends State<_PlayView> {
-  // The in-progress turn we're building LOCALLY on the shared board -- same
-  // mechanic as the local game: make your moves (seeing the pieces move), undo
-  // freely, then tap the dice to submit the WHOLE turn. FIBS wants the complete
-  // turn in one command, so we only talk to the server on submit. Non-null only
-  // while it's our turn to move; null when watching the opponent.
-  GammonState? _turn;
-  final _moves = <GammonMove>[]; // the moves we've made this turn, to submit
-  // diff-based animation: remember the last board so a fresh FIBS board (our
-  // move OR the opponent's) animates instead of snapping (issue: FIBS only
-  // hands us whole boards, never move deltas). The shared BoardAnimator owns
-  // the in-flight tween lifecycle (same one the local game uses).
-  List<List<int>>? _prevBoard;
-  // The dice in play on [_prevBoard] -- i.e. the dice that PRODUCED the move we
-  // animate when the next board arrives. We must capture them from the board
-  // we move FROM: by the time the result board lands, those dice are already
-  // gone (the turn passed), so reading them then would give the wrong dice.
-  List<int> _prevDice = const [];
-  final _animator = BoardAnimator();
+  late final _controller = FibsPlayController();
   // Board orientation. FIBS already hands us the board from our own perspective
   // (home lower-right), so we never auto-flip; the flip button just toggles
-  // this preference.
+  // this preference (pure view state, so it stays on the widget).
   bool _reversed = false;
 
   @override
-  void initState() {
-    super.initState();
-    _prevBoard = _boardCopy();
-    _prevDice = _diceSnapshot();
-    App.fibs.addListener(_onFibsChanged);
-  }
-
-  @override
   void dispose() {
-    App.fibs.removeListener(_onFibsChanged);
-    _animator.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  List<List<int>>? _boardCopy() {
-    final board = App.fibs.gameState?.board;
-    return board == null ? null : [for (final c in board) List<int>.of(c)];
-  }
-
-  // the dice the on-roll player has in play on the current board
-  List<int> _diceSnapshot() =>
-      App.fibs.gameState?.dice.map((d) => d.roll).toList() ?? const <int>[];
-
-  // Keep the local working turn in sync with whose move it is: create one when
-  // it's ours, drop it when the turn ends (we submitted, or it's the opponent's
-  // move). Idempotent and side-effect-light, so it's safe to call from build
-  // (covers entering the view already on our move -- a resumed game, or the
-  // turn already ours -- when no further notification fires) AND from the
-  // listener. Never clobbers an in-progress turn (_turn != null on our move).
-  bool _syncTurn() {
-    final fibs = App.fibs;
-    if (fibs.canMoveNow && _turn == null) {
-      _turn = _freshTurn(fibs);
-      _moves.clear();
-      return true;
-    }
-    if (!fibs.canMoveNow && _turn != null) {
-      _turn = null;
-      _moves.clear();
-      return true;
-    }
-    return false;
-  }
-
-  void _onFibsChanged() {
-    final fibs = App.fibs;
-    if (_syncTurn()) setState(() {});
-
-    final cur = fibs.gameState?.board;
-    if (cur == null) return;
-    // Animate a whole-board change (the opponent's play, or our committed turn
-    // coming back) only when we're NOT mid-edit -- our own in-progress moves
-    // animate themselves as we make them. Use the PREVIOUS board's dice so a
-    // multi-hop move animates through each pip rather than sliding straight.
-    if (_turn == null &&
-        _prevBoard != null &&
-        Position.fromBoard(_prevBoard!) != Position.fromBoard(cur) &&
-        !_animator.isAnimating) {
-      unawaited(
-        _animator.play(
-          MoveAnimation.between(_prevBoard!, cur, dice: _prevDice),
-        ),
-      );
-    }
-    _prevBoard = _boardCopy();
-    _prevDice = _diceSnapshot();
-  }
-
-  // A fresh working copy of the current (viewer) board to build our turn on.
-  GammonState _freshTurn(FibsState fibs) {
-    final gs = fibs.gameState!;
-    return GammonState.from(
-      board: gs.board,
-      dice: [for (final d in gs.dice) DieState(d.roll)],
-      turnPlayer: gs.turnPlayer,
-      moveNo: 2, // a normal FIBS roll: both dice are ours, not the opening
-    );
-  }
-
-  // Apply a move to our LOCAL working turn (no server traffic yet): find the
-  // hops, record the move to submit later, and animate it on the shared board.
-  bool _applyLocalMove(int fromPip, int toPip) {
-    final turn = _turn;
-    if (turn == null) return false;
-    final hops = GammonRules.preferredHops(
-      turn.board,
-      turn.getAllLegalMoves()[fromPip] ?? const <GammonMove>[],
-      fromPipNo: fromPip,
-      toPipNo: toPip,
-    );
-    if (hops == null) return false;
-    final move = GammonMove(fromPipNo: fromPip, toPipNo: toPip, hops: hops);
-    _moves.add(move);
-
-    final initial = [for (final c in turn.board) List<int>.of(c)];
-    final deltas = turn.applyMove(move: move);
-    setState(() {}); // legal moves / dice changed
-    unawaited(_animator.play(MoveAnimation.forMove(initial, deltas)));
-    return true;
-  }
-
-  // A pure race on our turn -> offer to auto bear-off (no decisions matter, so
-  // it's tedium reduction, not the bot playing for us). Unlike "play for me" it
-  // never decides a contested position and only acts on a button press.
-  bool get _canAutoBearOff => _turn != null && GammonRules.isRace(_turn!.board);
-
-  // Play the whole current turn greedily and submit it, using the engine's
-  // shared bear-off policy (bear a checker off when we can, else advance the
-  // rear-most checker). Completes the turn locally, then submits.
-  void _autoBearOff() {
-    final turn = _turn;
-    if (turn == null) return;
-    final dice = turn.dice
-        .where((d) => d.available)
-        .map((d) => d.roll)
-        .toList();
-    for (final move in GammonRules.autoBearOffTurn(
-      turn.board,
-      turn.turnPlayer,
-      dice,
-    )) {
-      _moves.add(move);
-      turn.applyMove(move: move);
-    }
-    setState(() {});
-    _submitTurn();
-  }
-
-  // Tap the dice to submit the whole turn -- only once there are no more legal
-  // moves to make (the forced-move rules require using every playable die).
-  void _submitTurn() {
-    final turn = _turn;
-    if (turn == null || turn.getAllLegalMoves().isNotEmpty) return;
-    // the post-submit board echoes our move, so don't let it re-animate
-    _prevBoard = [for (final c in turn.board) List<int>.of(c)];
-    _prevDice = const [];
-    App.fibs.submitTurn(List<GammonMove>.of(_moves));
-    setState(() {
-      _turn = null;
-      _moves.clear();
-    });
-  }
-
-  // Undo the LAST move you made this turn (tap again to keep walking back).
-  // Rebuild the working turn from scratch and replay all but the last move.
-  void _undoMove() {
-    if (_moves.isEmpty) return;
-    final replay = _moves.sublist(0, _moves.length - 1);
-    final turn = _freshTurn(App.fibs);
-    for (final m in replay) {
-      turn.applyMove(move: m);
-    }
-    setState(() {
-      _turn = turn;
-      _moves
-        ..clear()
-        ..addAll(replay);
-    });
-  }
-
   @override
-  Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
-    notifier: App.fibs,
-    builder: (context, fibs, child) => _buildBoard(context, fibs),
-  );
+  Widget build(BuildContext context) =>
+      ChangeNotifierBuilder<FibsPlayController>(
+        notifier: _controller,
+        builder: (context, controller, child) => _buildBoard(controller),
+      );
 
-  Widget _buildBoard(BuildContext context, FibsState fibs) {
-    _syncTurn(); // create/drop the working turn (also covers entering on ours)
+  Widget _buildBoard(FibsPlayController controller) {
+    // create/drop the working turn (also covers entering the view already on
+    // our move, when no notification fires)
+    controller.syncTurn();
 
+    final fibs = App.fibs;
     // FIBS names us player1 "You" in our own game; the opponent is the other
     final b = fibs.board!;
     final p1IsUs = b.player1Name == 'You' || b.player1Name == fibs.user;
     final opponent = p1IsUs ? b.player2Name : b.player1Name;
-
-    final reversed = _reversed;
 
     return Scaffold(
       backgroundColor: Colors.green,
@@ -606,22 +433,22 @@ class _PlayViewState extends State<_PlayView> {
         ),
         actions: [
           // in a pure race, fast-forward your bear-off (no decisions matter)
-          if (_canAutoBearOff)
+          if (controller.canAutoBearOff)
             IconButton(
               icon: const Icon(Icons.fast_forward),
               tooltip: 'auto bear-off',
-              onPressed: _autoBearOff,
+              onPressed: controller.autoBearOff,
             ),
           // always visible so it's discoverable; disabled until you've moved
           IconButton(
             icon: const Icon(Icons.undo),
             tooltip: 'undo last move',
-            onPressed: _moves.isEmpty ? null : _undoMove,
+            onPressed: controller.canUndo ? controller.undoMove : null,
           ),
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'flip board',
-            onPressed: () => setState(() => _reversed = !reversed),
+            onPressed: () => setState(() => _reversed = !_reversed),
           ),
         ],
       ),
@@ -630,27 +457,24 @@ class _PlayViewState extends State<_PlayView> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8),
-              // While it's our turn we edit a LOCAL working board (_turn) and
-              // submit on a dice tap; otherwise we just render the live board.
+              // While it's our turn we edit a LOCAL working board and submit on
+              // a dice tap; otherwise we just render the live board.
               child: GameBoard(
-                game: _turn ?? fibs.gameState!,
-                animator: _animator,
-                legalMoves: _turn?.getAllLegalMoves() ?? const {},
-                interactive: _turn != null,
-                reversed: reversed,
-                onMove: _applyLocalMove,
-                onTapDice: _submitTurn,
+                game: controller.displayGame,
+                animator: controller.animator,
+                legalMoves: controller.legalMoves,
+                interactive: controller.interactive,
+                reversed: _reversed,
+                onMove: controller.applyLocalMove,
+                onTapDice: controller.submitTurn,
               ),
             ),
           ),
-          _Controls(fibs: fibs, turnComplete: _turnComplete),
+          _Controls(fibs: fibs, turnComplete: controller.turnComplete),
         ],
       ),
     );
   }
-
-  // our turn, a move started, and no more legal moves -> ready to submit
-  bool get _turnComplete => _turn != null && _turn!.getAllLegalMoves().isEmpty;
 
   Future<void> _confirmLeave(BuildContext context) async {
     final ok = await showDialog<bool>(
