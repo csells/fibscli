@@ -86,6 +86,60 @@ void main() {
     },
   );
 
+  test(
+    'resigning (opponent accepts and wins) ends the game as a loss',
+    () async {
+      final fake = FakeTransport();
+      final fibs = await _inGame(fake);
+      fake.feed('MonteCarlo accepts and wins 1 point.');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(fibs.isGameOver, isTrue);
+      expect(fibs.didIWin, isFalse);
+    },
+  );
+
+  test('the opponent resigning (we win) ends the game as a win', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    fake.feed('MonteCarlo gives up. You win 1 points.');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.isGameOver, isTrue);
+    expect(fibs.didIWin, isTrue);
+  });
+
+  test('winning the match ends the game as a win', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    fake.feed('You win the 1 point match 1-0 .');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.isGameOver, isTrue);
+    expect(fibs.didIWin, isTrue);
+  });
+
+  test('losing the match ends the game as a loss', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    fake.feed('MonteCarlo wins the 1 point match 1-0 .');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.isGameOver, isTrue);
+    expect(fibs.didIWin, isFalse);
+  });
+
+  test('a watched game finishing drops back to the lobby', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    expect(fibs.gameState, isNotNull);
+
+    // no ". Sorry" -> a WatchGameWins line (we were spectating)
+    fake.feed('BlunderBot wins the game and gets 1 points.');
+    await Future<void>.delayed(Duration.zero);
+    expect(fibs.gameState, isNull); // dropped to the lobby
+  });
+
   test('the next game board clears a prior result (mid-match)', () async {
     final fake = FakeTransport();
     final fibs = await _inGame(fake);

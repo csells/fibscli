@@ -160,10 +160,17 @@ class FibsState extends ChangeNotifier {
     FibsCookie.FIBS_Board: _applyCookie,
     // game/match results: FIBS announces the winner as a text message, so these
     // are what actually ends the game in the UI (a 15-off board never arrives).
+    // Includes resignation outcomes.
     FibsCookie.FIBS_YouWinGame: _applyCookie,
     FibsCookie.FIBS_PlayerWinsGame: _applyCookie,
     FibsCookie.FIBS_YouWinMatch: _applyCookie,
     FibsCookie.FIBS_PlayerWinsMatch: _applyCookie,
+    FibsCookie.FIBS_ResignYouWin: _applyCookie,
+    FibsCookie.FIBS_YouAcceptAndWin: _applyCookie,
+    FibsCookie.FIBS_AcceptWins: _applyCookie,
+    FibsCookie.FIBS_ResignWins: _applyCookie,
+    // a watched game finished -> we were only spectating, so drop to the lobby
+    FibsCookie.FIBS_WatchGameWins: (_) => returnToLobby(),
     FibsCookie.FIBS_AcceptRejectDouble: _applyCookie,
     FibsCookie.FIBS_SavedMatch: _applyCookie,
     FibsCookie.FIBS_NoSavedGames: _applyCookie,
