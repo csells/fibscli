@@ -64,7 +64,10 @@ class FibsConnection {
         // or a ByteBuffer, so decode whatever the platform hands us
         final message = _decodeFrame(frame);
         dev.log('stream.message: $message');
-        final cms = _receive(message).toList();
+        final cms = _receive(message);
+        // broadcast every parsed cookie to external subscribers, then drive the
+        // login handshake off the same batch
+        cms.forEach(_streamController.add);
 
         switch (_loginState) {
           case _LoginState.prelogin:
@@ -146,7 +149,12 @@ class FibsConnection {
     return frame.toString();
   }
 
-  Iterable<CookieMessage> _receive(String message) sync* {
+  // Parse a decoded frame into cookies. Pure: it updates the line-residual and
+  // the cookie monster's state, but does NOT broadcast -- the caller does that
+  // in one explicit loop, so "parse" and "broadcast" aren't entangled in a lazy
+  // generator (which would silently change how many times we broadcast if a
+  // caller ever consumed the result lazily).
+  List<CookieMessage> _receive(String message) {
     dev.log('RECEIVE: $message');
 
     // Prepend any partial line from the previous frame, then split on newlines.
@@ -157,11 +165,9 @@ class FibsConnection {
     final buffering =
         _monster.messageState == CookieMonsterState.FIBS_RUN_STATE;
     _residual = buffering ? parts.removeLast() : '';
-    for (final line in parts) {
-      final cm = _monster.eatCookie(line.replaceAll('\r', ''));
-      _streamController.add(cm);
-      yield cm;
-    }
+    return [
+      for (final line in parts) _monster.eatCookie(line.replaceAll('\r', '')),
+    ];
   }
 
   /// Closes the WebSocket connection to the FIBS server.
