@@ -30,9 +30,13 @@ class FakeTransport implements FibsTransport {
   @override
   bool get connected => _connected;
 
-  // feed a raw FIBS line as if it arrived from the server (run state)
-  void feed(String raw) {
-    final m = CookieMonster()..messageState = CookieMonsterState.FIBS_RUN_STATE;
+  // feed a raw FIBS line as if it arrived from the server; defaults to run
+  // state, but a login-handshake line can be fed with FIBS_LOGIN_STATE
+  void feed(
+    String raw, {
+    CookieMonsterState state = CookieMonsterState.FIBS_RUN_STATE,
+  }) {
+    final m = CookieMonster()..messageState = state;
     _ctrl.add(m.eatCookie(raw));
   }
 

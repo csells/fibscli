@@ -205,6 +205,12 @@ class FibsState extends ChangeNotifier {
     FibsCookie.FIBS_ResignWins: _applyCookie,
     // a watched game finished -> we were only spectating, so drop to the lobby
     FibsCookie.FIBS_WatchGameWins: (_) => returnToLobby(),
+    // FIBS accepted our login while another session was already connected under
+    // this account (it takes over the connection); let the user know why the
+    // other session just dropped.
+    FibsCookie.FIBS_WARNINGAlreadyLoggedIn: (_) => _notice(
+      'You were already logged in elsewhere; this session took over.',
+    ),
     FibsCookie.FIBS_AcceptRejectDouble: _applyCookie,
     FibsCookie.FIBS_SavedMatch: _applyCookie,
     FibsCookie.FIBS_NoSavedGames: _applyCookie,

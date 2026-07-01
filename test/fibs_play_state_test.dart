@@ -1,6 +1,7 @@
 import 'package:fibscli/fibs_play.dart';
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/model.dart';
+import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_transport.dart';
@@ -150,6 +151,21 @@ void main() {
     fake.feed(boardLine(turn: '1')); // the next game's in-progress board
     await Future<void>.delayed(Duration.zero);
     expect(fibs.isGameOver, isFalse); // result cleared -> back to play
+  });
+
+  test('an "already logged in" warning surfaces a notice', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    fibs.messages.clear();
+
+    // this warning arrives during the login handshake (login state)
+    fake.feed(
+      '** Warning: You are already logged in.',
+      state: CookieMonsterState.FIBS_LOGIN_STATE,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.messages.last.message, contains('already logged in'));
   });
 
   test('an unexpected connection drop surfaces a notice', () async {
