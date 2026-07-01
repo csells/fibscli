@@ -12,10 +12,16 @@ import 'model.dart';
 // a hittee's wait lines up with the hitter's arrival.
 const kHopAnimationDuration = Duration(milliseconds: 250);
 
+// The board sign-encodes ownership (negative = player one). Decode it through
+// the engine's typed ownership helper so the render layer never pokes the raw
+// sign itself -- the encoding stays an engine detail, named in one place.
+bool _isPlayerOne(int pieceID) =>
+    GammonRules.playerFor(pieceID) == GammonPlayer.one;
+
 class PieceView extends StatelessWidget {
   PieceView({required this.layout, super.key})
-    : _gradeColors = _pieceColors[layout.pieceID.sign == -1 ? 0 : 1],
-      _textColor = layout.pieceID.sign == -1 ? Colors.white : Colors.black;
+    : _gradeColors = _pieceColors[_isPlayerOne(layout.pieceID) ? 0 : 1],
+      _textColor = _isPlayerOne(layout.pieceID) ? Colors.white : Colors.black;
   static final _pieceColors = [
     [Colors.grey[800]!, Colors.black],
     [Colors.white, Colors.grey[400]!],
@@ -172,9 +178,10 @@ class MoveAnimation {
       int pip,
       GammonPlayer player,
     ) {
-      final sign = player == GammonPlayer.one ? -1 : 1;
       for (final l in pool) {
-        if (l.pipNo == pip && l.pieceID.sign == sign && !used.contains(l)) {
+        if (l.pipNo == pip &&
+            GammonRules.playerFor(l.pieceID) == player &&
+            !used.contains(l)) {
           used.add(l);
           return l;
         }
@@ -326,7 +333,7 @@ class PieceLayout {
         final highlightedPiecePip = pipNosToHighlight.contains(pipNo);
         final pip = board[pipNo];
         if (pip.isEmpty) continue;
-        assert(pip.every((p) => p.sign == pip[0].sign));
+        assert(pip.every((p) => _isPlayerOne(p) == _isPlayerOne(pip[0])));
         final pieceCount = pip.length;
 
         for (var h = 0; h != pieceCount; ++h) {
@@ -366,7 +373,7 @@ class PieceLayout {
         final label = (i + 1) == pieceCount && pieceCount > 3
             ? pieceCount.toString()
             : '';
-        final top = pieceID.sign == -1
+        final top = _isPlayerOne(pieceID)
             ? 254.0 + _offset.dy * min(i, 2)
             : 138.0 - _offset.dy * min(i, 2);
         final highlight = highlightedPiecePip && i == 0;
@@ -389,7 +396,7 @@ class PieceLayout {
       final pieceCount = pieces.length;
       for (var i = 0; i != pieceCount; ++i) {
         final pieceID = pieces[i];
-        final top = pieceID.sign == -1
+        final top = _isPlayerOne(pieceID)
             ? 386.0 - (_edgeSize.height + 1) * i
             : 22.0 + (_edgeSize.height + 1) * i;
         yield PieceLayout(
