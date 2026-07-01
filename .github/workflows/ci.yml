@@ -14,13 +14,13 @@ jobs:
           channel: stable
           flutter-version: 3.44.4
       - run: flutter pub get
-      # Format + analyze strictly (infos fatal). NOTE: the packages/ workspace
-      # members are first-party code we own (no upstream); they're currently
-      # left out of this gate only because they still carry a few analyzer infos
-      # we haven't cleaned up. This is a known gap to close, not an exemption.
+      # Format + analyze the WHOLE workspace strictly (infos fatal). Every
+      # packages/ member is first-party code we own (no upstream) and inherits
+      # the same root analysis_options.yaml, so it's held to the same bar as
+      # lib/test — nothing is excluded from the gate.
       - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: dart format --output=none --set-exit-if-changed .
       - name: Analyze (strict)
-        run: dart analyze --fatal-infos lib test
+        run: dart analyze --fatal-infos .
       - name: Test
         run: flutter test

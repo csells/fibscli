@@ -106,11 +106,12 @@ class FibsConnection {
       },
       onDone: () {
         dev.log('stream.onDone');
-        close();
+        // fire-and-forget teardown; double-close is guarded by _channel != null
+        unawaited(close());
       },
       onError: (error) {
         dev.log('stream.onError: $error');
-        close();
+        unawaited(close());
       },
       cancelOnError: false,
     );

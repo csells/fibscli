@@ -13,7 +13,7 @@ websocat proxy) are both reachable from the landing page — see below.
 
 - Run (dev): `flutter run` (targets web/desktop/mobile; works across form factors)
 - Build web: `./build-web.sh` → `flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true`
-- Analyze/lint: `flutter analyze` (lint config in `analysis_options.yaml`, based on `all_lint_rules_community` with many explicit overrides). CI (`.github/workflows/ci.yml`) gates on `dart format --set-exit-if-changed lib test`, `dart analyze --fatal-infos lib test`, and `flutter test` on every push/PR; Dependabot scans pub deps. CI currently analyzes only `lib`/`test`; the `packages/` workspace members are first-party code we own outright (there is no upstream — see below), so leaving them out of the strict gate is a known gap to close, not a principled exemption.
+- Analyze/lint: `flutter analyze` (lint config in `analysis_options.yaml`, based on `all_lint_rules_community` with many explicit overrides). CI (`.github/workflows/ci.yml`) gates on `dart format --set-exit-if-changed lib test`, `dart analyze --fatal-infos lib test`, and `flutter test` on every push/PR; Dependabot scans pub deps. CI gates the **whole workspace** the same way — `dart format --set-exit-if-changed .` and `dart analyze --fatal-infos .` cover `lib`/`test` **and** every `packages/` member, since those are first-party code we own outright (there is no upstream — see below). Nothing is excluded from the strict gate.
 - Secure storage (`flutter_secure_storage`) backs remembered passwords on all platforms; **Linux** also needs `libsecret-1-dev` at build/run time.
 - Test: `flutter test` — the suite covers the rules engine and game-model features (move generation, forced moves, doubling, stats, race/auto-bear-off, win-probability, piece-animation planning). `test/board_builder.dart` builds boards from a concise `{pipNo: signedCount}` spec for **partial** positions (most rule tests); `test/scenario_test.dart` uses `fibsboard`'s ASCII `boardFromLines` for **full-board** scenarios (which require a complete 15-checker-per-side position).
 
@@ -34,7 +34,7 @@ This repo is a self-contained **Dart pub workspace** — it builds standalone wi
 - `packages/fibscli_lib/` — FIBS protocol/networking (CLIP cookies, `FibsConnection`, websocket proxy). Used only by the FIBS UI (`lib/fibs_state.dart`).
 - `packages/fibsboard/` (dev dep) — board-from-ASCII helpers (`boardFromLines`/`linesFromBoard`) used by the full-board scenario tests.
 
-Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`) and keeps its **own** strict `analysis_options.yaml` — every package is an equal peer under the same lint rules. `flutter pub get` at the root resolves the whole workspace; there is a single root `pubspec.lock` and a single `.dart_tool/`. `packages/fibscli_lib` currently carries two `discarded_futures` infos — these are **ours to fix**, not an upstream artifact to be preserved; they're simply not cleaned up yet.
+Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`); its `analysis_options.yaml` simply **`include:`s the repo-root `../../analysis_options.yaml`**, so there is one strict lint config applied to every package and to `lib`/`test` alike — the root file is the single source of truth. `flutter pub get` at the root resolves the whole workspace; there is a single root `pubspec.lock` and a single `.dart_tool/`. The entire workspace analyzes clean under `dart analyze --fatal-infos` (no ignored infos).
 
 ## FIBS networking is live in the UI
 
