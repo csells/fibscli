@@ -102,6 +102,12 @@ class FibsBoard {
   // The color (and hence GammonPlayer) that [me] plays, by matching the board's
   // player names. In our OWN game FIBS names player1 the literal "You"; when
   // watching it's the real player name (and we match neither -> null).
+  // The opponent's display name from [me]'s perspective, using the same "are
+  // we player1" rule as [colorFor] (in our own game FIBS labels us player1 the
+  // literal "You"; otherwise match by username).
+  String opponentNameFor(String? me) =>
+      (player1Name == 'You' || player1Name == me) ? player2Name : player1Name;
+
   GammonPlayer? colorFor(String me) {
     if (player1Name == 'You' || player1Name == me) {
       return player1Color == -1 ? GammonPlayer.one : GammonPlayer.two;

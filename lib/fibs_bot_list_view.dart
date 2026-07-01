@@ -20,9 +20,9 @@ class _BotListViewState extends State<_BotListView> {
       ChangeNotifierBuilder<FibsState>(notifier: App.fibs, builder: _build);
 
   Widget _build(BuildContext context, FibsState fibs, Widget? child) {
-    final free = App.fibs.availableBots; // invite these
-    final playing = App.fibs.watchableBots; // watch these
-    final saved = App.fibs.savedMatches; // unfinished matches to resume
+    final free = fibs.availableBots; // invite these
+    final playing = fibs.watchableBots; // watch these
+    final saved = fibs.savedMatches; // unfinished matches to resume
     final empty = free.isEmpty && playing.isEmpty && saved.isEmpty;
     return Scaffold(
       appBar: AppBar(

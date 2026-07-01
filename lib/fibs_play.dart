@@ -11,9 +11,10 @@ class FibsPlay {
   FibsPlay._();
 
   // Build the position in the engine's canonical frame from a FIBS board, as a
-  // mutable board the engine can apply moves to. This is the SAME frame the
-  // renderer shows ([FibsBoard.position]) -- one normalization, so what you see
-  // and what we generate/commit can never diverge (both honor `mirror`).
+  // mutable board the engine can apply moves to. This is the SAME normalization
+  // [FibsBoard.position] uses (both honor `mirror`), so the neutral/watched
+  // board render and this move generation can't diverge. (The human tap path
+  // renders its own perspective via viewerState; see fibs_board.dart.)
   static List<List<int>> _canonicalBoard(FibsBoard fb) => fb.position.toBoard();
 
   // A COMPLETE legal turn for the on-roll player as one FIBS `move` command --

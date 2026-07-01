@@ -70,20 +70,16 @@ class FibsPlayController extends ChangeNotifier {
 
   /// Reconcile the working turn with whose move it is. Idempotent and
   /// side-effect-light, so the view calls it from build too (covers entering
-  /// the view already on our move, when no notification fires). Returns whether
-  /// it changed anything. Never clobbers an in-progress turn.
-  bool syncTurn() {
+  /// the view already on our move, when no notification fires). Never clobbers
+  /// an in-progress turn.
+  void syncTurn() {
     if (_fibs.canMoveNow && _turn == null) {
       _turn = _freshTurn();
       _moves.clear();
-      return true;
-    }
-    if (!_fibs.canMoveNow && _turn != null) {
+    } else if (!_fibs.canMoveNow && _turn != null) {
       _turn = null;
       _moves.clear();
-      return true;
     }
-    return false;
   }
 
   void _onFibsChanged() {

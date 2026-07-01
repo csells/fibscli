@@ -37,10 +37,7 @@ class _PlayViewState extends State<_PlayView> {
     controller.syncTurn();
 
     final fibs = App.fibs;
-    // FIBS names us player1 "You" in our own game; the opponent is the other
-    final b = fibs.board!;
-    final p1IsUs = b.player1Name == 'You' || b.player1Name == fibs.user;
-    final opponent = p1IsUs ? b.player2Name : b.player1Name;
+    final opponent = fibs.board!.opponentNameFor(fibs.user);
 
     return Scaffold(
       backgroundColor: Colors.green,

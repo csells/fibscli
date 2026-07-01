@@ -103,10 +103,9 @@ class CookieMonster {
       final match = dough.re.firstMatch(raw);
       if (match != null) {
         final crumbs = <String, String>{};
-        final namedGroups = match.groupNames.where(
-          (n) => !isDigit(n.codeUnitAt(0)),
-        );
-        for (final name in namedGroups) {
+        // groupNames is only the NAMED groups (Dart named groups can't start
+        // with a digit), so no numbered-group filtering is needed.
+        for (final name in match.groupNames) {
           final value = match.namedGroup(name)!.trim();
           crumbs[name] = value;
 
@@ -125,7 +124,7 @@ class CookieMonster {
             // only "message" values are allowed to be empty
             assert(
               (pair.key == 'message') || pair.value.isNotEmpty,
-              '${dough.cookie}: missing crumb "{pair.Key}"',
+              '${dough.cookie}: missing crumb "${pair.key}"',
             );
           }
         }
