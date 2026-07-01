@@ -113,13 +113,15 @@ class FibsState extends ChangeNotifier {
   bool get canMoveNow => _session.canMoveNow;
   bool get canRoll => _session.canRoll;
 
-  // The current game has finished (someone borne off all 15).
+  // The current game has finished (FIBS announced a result, or 15 borne off).
   bool get isGameOver => _session.isGameOver;
 
   // Whether WE won the finished game (false = the opponent won). Null while a
-  // game is in progress.
+  // game is in progress. Prefers FIBS's announced result, falling back to the
+  // board's borne-off winner.
   bool? get didIWin {
-    final winner = _session.winner;
+    if (_session.iWon != null) return _session.iWon;
+    final winner = _session.board?.winner;
     return winner == null ? null : winner == _session.myColor;
   }
 
@@ -156,6 +158,12 @@ class FibsState extends ChangeNotifier {
     FibsCookie.CLIP_WHISPERS: _onChatMessage,
     FibsCookie.FIBS_YouRoll: _applyCookie,
     FibsCookie.FIBS_Board: _applyCookie,
+    // game/match results: FIBS announces the winner as a text message, so these
+    // are what actually ends the game in the UI (a 15-off board never arrives).
+    FibsCookie.FIBS_YouWinGame: _applyCookie,
+    FibsCookie.FIBS_PlayerWinsGame: _applyCookie,
+    FibsCookie.FIBS_YouWinMatch: _applyCookie,
+    FibsCookie.FIBS_PlayerWinsMatch: _applyCookie,
     FibsCookie.FIBS_AcceptRejectDouble: _applyCookie,
     FibsCookie.FIBS_SavedMatch: _applyCookie,
     FibsCookie.FIBS_NoSavedGames: _applyCookie,

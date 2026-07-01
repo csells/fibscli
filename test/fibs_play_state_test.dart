@@ -62,6 +62,42 @@ void main() {
     expect(fibs.didIWin, isFalse);
   });
 
+  // FIBS announces the result as a text message, not a 15-off board.
+  test('a "you win the game" message ends the game (we won)', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    fake.feed('You win the game and get 1 point.');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.isGameOver, isTrue);
+    expect(fibs.didIWin, isTrue);
+  });
+
+  test(
+    'a "player wins the game" message ends the game (opponent won)',
+    () async {
+      final fake = FakeTransport();
+      final fibs = await _inGame(fake);
+      fake.feed('MonteCarlo wins the game and gets 1 point. Sorry.');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(fibs.isGameOver, isTrue);
+      expect(fibs.didIWin, isFalse);
+    },
+  );
+
+  test('the next game board clears a prior result (mid-match)', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    fake.feed('You win the game and get 1 point.');
+    await Future<void>.delayed(Duration.zero);
+    expect(fibs.isGameOver, isTrue);
+
+    fake.feed(boardLine(turn: '1')); // the next game's in-progress board
+    await Future<void>.delayed(Duration.zero);
+    expect(fibs.isGameOver, isFalse); // result cleared -> back to play
+  });
+
   test('after roll, canRoll is false and a second roll throws', () async {
     final fake = FakeTransport();
     final fibs = await _inGame(fake); // our turn, no dice

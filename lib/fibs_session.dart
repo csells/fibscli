@@ -28,6 +28,7 @@ class FibsSession {
     this.resumeRequestFrom,
     this.mustJoin = false,
     this.savedMatches = const {},
+    this.iWon,
   });
 
   // --- authoritative state (the only real sources of truth) -----------------
@@ -51,6 +52,11 @@ class FibsSession {
   final String? resumeRequestFrom; // an opponent asks to resume a saved match
   final bool mustJoin; // FIBS asks us to type 'join' to continue
   final Set<String> savedMatches; // opponents we have an unfinished match with
+
+  // Set by a game/match-result cookie: true = we won, false = the opponent
+  // won, null = the game is still in progress. FIBS announces the result as a
+  // text message (not a 15-off board), so this is the game-over signal.
+  final bool? iWon;
 
   // --- derived display state (single source of truth) -----------------------
 
@@ -76,11 +82,9 @@ class FibsSession {
   bool get canRoll =>
       isMyTurn && effectiveDice.isEmpty && !rolling && !committedTurn;
 
-  // the current game has finished (someone borne off all 15)
-  bool get isGameOver => board?.isGameOver ?? false;
-
-  // the winner's color when the game is over (null mid-game / when watching)
-  GammonPlayer? get winner => board?.winner;
+  // the current game has finished: FIBS announced a result, or the board shows
+  // all 15 borne off
+  bool get isGameOver => iWon != null || (board?.isGameOver ?? false);
 
   // The rendered game model (+ our just-rolled dice when FIBS delivered them
   // via "You roll x and y" without a fresh board). In a game WE play it's the
@@ -103,6 +107,12 @@ class FibsSession {
   FibsSession reduce(CookieMessage cm) => switch (cm.cookie) {
     FibsCookie.FIBS_YouRoll => _afterYouRoll(cm),
     FibsCookie.FIBS_Board => _afterBoard(cm),
+    // FIBS announces the game/match result as a text message, not a 15-off
+    // board, so these are the authoritative game-over signal.
+    FibsCookie.FIBS_YouWinGame ||
+    FibsCookie.FIBS_YouWinMatch => copyWith(iWon: true),
+    FibsCookie.FIBS_PlayerWinsGame ||
+    FibsCookie.FIBS_PlayerWinsMatch => copyWith(iWon: false),
     FibsCookie.FIBS_AcceptRejectDouble => copyWith(doubleOffered: true),
     FibsCookie.FIBS_SavedMatch => _withSavedMatch(
       cm.crumbOrNull(FibsCrumbKeys.player1),
@@ -154,6 +164,9 @@ class FibsSession {
       mustJoin: false,
       committedTurn: false, // this board is the response to our move
       rolling: !settled && rolling,
+      // a fresh, in-progress board means the next game started -> clear a prior
+      // result; a game-over board keeps whatever result was announced
+      iWon: b.isGameOver ? iWon : null,
     );
   }
 
@@ -189,6 +202,7 @@ class FibsSession {
     Object? resumeRequestFrom = _unset,
     bool? mustJoin,
     Set<String>? savedMatches,
+    Object? iWon = _unset,
   }) => FibsSession(
     user: user == _unset ? this.user : user as String?,
     board: board == _unset ? this.board : board as FibsBoard?,
@@ -201,5 +215,6 @@ class FibsSession {
         : resumeRequestFrom as String?,
     mustJoin: mustJoin ?? this.mustJoin,
     savedMatches: savedMatches ?? this.savedMatches,
+    iWon: iWon == _unset ? this.iWon : iWon as bool?,
   );
 }
