@@ -1,4 +1,4 @@
-# 0001 — Game Modes & Pluggable AI Players
+# Game Modes & Pluggable AI Players
 
 **Status:** Accepted (design); implementation in progress
 **Date:** 2026-06-28

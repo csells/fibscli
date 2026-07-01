@@ -13,19 +13,28 @@ websocat proxy) are both reachable from the landing page — see below.
 
 - Run (dev): `flutter run` (targets web/desktop/mobile; works across form factors)
 - Build web: `./build-web.sh` → `flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true`
-- Analyze/lint: `flutter analyze` (lint config in `analysis_options.yaml`, based on `all_lint_rules_community` with many explicit overrides). CI (`.github/workflows/ci.yml`) gates on `dart format --set-exit-if-changed lib test`, `dart analyze --fatal-infos lib test`, and `flutter test` on every push/PR; Dependabot scans pub deps. CI analyzes only `lib`/`test` so the vendored `packages/` upstream copies don't gate it.
+- Analyze/lint: `flutter analyze` (lint config in `analysis_options.yaml`, based on `all_lint_rules_community` with many explicit overrides). CI (`.github/workflows/ci.yml`) gates on `dart format --set-exit-if-changed lib test`, `dart analyze --fatal-infos lib test`, and `flutter test` on every push/PR; Dependabot scans pub deps. CI currently analyzes only `lib`/`test`; the `packages/` workspace members are first-party code we own outright (there is no upstream — see below), so leaving them out of the strict gate is a known gap to close, not a principled exemption.
 - Secure storage (`flutter_secure_storage`) backs remembered passwords on all platforms; **Linux** also needs `libsecret-1-dev` at build/run time.
 - Test: `flutter test` — the suite covers the rules engine and game-model features (move generation, forced moves, doubling, stats, race/auto-bear-off, win-probability, piece-animation planning). `test/board_builder.dart` builds boards from a concise `{pipNo: signedCount}` spec for **partial** positions (most rule tests); `test/scenario_test.dart` uses `fibsboard`'s ASCII `boardFromLines` for **full-board** scenarios (which require a complete 15-checker-per-side position).
 
 ## Monorepo workspace
 
+**We own 100% of the code in this repo.** Every file here — including all
+`packages/` workspace members — is first-party source we author and are free to
+refactor without consequence. There is **no external upstream and nothing to
+"sync" to**: nothing here is a mirror or a vendored copy of another project. The
+packages simply live in-repo so the checkout builds standalone. (The one genuine
+*external* dependency is `backgammon_ai`, pulled as a git dep in
+`pubspec.yaml` — its source is **not** in this folder; it lives in its own repo.
+Everything under this folder is ours.)
+
 This repo is a self-contained **Dart pub workspace** — it builds standalone with no sibling repos. The root `pubspec.yaml` lists `workspace:` members:
 
-- `packages/bg_engine/` — the **pure-Dart backgammon engine**: rules + move generation (`GammonRules`, `GammonMove`, `GammonPlayer`, `GammonDelta`, `DoublingCube`, `CubeAction`), the `pubeval` evaluator, and the exact `RaceEval` race solver — all extracted out of `lib/model.dart`. No Flutter dependency (uses `package:meta`/`package:collection` for `@immutable`/list-equality). The app's `lib/model.dart` keeps `GammonState`/`GammonStats` (the `ChangeNotifier` UI state) and **re-exports** `package:bg_engine/bg_engine.dart`, so existing `import 'model.dart'` callers see the rule types unchanged. The pluggable AI-player abstraction (`BgAiPlayer`) and its implementations live here too. See `specs/architecture/0001-game-modes-and-ai-players.md`.
+- `packages/bg_engine/` — the **pure-Dart backgammon engine**: rules + move generation (`GammonRules`, `GammonMove`, `GammonPlayer`, `GammonDelta`, `DoublingCube`, `CubeAction`), the `pubeval` evaluator, and the exact `RaceEval` race solver — all extracted out of `lib/model.dart`. No Flutter dependency (uses `package:meta`/`package:collection` for `@immutable`/list-equality). The app's `lib/model.dart` keeps `GammonState`/`GammonStats` (the `ChangeNotifier` UI state) and **re-exports** `package:bg_engine/bg_engine.dart`, so existing `import 'model.dart'` callers see the rule types unchanged. The pluggable AI-player abstraction (`BgAiPlayer`) and its implementations live here too. See `specs/architecture/game-modes-and-ai-players.md`.
 - `packages/fibscli_lib/` — FIBS protocol/networking (CLIP cookies, `FibsConnection`, websocket proxy). Used only by the FIBS UI (`lib/fibs_state.dart`).
 - `packages/fibsboard/` (dev dep) — board-from-ASCII helpers (`boardFromLines`/`linesFromBoard`) used by the full-board scenario tests.
 
-Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`) and keeps its **own** strict `analysis_options.yaml` — every package is an equal peer under the same lint rules. `flutter pub get` at the root resolves the whole workspace; there is a single root `pubspec.lock` and a single `.dart_tool/`. The vendored sources are copied verbatim, so `packages/fibscli_lib` carries two pre-existing `discarded_futures` infos from upstream that are intentionally left as-is.
+Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`) and keeps its **own** strict `analysis_options.yaml` — every package is an equal peer under the same lint rules. `flutter pub get` at the root resolves the whole workspace; there is a single root `pubspec.lock` and a single `.dart_tool/`. `packages/fibscli_lib` currently carries two `discarded_futures` infos — these are **ours to fix**, not an upstream artifact to be preserved; they're simply not cleaned up yet.
 
 ## FIBS networking is live in the UI
 
@@ -147,3 +156,7 @@ App-wide singletons live as statics on `App` in `main.dart` (`App.fibs`, `App.pr
 ## Conventions (from analysis_options.yaml)
 
 Prefer `final` over type annotations; single quotes; relative imports for local files (`always_use_package_imports: false`). `missing_required_param`, `missing_return`, and `parameter_assignments` are errors, not warnings.
+
+## Specs
+
+Design docs live under `specs/`. **`specs/architecture/` files must NOT be numbered** — name them by topic (e.g. `game-modes-and-ai-players.md`), and give the doc a plain `# Title` heading with no numeric prefix. Numbered/sequential filenames are only for `specs/plans/`.

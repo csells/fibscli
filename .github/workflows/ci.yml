@@ -14,9 +14,10 @@ jobs:
           channel: stable
           flutter-version: 3.44.4
       - run: flutter pub get
-      # Format + analyze OUR code strictly (infos fatal). The vendored packages/
-      # are upstream copies with their own (documented) analyzer state, so they
-      # are intentionally excluded from this gate.
+      # Format + analyze strictly (infos fatal). NOTE: the packages/ workspace
+      # members are first-party code we own (no upstream); they're currently
+      # left out of this gate only because they still carry a few analyzer infos
+      # we haven't cleaned up. This is a known gap to close, not an exemption.
       - name: Format check
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Analyze (strict)

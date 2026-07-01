@@ -2,7 +2,7 @@
 An eventual [FIBS](http://fibs.com) client written in Flutter and hosted on the web.
 
 # status
-Currently, the app works as a stand-alone backgammon game w/o connecting to fibs.net.
+The app works both as a stand-alone backgammon game (single-player and vs. computer) **and** as a working FIBS client — login, live bot list, watch, and tap-to-move play against bots on fibs.com (over a websocat proxy, see below).
 
 # screenshot
 ![screenshot](readme/screenshot.png)
@@ -11,7 +11,7 @@ You can try it live here: https://playfibs-f3c5b.web.app/#/
 
 It works on desktop and mobile form factors.
 
-The goal is to host it on the web and make it work against the FIBS server on fibs.com. I've got a lot of the networking/websocket proxy code already written in my fibscli_lib repo.
+All of the FIBS networking / websocket-proxy code now lives **in this repo** as a first-party workspace package (`packages/fibscli_lib`). This repo owns 100% of its source — there is no external upstream and nothing to sync to.
 
 # FIBS development
 fibscli uses [websocat](https://github.com/vi/websocat) to proxy from websockets to telnet.
