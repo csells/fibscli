@@ -58,8 +58,8 @@ List<int> backgammonAiBoardSignature(bgai.Board board, GammonPlayer onRoll) {
   return sig;
 }
 
-/// A [BgAiPlayer] backed by the external `backgammon_ai` engine (a bit-exact
-/// port of the *Gary Gammon* AI).
+/// A [BgAiPlayer] backed by the external `backgammon_ai` engine. Used for the
+/// stronger levels of [GaryGammonFactory]; not registered on its own.
 class BackgammonAiPlayer extends BgAiPlayer {
   /// Creates a player at [level] (defaults to the strongest, level 8).
   BackgammonAiPlayer({bgai.AiLevel level = bgai.AiLevel.level8})
@@ -73,7 +73,7 @@ class BackgammonAiPlayer extends BgAiPlayer {
   String get name => 'Gary Gammon';
 
   @override
-  String? get description => "the engine — ${_level.name}";
+  String? get description => 'Neural engine (${_level.name})';
 
   @override
   Future<BgTurn> chooseTurn(BgPosition position) async {
@@ -99,23 +99,31 @@ class BackgammonAiPlayer extends BgAiPlayer {
   }
 }
 
-/// Factory that builds [BackgammonAiPlayer]s; [levels] are the backgammon_ai
-/// difficulty levels. Register it with the `AiRegistry`.
-class BackgammonAiPlayerFactory extends BgAiPlayerFactory {
+/// The app's single computer opponent, **Gary Gammon**, exposing levels 0-8:
+/// level 0 is the fast [PubevalAiPlayer] heuristic, and levels 1-8 use the
+/// stronger neural engine, increasing in strength. Register it with the
+/// `AiRegistry`.
+class GaryGammonFactory extends BgAiPlayerFactory {
   @override
   String get name => 'Gary Gammon';
 
   @override
-  String? get description => "the engine (levels 1-8)";
+  String? get description => 'Level 0 is quick; 1-8 grow steadily stronger';
+
+  /// Levels "0".."8": 0 is the heuristic, 1-8 the neural engine.
+  @override
+  List<String> get levels => [for (var i = 0; i <= 8; i++) '$i'];
 
   @override
-  List<String> get levels => [for (final l in bgai.AiLevel.values) l.name];
+  BgAiPlayer create({String? level}) {
+    final n = int.tryParse(level ?? '') ?? _defaultLevel;
+    if (n <= 0) return PubevalAiPlayer(); // level 0: the quick heuristic
+    // levels 1-8 map to the neural engine's level1..level8
+    final capped = n.clamp(1, 8);
+    return BackgammonAiPlayer(level: bgai.AiLevel.values[capped - 1]);
+  }
 
-  @override
-  BgAiPlayer create({String? level}) => BackgammonAiPlayer(
-    level: bgai.AiLevel.values.firstWhere(
-      (l) => l.name == level,
-      orElse: () => bgai.AiLevel.level8,
-    ),
-  );
+  // Used only if create() is called without a level (the picker always supplies
+  // one); a middling default.
+  static const _defaultLevel = 4;
 }

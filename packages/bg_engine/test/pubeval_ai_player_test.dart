@@ -50,7 +50,8 @@ void main() {
   });
 
   group('AiRegistry', () {
-    test('ships the pubeval player out of the box', () {
+    test('a registered engine is retrievable by name', () {
+      AiRegistry.register(PubevalAiPlayerFactory());
       expect(
         AiRegistry.available.map((f) => f.name),
         contains('Heuristic (pubeval)'),
@@ -60,6 +61,7 @@ void main() {
     });
 
     test('register replaces a same-named factory', () {
+      AiRegistry.register(PubevalAiPlayerFactory());
       final before = AiRegistry.available.length;
       AiRegistry.register(PubevalAiPlayerFactory()); // same name
       expect(AiRegistry.available.length, before); // replaced, not added

@@ -71,13 +71,15 @@ void main() {
       expect(turn.isDance, isTrue);
     });
 
-    test('the factory exposes difficulty levels and builds a player', () {
-      final factory = BackgammonAiPlayerFactory();
-      expect(factory.levels, isNotEmpty);
-      expect(
-        factory.create(level: factory.levels.last),
-        isA<BackgammonAiPlayer>(),
-      );
+    test('Gary Gammon exposes levels 0-8; 0 is the heuristic, 1-8 neural', () {
+      final factory = GaryGammonFactory();
+      expect(factory.name, 'Gary Gammon');
+      expect(factory.levels, ['0', '1', '2', '3', '4', '5', '6', '7', '8']);
+      // level 0 is the fast heuristic
+      expect(factory.create(level: '0'), isA<PubevalAiPlayer>());
+      // levels 1-8 are the neural engine
+      expect(factory.create(level: '8'), isA<BackgammonAiPlayer>());
+      expect(factory.create(level: '1'), isA<BackgammonAiPlayer>());
     });
   });
 }

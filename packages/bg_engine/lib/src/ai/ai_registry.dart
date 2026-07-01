@@ -1,16 +1,13 @@
 import 'package:collection/collection.dart';
 
 import 'bg_ai_player.dart';
-import 'pubeval_ai_player.dart';
 
-/// The set of AI engines the app can offer. Ships with the built-in
-/// [PubevalAiPlayer]; the host app registers additional engines (e.g. the
-/// `backgammon_ai` package, or a gnubg-service adapter) at startup, and the UI
-/// lists [available] for the user to pick from.
+/// The set of AI engines the app can offer. Empty until the host app registers
+/// its engines at startup; the UI lists [available] for the user to pick from.
 class AiRegistry {
   AiRegistry._();
 
-  static final List<BgAiPlayerFactory> _factories = [PubevalAiPlayerFactory()];
+  static final List<BgAiPlayerFactory> _factories = <BgAiPlayerFactory>[];
 
   /// Register an engine. A later registration with the same `name` replaces the
   /// earlier one (so the app can override a built-in).

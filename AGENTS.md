@@ -43,12 +43,14 @@ Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`); i
 `AiRegistry.available` → `GamePlayPage` with an `aiSide`/`BgAiPlayer`, driven by
 `lib/local_ai_driver.dart`'s `positionFromState`/`playAiTurn`), and **Play a bot
 (FIBS)** (`FibsPage`). The AI abstraction (`BgAiPlayer`, `PubevalAiPlayer`,
-`AiRegistry`) lives in `packages/bg_engine`; see the spec. Three engines are
-registered: the built-in `PubevalAiPlayer`, the bundled **`backgammon_ai`**
-engine (a git dependency on `github.com/csells/backgammon_ai`, adapted to
-`BgAiPlayer` in `lib/backgammon_ai_player.dart`), and a **gnubg-service**
-adapter (`GnubgAiPlayer` + `HttpGnubgClient` in `bg_engine`; registered once a
-service URL is configured). `lib/fibs_page.dart` is the working FIBS client UI —
+`AiRegistry`) lives in `packages/bg_engine`; see the spec. The picker offers
+**Gary Gammon** (`GaryGammonFactory` in `lib/backgammon_ai_player.dart`), a
+single opponent exposing levels 0-8: level 0 is the built-in `PubevalAiPlayer`
+heuristic, and levels 1-8 are the stronger `backgammon_ai` neural engine (a git
+dependency on `github.com/csells/backgammon_ai`, adapted to `BgAiPlayer` in the
+same file). A **gnubg-service** adapter (`GnubgAiPlayer` + `HttpGnubgClient` in
+`bg_engine`) is also listed when a service URL is configured
+(`--dart-define=gnubg_service_url`). `lib/fibs_page.dart` is the working FIBS client UI —
 login (with optional autologin from `--dart-define` `fibs_uname`/`fibs_pword`),
 the live bot list (invite / watch), tap-to-move play, **"Play for me"**
 (starts the autonomous `FibsBotPlayer`), resume of saved matches, and the

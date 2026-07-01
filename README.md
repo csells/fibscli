@@ -69,9 +69,9 @@ Each error is then POSTed as JSON (`context`, `error`, `stack`, `time`). With no
 
 ### Optional: the gnubg engine
 
-The **Play vs Computer** picker always offers the built-in pubeval engine and
-the bundled Gary Gammon. To also offer the world-class **GNU Backgammon**
-engine, point the build at a gnubg-service:
+The **Play vs Computer** picker always offers **Gary Gammon** (levels 0-8: level
+0 is a fast heuristic, 1-8 grow stronger). To also offer the world-class **GNU
+Backgammon** engine, point the build at a gnubg-service:
 
 ```sh
 $ flutter build web --release \

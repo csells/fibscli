@@ -59,11 +59,11 @@ Future<AppDeps> bootstrap({
   if (crashReportUrl.isNotEmpty) {
     errorSink = httpErrorSink(Uri.parse(crashReportUrl));
   }
-  // Bundle the backgammon_ai engine as a selectable opponent alongside the
-  // built-in pubeval, and offer the gnubg-service engine too when a service URL
-  // is configured via --dart-define=gnubg_service_url=... (optional
-  // gnubg_api_key). No URL -> the gnubg engine is simply not listed.
-  AiRegistry.register(BackgammonAiPlayerFactory());
+  // Offer Gary Gammon (levels 0-8) as the computer opponent, and the
+  // gnubg-service engine too when a service URL is configured via
+  // --dart-define=gnubg_service_url=... (optional gnubg_api_key). No URL -> the
+  // gnubg engine is simply not listed.
+  AiRegistry.register(GaryGammonFactory());
   // ignore: do_not_use_environment -- compile-time gnubg config seam
   const gnubgUrl = String.fromEnvironment('gnubg_service_url');
   // ignore: do_not_use_environment -- compile-time gnubg config seam
