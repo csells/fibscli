@@ -356,35 +356,6 @@ class GammonRules {
     }
   }
 
-  /// Estimate the probability that the player on roll wins a race, given both
-  /// pip counts (issue #14). This is a heuristic, NOT an equity engine: a
-  /// logistic model of the pip lead, widened by the size of the race (variance
-  /// grows with pip count) and nudged by a small on-roll bonus. Good enough to
-  /// guide cube decisions in a pure race; it does not account for contact,
-  /// wastage, or gammons.
-  static double raceWinProbability({
-    required int myPips,
-    required int oppPips,
-  }) {
-    const onRollBonus = 4.0; // ~half an average roll for moving next
-    final total = (myPips + oppPips).toDouble();
-    final spread = sqrt(total < 1 ? 1 : total) * 1.5;
-    final adjustedLead = (oppPips - myPips) + onRollBonus;
-    return 1.0 / (1.0 + exp(-adjustedLead / spread));
-  }
-
-  /// The recommended cube action for the player on roll given their win
-  /// probability (issue #14). Uses the classic cubeless money-game reference
-  /// points: a take point of 25% (so the opponent passes once the doubler is
-  /// above ~75%) and a doubling window that opens around 70%.
-  static CubeAction cubeAction(double winProbability) {
-    const doublePoint = 0.70;
-    const passPoint = 0.75;
-    if (winProbability < doublePoint) return CubeAction.noDouble;
-    if (winProbability <= passPoint) return CubeAction.doubleTake;
-    return CubeAction.doublePass;
-  }
-
   /// True when the two players' checkers have passed each other so no further
   /// hits are possible: a pure race. Used to offer auto bear-off (issue #11).
   static bool isRace(List<List<int>> board) {

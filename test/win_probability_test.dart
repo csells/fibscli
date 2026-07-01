@@ -2,9 +2,9 @@ import 'package:fibscli/model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('GammonRules.raceWinProbability (issue #14)', () {
+  group('CubePolicy.raceWinProbability (issue #14)', () {
     double wp(int my, int opp) =>
-        GammonRules.raceWinProbability(myPips: my, oppPips: opp);
+        CubePolicy.raceWinProbability(myPips: my, oppPips: opp);
 
     test('always returns a probability strictly between 0 and 1', () {
       for (final pair in [
@@ -39,18 +39,18 @@ void main() {
     );
   });
 
-  group('GammonRules.cubeAction (issue #14)', () {
+  group('CubePolicy.cubeAction (issue #14)', () {
     test('too early to double below the doubling window', () {
-      expect(GammonRules.cubeAction(0.5), CubeAction.noDouble);
-      expect(GammonRules.cubeAction(0.69), CubeAction.noDouble);
+      expect(CubePolicy.cubeAction(0.5), CubeAction.noDouble);
+      expect(CubePolicy.cubeAction(0.69), CubeAction.noDouble);
     });
 
     test('inside the window: double and opponent takes', () {
-      expect(GammonRules.cubeAction(0.72), CubeAction.doubleTake);
+      expect(CubePolicy.cubeAction(0.72), CubeAction.doubleTake);
     });
 
     test('past the take point: double and opponent should pass', () {
-      expect(GammonRules.cubeAction(0.9), CubeAction.doublePass);
+      expect(CubePolicy.cubeAction(0.9), CubeAction.doublePass);
     });
   });
 
