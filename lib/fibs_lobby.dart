@@ -1,6 +1,7 @@
 import 'package:fibscli_lib/fibscli_lib.dart';
 
 import 'bot_policy.dart';
+import 'fibs_crumb_keys.dart';
 import 'tinystate.dart';
 
 // The FIBS lobby roster: the live who-list plus the bot-only queries the UI
@@ -113,39 +114,24 @@ class WhoInfo {
   factory WhoInfo.from(CookieMessage cm) {
     assert(cm.cookie == FibsCookie.CLIP_WHO_INFO);
     return WhoInfo(
-      user: cm.crumb(_kName),
-      opponent: CookieMonster.parseOptional(cm.crumb(_kOpponent)) ?? '',
-      watching: CookieMonster.parseOptional(cm.crumb(_kWatching)) ?? '',
-      ready: CookieMonster.parseBool(cm.crumbOrNull(_kReady)),
-      away: CookieMonster.parseBool(cm.crumbOrNull(_kAway)),
-      rating: double.parse(cm.crumb(_kRating)),
-      experience: int.parse(cm.crumb(_kExperience)),
+      user: cm.crumb(FibsCrumbKeys.name),
+      opponent:
+          CookieMonster.parseOptional(cm.crumb(FibsCrumbKeys.opponent)) ?? '',
+      watching:
+          CookieMonster.parseOptional(cm.crumb(FibsCrumbKeys.watching)) ?? '',
+      ready: CookieMonster.parseBool(cm.crumbOrNull(FibsCrumbKeys.ready)),
+      away: CookieMonster.parseBool(cm.crumbOrNull(FibsCrumbKeys.away)),
+      rating: double.parse(cm.crumb(FibsCrumbKeys.rating)),
+      experience: int.parse(cm.crumb(FibsCrumbKeys.experience)),
       lastActive: DateTime.now().add(
-        Duration(seconds: int.parse(cm.crumb(_kIdle))),
+        Duration(seconds: int.parse(cm.crumb(FibsCrumbKeys.idle))),
       ),
-      lastLogin: CookieMonster.parseTimestamp(cm.crumb(_kLogin)),
-      hostname: cm.crumb(_kHostName),
-      client: CookieMonster.parseOptional(cm.crumb(_kClient)) ?? '',
-      email: CookieMonster.parseOptional(cm.crumb(_kEmail)) ?? '',
+      lastLogin: CookieMonster.parseTimestamp(cm.crumb(FibsCrumbKeys.login)),
+      hostname: cm.crumb(FibsCrumbKeys.hostName),
+      client: CookieMonster.parseOptional(cm.crumb(FibsCrumbKeys.client)) ?? '',
+      email: CookieMonster.parseOptional(cm.crumb(FibsCrumbKeys.email)) ?? '',
     );
   }
-
-  // The crumb keys of a CLIP_WHO_INFO line, named in one place instead of as
-  // scattered string literals. They mirror the regex group names in
-  // fibscli_lib's cookie tables; if one ever drifts, cm.crumb throws a clear
-  // MissingCrumbError (see who_info_hostname_test).
-  static const _kName = 'name';
-  static const _kOpponent = 'opponent';
-  static const _kWatching = 'watching';
-  static const _kReady = 'ready';
-  static const _kAway = 'away';
-  static const _kRating = 'rating';
-  static const _kExperience = 'experience';
-  static const _kIdle = 'idle';
-  static const _kLogin = 'login';
-  static const _kHostName = 'hostName';
-  static const _kClient = 'client';
-  static const _kEmail = 'email';
 
   final String user;
   final String opponent;

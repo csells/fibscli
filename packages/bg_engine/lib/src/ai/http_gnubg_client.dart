@@ -88,22 +88,60 @@ class HttpGnubgClient extends GnubgClient {
       );
     }
 
-    // Parse defensively: a valid-HTTP-but-unexpected-shape body (missing/wrong
-    // fields) must surface as a catchable Exception so the adapter's retry /
-    // GnubgUnavailableException path handles it, not a raw TypeError (an Error)
-    // that would escape `on Exception catch`.
+    // Validate the response against the expected schema explicitly, so a
+    // valid-HTTP-but-wrong-shape body fails with a message that names the
+    // offending field (not an opaque cast TypeError) -- and as a catchable
+    // Exception, so the adapter's retry / GnubgUnavailableException path
+    // handles it rather than an Error escaping `on Exception catch`.
+    final Object? decoded;
     try {
-      final json = jsonDecode(resp.body) as Map<String, dynamic>;
-      final moves = json['moves'] as List<dynamic>? ?? const [];
-      return [
-        for (final m in moves.cast<Map<String, dynamic>>())
-          GnubgRankedMove(
-            play: m['play'] as String,
-            equity: (m['equity'] as num?)?.toDouble() ?? 0.0,
-          ),
-      ];
-    } on Object catch (e) {
-      throw GnubgServiceError(resp.statusCode, 'malformed response: $e');
+      decoded = jsonDecode(resp.body);
+    } on FormatException catch (e) {
+      throw GnubgServiceError(resp.statusCode, 'body is not valid JSON: $e');
     }
+    return _parseRankedMoves(decoded, resp.statusCode);
+  }
+
+  List<GnubgRankedMove> _parseRankedMoves(Object? decoded, int status) {
+    if (decoded is! Map<String, dynamic>) {
+      throw GnubgServiceError(
+        status,
+        'expected a JSON object, got ${decoded.runtimeType}',
+      );
+    }
+    final rawMoves = decoded['moves'];
+    if (rawMoves is! List) {
+      throw GnubgServiceError(
+        status,
+        '"moves" must be a list, got ${rawMoves.runtimeType}',
+      );
+    }
+    final moves = <GnubgRankedMove>[];
+    for (final raw in rawMoves) {
+      if (raw is! Map<String, dynamic>) {
+        throw GnubgServiceError(
+          status,
+          'each move must be an object, got ${raw.runtimeType}',
+        );
+      }
+      final play = raw['play'];
+      if (play is! String) {
+        throw GnubgServiceError(
+          status,
+          'move "play" must be a string, got ${play.runtimeType}',
+        );
+      }
+      final equity = raw['equity'];
+      if (equity != null && equity is! num) {
+        throw GnubgServiceError(
+          status,
+          'move "equity" must be a number, got ${equity.runtimeType}',
+        );
+      }
+      moves.add(
+        GnubgRankedMove(play: play, equity: (equity as num?)?.toDouble() ?? 0),
+      );
+    }
+    return moves;
   }
 }

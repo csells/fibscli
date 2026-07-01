@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 
 import 'bot_policy.dart';
 import 'fibs_board.dart';
+import 'fibs_crumb_keys.dart';
 import 'fibs_lobby.dart';
 import 'fibs_move.dart';
 import 'fibs_session.dart';
@@ -137,7 +138,7 @@ class FibsState extends ChangeNotifier {
   // session reducer via _applyCookie (one place, one source of truth).
   late final Map<FibsCookie, void Function(CookieMessage)> _handlers = {
     FibsCookie.CLIP_WHO_INFO: (cm) => lobby.upsert(WhoInfo.from(cm)),
-    FibsCookie.CLIP_LOGOUT: (cm) => lobby.remove(cm.crumb('name')),
+    FibsCookie.CLIP_LOGOUT: (cm) => lobby.remove(cm.crumb(FibsCrumbKeys.name)),
     FibsCookie.CLIP_KIBITZES: _onChatMessage,
     FibsCookie.CLIP_MESSAGE: _onChatMessage,
     FibsCookie.CLIP_SAYS: _onChatMessage,
@@ -176,7 +177,11 @@ class FibsState extends ChangeNotifier {
   }
 
   void _onChatMessage(CookieMessage cm) => messages.add(
-    FibsMessage(cm.cookie, cm.crumb('name'), cm.crumb('message')),
+    FibsMessage(
+      cm.cookie,
+      cm.crumb(FibsCrumbKeys.name),
+      cm.crumb(FibsCrumbKeys.message),
+    ),
   );
 
   // --- play actions (bots only) ---------------------------------------------

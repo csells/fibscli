@@ -113,5 +113,41 @@ void main() {
       );
       await expectLater(client.evalMoves(opening()), throwsA(isA<Exception>()));
     });
+
+    // The response is schema-validated: a wrong-shape body fails with a message
+    // that NAMES the offending field, not an opaque cast TypeError text.
+    Future<void> expectSchemaError(Object body, Matcher message) async {
+      final mock = MockClient((_) async => Response(jsonEncode(body), 200));
+      final client = HttpGnubgClient(
+        baseUrl: Uri.parse('https://gnubg.example'),
+        httpClient: mock,
+      );
+      await expectLater(
+        client.evalMoves(opening()),
+        throwsA(
+          isA<GnubgServiceError>().having((e) => e.body, 'body', message),
+        ),
+      );
+    }
+
+    test('names "moves" when it is not a list', () async {
+      await expectSchemaError({'moves': 'nope'}, contains('"moves"'));
+    });
+
+    test('names "play" when a move is missing it', () async {
+      await expectSchemaError({
+        'moves': [
+          {'equity': 0.1},
+        ],
+      }, contains('play'));
+    });
+
+    test('names "equity" when it is the wrong type', () async {
+      await expectSchemaError({
+        'moves': [
+          {'play': '8/5 6/5', 'equity': 'high'},
+        ],
+      }, contains('equity'));
+    });
   });
 }
