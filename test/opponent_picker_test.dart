@@ -3,8 +3,7 @@ import 'package:fibscli/model.dart'; // re-exports bg_engine (factories, …)
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// A single-strength engine (no levels) and a leveled one, so we can drive both
-// picker paths without depending on the global AiRegistry.
+// A single-strength engine (no levels) and a leveled one.
 class _FlatFactory extends BgAiPlayerFactory {
   @override
   String get name => 'Flat Engine';
@@ -16,22 +15,26 @@ class _LeveledFactory extends BgAiPlayerFactory {
   @override
   String get name => 'Leveled Engine';
   @override
-  List<String> get levels => const ['easy', 'hard'];
+  List<String> get levels => const ['easy', 'medium', 'hard'];
   @override
   BgAiPlayer create({String? level}) => PubevalAiPlayer();
 }
 
-Future<AiChoice?> _openPicker(WidgetTester tester) async {
-  AiChoice? result;
+// Open the picker via a button; the tapped result is written into [onResult].
+Future<void> _open(
+  WidgetTester tester,
+  OpponentPicker picker,
+  void Function(AiChoice?) onResult,
+) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: Builder(
           builder: (context) => ElevatedButton(
-            onPressed: () async => result = await showDialog<AiChoice>(
-              context: context,
-              builder: (_) => OpponentPicker(
-                factories: [_FlatFactory(), _LeveledFactory()],
+            onPressed: () async => onResult(
+              await showDialog<AiChoice>(
+                context: context,
+                builder: (_) => picker,
               ),
             ),
             child: const Text('open'),
@@ -42,28 +45,80 @@ Future<AiChoice?> _openPicker(WidgetTester tester) async {
   );
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
-  return result;
 }
 
 void main() {
-  testWidgets('a single-strength engine is chosen directly (no level)', (
+  testWidgets('one dialog shows the engine AND difficulty together', (
     tester,
   ) async {
-    await _openPicker(tester);
-    await tester.tap(find.text('Flat Engine'));
+    AiChoice? result;
+    await _open(
+      tester,
+      OpponentPicker(factories: [_LeveledFactory()]),
+      (c) => result = c,
+    );
+
+    // both are on-screen at once -- no second step to reach difficulty
+    expect(find.text('Leveled Engine'), findsOneWidget);
+    expect(find.textContaining('Difficulty'), findsOneWidget);
+    expect(find.text('OK'), findsOneWidget);
+
+    await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    // dialog closed straight away -- no difficulty step
-    expect(find.textContaining('difficulty'), findsNothing);
+    expect(result!.factory.name, 'Leveled Engine');
+    expect(result!.level, 'medium'); // middle of [easy, medium, hard]
   });
 
-  testWidgets('a leveled engine offers a difficulty step', (tester) async {
-    await _openPicker(tester);
+  testWidgets(
+    'remembers the previous choice: OK returns the pre-selected level',
+    (tester) async {
+      AiChoice? result;
+      await _open(
+        tester,
+        OpponentPicker(factories: [_LeveledFactory()], initialLevel: 'hard'),
+        (c) => result = c,
+      );
 
-    // picking the leveled engine reveals its levels rather than starting
-    await tester.tap(find.text('Leveled Engine'));
+      // no interaction beyond OK -- the remembered level is pre-filled
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(result!.level, 'hard');
+    },
+  );
+
+  testWidgets('the difficulty can be changed within the one dialog', (
+    tester,
+  ) async {
+    AiChoice? result;
+    await _open(
+      tester,
+      OpponentPicker(factories: [_LeveledFactory()], initialLevel: 'easy'),
+      (c) => result = c,
+    );
+
+    await tester.tap(find.text('easy')); // open the difficulty dropdown
     await tester.pumpAndSettle();
-    expect(find.textContaining('difficulty'), findsOneWidget);
-    expect(find.text('easy'), findsOneWidget);
-    expect(find.text('hard'), findsOneWidget);
+    await tester.tap(find.text('hard').last); // choose a different level
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(result!.level, 'hard');
+  });
+
+  testWidgets('a level-less engine has no difficulty control; level is null', (
+    tester,
+  ) async {
+    AiChoice? result;
+    await _open(
+      tester,
+      OpponentPicker(factories: [_FlatFactory()]),
+      (c) => result = c,
+    );
+
+    expect(find.textContaining('Difficulty'), findsNothing);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(result!.factory.name, 'Flat Engine');
+    expect(result!.level, isNull);
   });
 }

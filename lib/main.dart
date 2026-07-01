@@ -243,16 +243,32 @@ class LandingPage extends StatelessWidget {
     ),
   );
 
-  // Let the user pick an AI engine (and a difficulty, for engines that offer
-  // levels), then start a 1-player game with the computer playing player two.
+  // SharedPreferences keys remembering the last opponent + difficulty, so the
+  // picker reopens on the previous choice and the user can just press OK.
+  static const _aiEngineKey = 'ai_engine';
+  static const _aiLevelKey = 'ai_level';
+
+  // Let the user pick an AI engine and a difficulty in ONE dialog, pre-filled
+  // with their last choice, then start a 1-player game with the computer
+  // playing player two.
   Future<void> _playVsComputer(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!context.mounted) return;
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final choice = await showDialog<AiChoice>(
       context: context,
-      builder: (_) => OpponentPicker(factories: AiRegistry.available),
+      builder: (_) => OpponentPicker(
+        factories: AiRegistry.available,
+        initialEngine: prefs.getString(_aiEngineKey),
+        initialLevel: prefs.getString(_aiLevelKey),
+      ),
     );
     if (choice == null) return;
+
+    // Remember the choice for next time.
+    await prefs.setString(_aiEngineKey, choice.factory.name);
+    if (choice.level != null) await prefs.setString(_aiLevelKey, choice.level!);
 
     // Building an engine can fail (e.g. a misconfigured service client).
     // Surface it instead of letting the tap throw with no game started.
@@ -288,56 +304,120 @@ class AiChoice {
   final String? level;
 }
 
-/// A modal that picks an AI engine and, for engines that offer difficulty
-/// levels, a level too. Pops with an [AiChoice], or null if cancelled. Building
-/// the engine is left to the caller so a construction failure can be surfaced.
+/// A single modal that picks an AI engine AND (for engines that offer them) a
+/// difficulty level at once, pre-selected from [initialEngine]/[initialLevel]
+/// so a returning user can just press OK. Pops with an [AiChoice], or null if
+/// cancelled. Building the engine is left to the caller so a construction
+/// failure can be surfaced.
 class OpponentPicker extends StatefulWidget {
-  /// Creates a picker over [factories] (typically `AiRegistry.available`).
-  const OpponentPicker({required this.factories, super.key});
+  /// Creates a picker over [factories] (typically `AiRegistry.available`),
+  /// pre-selecting [initialEngine] (by name) and [initialLevel] when valid.
+  const OpponentPicker({
+    required this.factories,
+    this.initialEngine,
+    this.initialLevel,
+    super.key,
+  });
 
   /// The engines to offer.
   final List<BgAiPlayerFactory> factories;
+
+  /// The engine name to pre-select (the last choice), if still available.
+  final String? initialEngine;
+
+  /// The difficulty level to pre-select, if valid for the selected engine.
+  final String? initialLevel;
 
   @override
   State<OpponentPicker> createState() => _OpponentPickerState();
 }
 
 class _OpponentPickerState extends State<OpponentPicker> {
-  // Once a leveled engine is picked, we show its levels (a second step).
-  BgAiPlayerFactory? _leveling;
+  late BgAiPlayerFactory _engine;
+  String? _level;
 
   @override
-  Widget build(BuildContext context) {
-    final leveling = _leveling;
-    if (leveling == null) {
-      return SimpleDialog(
-        title: const Text('Choose your opponent'),
-        children: [
-          for (final f in widget.factories)
-            SimpleDialogOption(
-              onPressed: () => f.levels.isEmpty
-                  ? Navigator.pop(context, AiChoice(f, null))
-                  : setState(() => _leveling = f),
-              child: ListTile(
-                title: Text(f.name),
-                subtitle: f.description == null ? null : Text(f.description!),
-                trailing: f.levels.isEmpty
-                    ? null
-                    : const Icon(Icons.chevron_right),
-              ),
-            ),
-        ],
-      );
+  void initState() {
+    super.initState();
+    _engine = widget.factories.firstWhere(
+      (f) => f.name == widget.initialEngine,
+      orElse: () => widget.factories.first,
+    );
+    _level = _levelFor(_engine, widget.initialLevel);
+  }
+
+  // The preferred level if it is valid for [engine], else a middling default
+  // (null when the engine has no levels).
+  static String? _levelFor(BgAiPlayerFactory engine, String? preferred) {
+    if (engine.levels.isEmpty) return null;
+    if (preferred != null && engine.levels.contains(preferred)) {
+      return preferred;
     }
-    return SimpleDialog(
-      title: Text('${leveling.name} — difficulty'),
+    return engine.levels[engine.levels.length ~/ 2];
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Choose your opponent'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final level in leveling.levels)
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, AiChoice(leveling, level)),
-            child: ListTile(title: Text(level)),
+        // engine: a dropdown only when there's a choice; else just its name
+        if (widget.factories.length > 1)
+          DropdownButton<BgAiPlayerFactory>(
+            value: _engine,
+            isExpanded: true,
+            items: [
+              for (final f in widget.factories)
+                DropdownMenuItem(value: f, child: Text(f.name)),
+            ],
+            onChanged: (f) => setState(() {
+              _engine = f!;
+              _level = _levelFor(f, _level);
+            }),
+          )
+        else
+          Text(_engine.name, style: Theme.of(context).textTheme.titleMedium),
+        if (_engine.description != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              _engine.description!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        if (_engine.levels.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Row(
+              children: [
+                const Text('Difficulty: '),
+                Expanded(
+                  child: DropdownButton<String>(
+                    value: _level,
+                    isExpanded: true,
+                    items: [
+                      for (final l in _engine.levels)
+                        DropdownMenuItem(value: l, child: Text(l)),
+                    ],
+                    onChanged: (l) => setState(() => _level = l),
+                  ),
+                ),
+              ],
+            ),
           ),
       ],
-    );
-  }
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      ElevatedButton(
+        onPressed: () => Navigator.pop(context, AiChoice(_engine, _level)),
+        child: const Text('OK'),
+      ),
+    ],
+  );
 }
