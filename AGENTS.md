@@ -17,6 +17,13 @@ websocat proxy) are both reachable from the landing page — see below.
 - Secure storage (`flutter_secure_storage`) backs remembered passwords on all platforms; **Linux** also needs `libsecret-1-dev` at build/run time.
 - Test: `flutter test` — the suite covers the rules engine and game-model features (move generation, forced moves, doubling, stats, race/auto-bear-off, win-probability, piece-animation planning). `test/board_builder.dart` builds boards from a concise `{pipNo: signedCount}` spec for **partial** positions (most rule tests); `test/scenario_test.dart` uses `fibsboard`'s ASCII `boardFromLines` for **full-board** scenarios (which require a complete 15-checker-per-side position).
 
+## Project Skills
+
+Cloudflare Worker guidance for this repo is project-scoped under
+`.claude/skills/`, with `.agents/skills` symlinked there. Keep Wrangler-related
+skills here when they are specific to the FIBS proxy Worker; do not install them
+into the shared user skill tree for this project.
+
 ## Monorepo workspace
 
 **We own 100% of the code in this repo.** Every file here — including all

@@ -47,6 +47,15 @@ Production should set `ENVIRONMENT=prod`, `VERSION` to the release identifier,
 and `ALLOWED_ORIGINS` to the deployed Flutter app origin before promoting the
 route.
 
+The current production endpoint is:
+
+```text
+wss://fibs-proxy.csells.workers.dev/fibs
+```
+
+`proxy.playfibs.com` can replace the `workers.dev` endpoint after `playfibs.com`
+is added as a Cloudflare zone.
+
 ## Privacy
 
 The Worker must not log or emit FIBS payloads. That includes login commands,

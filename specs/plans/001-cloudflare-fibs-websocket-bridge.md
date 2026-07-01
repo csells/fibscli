@@ -300,7 +300,7 @@ The app should continue to route all FIBS traffic through
 Implementation tasks:
 
 - Set production build defaults to the hosted Cloudflare Worker endpoint:
-  `wss://proxy.playfibs.com/fibs`.
+  `wss://fibs-proxy.csells.workers.dev/fibs`.
 - Keep `FibsState.withTransport` and `FibsState.withTransportFactory` for tests.
 - Keep local development support in code or scripts, but document it as
   developer infrastructure, not a user option.
@@ -327,8 +327,8 @@ Use Cloudflare Workers Free for the initial hosted service.
 Suggested deployment names:
 
 - production Worker: `fibs-proxy`
-- production route: `https://proxy.playfibs.com/fibs`
-- health route: `https://proxy.playfibs.com/healthz`
+- production route: `https://fibs-proxy.csells.workers.dev/fibs`
+- health route: `https://fibs-proxy.csells.workers.dev/healthz`
 
 Deployment tasks:
 
@@ -386,7 +386,8 @@ Manual validation:
 
 ## 13. Open Decisions
 
-- Cloudflare DNS and route configuration for `proxy.playfibs.com`.
+- Cloudflare DNS and route configuration for `proxy.playfibs.com`, if a branded
+  proxy hostname is preferred over the current `workers.dev` endpoint.
 - Exact allowed Origin list.
 - Wrangler login or CI API token for the Cloudflare account that owns the
   Worker and Analytics Engine dataset.

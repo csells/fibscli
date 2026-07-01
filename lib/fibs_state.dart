@@ -74,7 +74,7 @@ class FibsState extends ChangeNotifier {
   // ignore: do_not_use_environment -- compile-time proxy config seam
   static const _envProxyHost = String.fromEnvironment(
     'fibs_proxy_host',
-    defaultValue: 'proxy.playfibs.com',
+    defaultValue: 'fibs-proxy.csells.workers.dev',
   );
   // ignore: do_not_use_environment -- compile-time proxy config seam
   static const _envProxyPort = int.fromEnvironment(

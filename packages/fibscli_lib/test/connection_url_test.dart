@@ -16,11 +16,11 @@ void main() {
 
   test('a secure connection can target the hosted Worker bridge path', () {
     final conn = FibsConnection(
-      'proxy.playfibs.com',
+      'fibs-proxy.csells.workers.dev',
       443,
       secure: true,
       path: '/fibs',
     );
-    expect(conn.url, Uri.parse('wss://proxy.playfibs.com:443/fibs'));
+    expect(conn.url, Uri.parse('wss://fibs-proxy.csells.workers.dev:443/fibs'));
   });
 }

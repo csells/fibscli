@@ -21,7 +21,7 @@ owns 100% of its source — there is no external upstream and nothing to sync to
 
 # FIBS development
 The production web app uses the hosted Cloudflare Worker bridge:
-`wss://proxy.playfibs.com/fibs`.
+`wss://fibs-proxy.csells.workers.dev/fibs`.
 
 Local development can still run a developer-only
 [websocat](https://github.com/vi/websocat) bridge. This is for contributors and
