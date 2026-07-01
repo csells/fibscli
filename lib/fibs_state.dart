@@ -107,6 +107,19 @@ class FibsState extends ChangeNotifier {
   // the app in bootstrap; null in tests that don't care.
   Future<void> Function()? onLogout;
 
+  // Called to auto-reconnect after an UNEXPECTED drop (not a logout). Wired by
+  // the app to re-login with remembered credentials; must throw if it can't
+  // (e.g. no remembered password), so we fall back to the login screen instead
+  // of claiming to reconnect. FibsState owns the loop guard (_reconnectUsed),
+  // not this hook.
+  Future<void> Function()? onReconnect;
+
+  // One auto-reconnect per successfully-established session: set when we spend
+  // it on a drop, cleared when a fresh login reaches CLIP_WELCOME. A reconnect
+  // that itself drops before welcome therefore does NOT loop -- it lands the
+  // user on the login screen.
+  bool _reconnectUsed = false;
+
   // the game model for rendering, derived from the session (null when not in a
   // game); the raw FIBS board snapshot behind it (turn, dice, names, canMove)
   GammonState? get gameState => _session.gameState;
@@ -406,6 +419,7 @@ class FibsState extends ChangeNotifier {
     }
 
     _session = _session.loggedInAs(user);
+    _reconnectUsed = false; // a live session re-arms one auto-reconnect
     // raw board frames are required for parsing; moreboards is toggled on from
     // CLIP_OWN_INFO below so FIBS sends a board after every roll/move
     _conn?.send('set boardstyle 3');
@@ -448,28 +462,48 @@ class FibsState extends ChangeNotifier {
     _reset();
   }
 
-  // The connection closed. If WE didn't ask for it (server kick, network loss),
-  // tell the user rather than silently dumping them on the login screen.
-  void _onStreamDone() {
-    final unexpected = !_expectClose;
-    _reset();
-    if (unexpected) _surfaceConnectionLost('Connection to FIBS lost.');
-  }
+  // The connection closed. If WE didn't ask for it (logout), stay silent;
+  // otherwise handle the unexpected drop.
+  void _onStreamDone() => _onUnexpectedClose('Connection to FIBS lost.');
 
-  // A mid-session transport failure: log it, reset, and (if unexpected) surface
-  // it rather than letting it escape as an unhandled async error.
+  // A mid-session transport failure: log it, then handle it as an unexpected
+  // close rather than letting it escape as an unhandled async error.
   void _onStreamError(Object error, StackTrace stackTrace) {
     _log.warning('FIBS stream error', error, stackTrace);
-    final unexpected = !_expectClose;
+    _onUnexpectedClose('FIBS connection error.');
+  }
+
+  // Shared close handler. A deliberate logout (_expectClose) is silent. An
+  // unexpected drop resets, then either spends our one auto-reconnect (if a
+  // reconnect hook is wired and unspent) or tells the user to log in again.
+  void _onUnexpectedClose(String what) {
+    final expected = _expectClose;
     _reset();
-    if (unexpected) _surfaceConnectionLost('FIBS connection error.');
+    if (expected) return;
+    if (onReconnect != null && !_reconnectUsed) {
+      _reconnectUsed = true;
+      _notice('$what Reconnecting...');
+      unawaited(_attemptReconnect());
+    } else {
+      _notice('$what Please log in again.');
+    }
+  }
+
+  Future<void> _attemptReconnect() async {
+    try {
+      await onReconnect!.call();
+    } on Object catch (ex, st) {
+      // No remembered creds, or the reconnect login failed: land on the login
+      // screen. _reconnectUsed stays set, so a drop of that attempt won't loop.
+      _log.warning('auto-reconnect failed', ex, st);
+      _notice('Reconnect failed. Please log in again.');
+    }
   }
 
   // Post a notice AFTER _reset (which clears messages) so the user sees why the
-  // session ended. Shown by FibsPage's message SnackBar over the login screen.
-  void _surfaceConnectionLost(String text) => messages.add(
-    FibsMessage(FibsCookie.FIBS_Unknown, 'FIBS', '$text Please log in again.'),
-  );
+  // session ended. Shown by FibsPage's message SnackBar.
+  void _notice(String text) =>
+      messages.add(FibsMessage(FibsCookie.FIBS_Unknown, 'FIBS', text));
 
   void _reset() {
     lobby.clear();

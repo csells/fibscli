@@ -172,6 +172,36 @@ void main() {
     expect(fibs.messages, isEmpty); // logout is expected, not a drop
   });
 
+  test('an unexpected drop auto-reconnects once via the hook', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    var reconnects = 0;
+    fibs.onReconnect = () async => reconnects++;
+
+    fake.feedError(StateError('drop')); // unexpected
+    await Future<void>.delayed(Duration.zero);
+
+    expect(reconnects, 1);
+    expect(fibs.messages.last.message, contains('Reconnecting'));
+  });
+
+  test('a reconnect that also drops does not loop', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    var reconnects = 0;
+    // the hook here doesn't re-login (never reaches CLIP_WELCOME), so the guard
+    // stays spent -- a second drop must NOT trigger another reconnect
+    fibs.onReconnect = () async => reconnects++;
+
+    fake.feedError(StateError('drop 1'));
+    await Future<void>.delayed(Duration.zero);
+    fake.feedError(StateError('drop 2'));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(reconnects, 1, reason: 'one reconnect per established session');
+    expect(fibs.messages.last.message, contains('log in again'));
+  });
+
   test('after roll, canRoll is false and a second roll throws', () async {
     final fake = FakeTransport();
     final fibs = await _inGame(fake); // our turn, no dice

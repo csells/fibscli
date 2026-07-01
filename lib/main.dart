@@ -76,6 +76,13 @@ Future<AppDeps> bootstrap({
   // Wire end-of-session cleanup without FibsState depending on credentials:
   // an explicit logout forgets the remembered password.
   fibs.onLogout = creds.forget;
+  // Auto-reconnect after an unexpected drop by re-logging-in with the
+  // remembered credentials; throw when there are none so FibsState falls back
+  // to the login screen. FibsState owns the one-reconnect-per-session guard.
+  fibs.onReconnect = () async {
+    if (!creds.canAutologin) throw StateError('no remembered credentials');
+    await fibs.login(user: creds.user!, pass: creds.password!);
+  };
   return AppDeps(fibs: fibs, creds: creds);
 }
 
