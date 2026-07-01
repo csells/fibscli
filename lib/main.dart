@@ -12,6 +12,7 @@ import 'credential_store.dart';
 import 'fibs_page.dart';
 import 'fibs_state.dart';
 import 'game_play_page.dart';
+import 'http_error_sink.dart';
 import 'logging.dart';
 import 'tinystate.dart';
 
@@ -49,6 +50,14 @@ Future<AppDeps> bootstrap({
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   setupLogging();
+  // Opt-in remote crash reporting: a production build can supply a report URL
+  // via --dart-define=crash_report_url=... to observe failures off-device.
+  // Nothing is sent unless a deployer sets it.
+  // ignore: do_not_use_environment
+  const crashReportUrl = String.fromEnvironment('crash_report_url');
+  if (crashReportUrl.isNotEmpty) {
+    errorSink = httpErrorSink(Uri.parse(crashReportUrl));
+  }
   // Bundle the backgammon_ai engine as a selectable opponent alongside the
   // built-in pubeval (gnubg is registered separately once a URL is configured).
   AiRegistry.register(BackgammonAiPlayerFactory());
