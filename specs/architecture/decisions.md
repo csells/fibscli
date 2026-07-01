@@ -52,16 +52,23 @@ both are injected. The only `App` static is `scaffoldMessengerKey` — a stable
 **Why:** keeps the UI decoupled from mutable global state and lets tests supply
 their own instances directly.
 
-## Uncaught errors are surfaced to the user, not shipped off-device
+## Uncaught errors are surfaced on-device by default; remote reporting is opt-in
 
 The Flutter and zone global error handlers route through `reportError`, which
-logs via `package:logging` and posts a user-facing `AppError` to the `appErrors`
-notifier; the app root shows it as a SnackBar with a Copy action.
+logs via `package:logging`, posts a user-facing `AppError` to the `appErrors`
+notifier (shown by the app root as a SnackBar whose **Details** action opens a
+viewer over the retained `errorHistory`), and forwards to an optional
+`errorSink`.
 
-**Decision:** report uncaught errors to the user (with enough detail to retry or
-copy into a report), not to a remote crash-reporting service.
+**Decision:** default to on-device observability — a transient SnackBar plus a
+bounded, viewable error history — and make off-device reporting an explicit
+opt-in (`bootstrap` installs an `httpErrorSink` only when
+`--dart-define=crash_report_url=…` is set).
 
-**Why:** the product target is a self-hosted client; a remote sink is out of
-scope. `reportError` is the single seam, so a remote reporter could later be
-added by attaching another `Logger.root.onRecord` listener with no call-site
-changes.
+**Why:** the product target is a self-hosted client, so nothing should leave the
+device unless a deployer chooses it; but "the user sees the error" is only useful
+if the error outlives its SnackBar, hence the retained history + viewer.
+`reportError` is the single seam and `errorSink` the single injection point, so
+adding remote reporting required no call-site changes. The sink is
+fire-and-forget and failure-swallowing: a crash reporter that can itself crash
+the app is worse than none.

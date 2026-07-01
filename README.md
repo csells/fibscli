@@ -29,3 +29,29 @@ $ websocat --binary ws-l:127.0.0.1:8080 tcp:fibs.com:4321 --exit-on-eof -v
 ```
 
 Now running fibscli will use a websocket on port 8080 of the localhost to connect to either JIBS or FIBS as appropriate.
+
+## Production build & deployment
+
+Build the release web bundle:
+
+```sh
+$ ./build-web.sh   # flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true
+```
+
+The output in `build/web` is a static bundle. To play FIBS from a deployed
+build, a `websocat` proxy (above) must be reachable from wherever the app runs —
+the browser can't open a raw telnet socket, so the websocket→telnet hop is
+required in production too.
+
+### Optional: remote crash reporting
+
+Uncaught errors are always surfaced to the user (a SnackBar with a **Details**
+view over the retained error log) and logged on-device. To *also* report them
+off-device, supply a crash-report URL at build time:
+
+```sh
+$ flutter build web --release --dart-define=crash_report_url=https://example.com/crash
+```
+
+Each error is then POSTed as JSON (`context`, `error`, `stack`, `time`). With no
+`crash_report_url` set, nothing leaves the device.
