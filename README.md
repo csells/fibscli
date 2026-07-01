@@ -66,3 +66,17 @@ $ flutter build web --release --dart-define=crash_report_url=https://example.com
 
 Each error is then POSTed as JSON (`context`, `error`, `stack`, `time`). With no
 `crash_report_url` set, nothing leaves the device.
+
+### Optional: the gnubg engine
+
+The **Play vs Computer** picker always offers the built-in pubeval engine and
+the bundled Gary Gammon. To also offer the world-class **GNU Backgammon**
+engine, point the build at a gnubg-service:
+
+```sh
+$ flutter build web --release \
+    --dart-define=gnubg_service_url=https://gnubg.example.com \
+    --dart-define=gnubg_api_key=...   # optional, sent as x-api-key
+```
+
+With no `gnubg_service_url`, the gnubg engine is simply not listed.

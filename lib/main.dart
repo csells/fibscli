@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'ai_engines.dart';
 import 'app_close_stub.dart' if (dart.library.html) 'app_close_web.dart';
 import 'backgammon_ai_player.dart';
 import 'credential_store.dart';
@@ -59,8 +60,16 @@ Future<AppDeps> bootstrap({
     errorSink = httpErrorSink(Uri.parse(crashReportUrl));
   }
   // Bundle the backgammon_ai engine as a selectable opponent alongside the
-  // built-in pubeval (gnubg is registered separately once a URL is configured).
+  // built-in pubeval, and offer the gnubg-service engine too when a service URL
+  // is configured via --dart-define=gnubg_service_url=... (optional
+  // gnubg_api_key). No URL -> the gnubg engine is simply not listed.
   AiRegistry.register(BackgammonAiPlayerFactory());
+  // ignore: do_not_use_environment -- compile-time gnubg config seam
+  const gnubgUrl = String.fromEnvironment('gnubg_service_url');
+  // ignore: do_not_use_environment -- compile-time gnubg config seam
+  const gnubgKey = String.fromEnvironment('gnubg_api_key');
+  final gnubg = gnubgFactoryFor(gnubgUrl, apiKey: gnubgKey);
+  if (gnubg != null) AiRegistry.register(gnubg);
   final prefs = await SharedPreferences.getInstance();
   final creds = SecureCredentialStore(prefs, secretStore);
   try {

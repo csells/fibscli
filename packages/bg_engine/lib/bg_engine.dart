@@ -5,6 +5,7 @@ library;
 export 'src/ai/ai_registry.dart';
 export 'src/ai/bg_ai_player.dart';
 export 'src/ai/gnubg_ai_player.dart';
+export 'src/ai/http_gnubg_client.dart';
 export 'src/ai/pubeval_ai_player.dart';
 export 'src/ai/turn_search.dart';
 export 'src/board.dart';
