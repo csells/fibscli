@@ -1,5 +1,18 @@
 import 'dart:math' as math;
 
+// The (dx, dy, dir) of point [pip] (1..24) in the ASCII board: which column,
+// which baseline row, and which way the stack runs (dir -1 = up from the bottom
+// rows, +1 = down from the top). One source of truth for the board geometry,
+// shared by the read (boardFromLines) and write (linesFromBoard) paths so a
+// layout tweak can't drift between them.
+({int dx, int dy, int dir}) _coordsForPip(int pip) {
+  assert(pip >= 1 && pip <= 24);
+  if (pip <= 6) return (dx: 40 - (pip - 1) * 3, dy: 11, dir: -1);
+  if (pip <= 12) return (dx: 17 - (pip - 7) * 3, dy: 11, dir: -1);
+  if (pip <= 18) return (dx: 2 + (pip - 13) * 3, dy: 1, dir: 1);
+  return (dx: 25 + (pip - 19) * 3, dy: 1, dir: 1);
+}
+
 /// Converts a textual representation of a board into a 2D list representation.
 ///
 /// The input is a list of 13 lines representing the board. Each line contains
@@ -32,33 +45,11 @@ List<List<int>> boardFromLines(List<String> lines) {
 
   // board pips
   for (var pip = 1; pip != 25; ++pip) {
-    if (pip >= 1 && pip <= 6) {
-      // player1 home board
-      totalPieceCount(
-        pip,
-        _readLineUp(lines: lines, dx: 40 - (pip - 1) * 3, dy: 11),
-      );
-    } else if (pip >= 7 && pip <= 12) {
-      // player1 outer board
-      totalPieceCount(
-        pip,
-        _readLineUp(lines: lines, dx: 17 - (pip - 7) * 3, dy: 11),
-      );
-    } else if (pip >= 13 && pip <= 18) {
-      // player2 outer board
-      totalPieceCount(
-        pip,
-        _readLineDown(lines: lines, dx: 2 + (pip - 13) * 3, dy: 1),
-      );
-    } else if (pip >= 19 && pip <= 24) {
-      // player2 home board
-      totalPieceCount(
-        pip,
-        _readLineDown(lines: lines, dx: 25 + (pip - 19) * 3, dy: 1),
-      );
-    } else {
-      assert(false, 'unreachable');
-    }
+    final c = _coordsForPip(pip);
+    totalPieceCount(
+      pip,
+      _readLineVert(lines: lines, dx: c.dx, dy: c.dy, dir: c.dir),
+    );
   }
 
   // player1 and player2 off
@@ -239,46 +230,15 @@ List<String> linesFromBoard(List<List<int>> board) {
     if (pieces == 0) continue;
 
     final color = board[pip][0] < 0 ? 'X' : 'O';
-
-    if (pip >= 1 && pip <= 6) {
-      // player1 home board
-      _writeLineUp(
-        lines: lines,
-        dx: 40 - (pip - 1) * 3,
-        dy: 11,
-        char: color,
-        length: pieces,
-      );
-    } else if (pip >= 7 && pip <= 12) {
-      // player1 outer board
-      _writeLineUp(
-        lines: lines,
-        dx: 17 - (pip - 7) * 3,
-        dy: 11,
-        char: color,
-        length: pieces,
-      );
-    } else if (pip >= 13 && pip <= 18) {
-      // player2 outer board
-      _writeLineDown(
-        lines: lines,
-        dx: 2 + (pip - 13) * 3,
-        dy: 1,
-        char: color,
-        length: pieces,
-      );
-    } else if (pip >= 19 && pip <= 24) {
-      // player2 home board
-      _writeLineDown(
-        lines: lines,
-        dx: 25 + (pip - 19) * 3,
-        dy: 1,
-        char: color,
-        length: pieces,
-      );
-    } else {
-      assert(false, 'unreachable');
-    }
+    final c = _coordsForPip(pip);
+    _writeLineVert(
+      lines: lines,
+      dx: c.dx,
+      dy: c.dy,
+      char: color,
+      length: pieces,
+      dir: c.dir,
+    );
   }
 
   // player1 and player2 off
