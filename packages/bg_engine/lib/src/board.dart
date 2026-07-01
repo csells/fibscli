@@ -12,6 +12,15 @@ import 'rules.dart';
 /// index 25 = player-one bar / player-two off; each inner list holds signed
 /// piece IDs (negative = player one), the magnitude being a stable per-checker
 /// id used for animation tracking.
+///
+/// Decision (leverage-types follow-up): the move-generation internals
+/// (`GammonRules.getAllLegalMoves`/`applyMove`/…) deliberately keep operating on
+/// the raw list via indexing rather than these accessors. Because GammonBoard
+/// IS a `List<List<int>>`, they already receive it transparently when handed a
+/// `GammonState.board`; converting their hot inner loops buys little (the typed
+/// entity + typed consumers already deliver the readability win) while churning
+/// the most heavily-tested, highest-risk code in the engine. GammonBoard types
+/// the board entity and its callers; the engine core stays as-is by design.
 extension type GammonBoard(List<List<int>> points) implements List<List<int>> {
   /// The signed piece IDs on [pip].
   List<int> checkersAt(int pip) => points[pip];
