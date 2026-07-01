@@ -109,7 +109,8 @@ class FibsConnection {
       },
       onDone: () {
         dev.log('stream.onDone');
-        // fire-and-forget teardown; double-close is guarded by _channel != null
+        // fire-and-forget teardown; close() captures-and-nulls up front so a
+        // concurrent onError close can't double-close
         unawaited(close());
       },
       onError: (error) {
@@ -172,10 +173,12 @@ class FibsConnection {
 
   /// Closes the WebSocket connection to the FIBS server.
   Future<void> close() async {
-    if (_channel != null) {
-      await _channel!.sink.close();
-      _channel = null;
-      await _streamController.close();
-    }
+    // Capture-and-null BEFORE the first await so a concurrent close() (onDone
+    // and onError can both fire) can't pass the guard during the async gap.
+    final channel = _channel;
+    if (channel == null) return;
+    _channel = null;
+    await channel.sink.close();
+    await _streamController.close();
   }
 }

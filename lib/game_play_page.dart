@@ -65,6 +65,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
   @override
   void dispose() {
     _controller.removeListener(_savePrefs);
+    _controller.dispose();
     super.dispose();
   }
 
@@ -148,6 +149,7 @@ class _GamePlayPageState extends State<GamePlayPage> {
 class GameViewController extends ChangeNotifier {
   bool _reversed = false;
   GammonState? _game;
+  bool _disposed = false;
 
   // command hooks the GameView injects; invoked by the matching methods below
   late void Function() onUndo;
@@ -171,13 +173,15 @@ class GameViewController extends ChangeNotifier {
   // building), and a game change could also land mid-frame. Defer to after the
   // frame in those cases.
   void _notifySafely() {
+    if (_disposed) return;
     final phase = SchedulerBinding.instance.schedulerPhase;
     if (phase == SchedulerPhase.idle ||
         phase == SchedulerPhase.postFrameCallbacks) {
       notifyListeners();
     } else {
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_game != null) notifyListeners();
+        // guard against a deferred notify landing after teardown
+        if (!_disposed) notifyListeners();
       });
     }
   }
@@ -200,6 +204,7 @@ class GameViewController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _game?.removeListener(_notifySafely);
     super.dispose();
   }

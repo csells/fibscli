@@ -380,31 +380,6 @@ class GammonRules {
     return p1Max < p2Min;
   }
 
-  /// Greedy bear-off choice for a single die (issue #11): bear a checker off if
-  /// possible, clearing the highest such point; otherwise advance the rearmost
-  /// checker. Returns null when the die has no legal play.
-  static GammonMove? greedyMoveForDie(
-    List<List<int>> board,
-    GammonPlayer? player,
-    int die,
-  ) {
-    final movesByPip = getAllLegalMoves(board, player, [die]);
-    final candidates = <GammonMove>[
-      for (final moves in movesByPip.values) ...moves,
-    ];
-    if (candidates.isEmpty) return null;
-
-    // "rearness": how far from home a point is for this player (higher == more
-    // checker work remaining), so the rearmost checker has the largest value.
-    int rearness(int pipNo) => player == GammonPlayer.one ? pipNo : -pipNo;
-
-    final offPipNo = offPipNoFor(player);
-    final bearoffs = candidates.where((m) => m.toPipNo == offPipNo).toList();
-    final pool = bearoffs.isNotEmpty ? bearoffs : candidates;
-    pool.sort((a, b) => rearness(b.fromPipNo).compareTo(rearness(a.fromPipNo)));
-    return pool.first;
-  }
-
   /// A greedy full turn for [player] with [dice] from [board] (issue #11):
   /// repeatedly play a move that bears a checker off if one exists, else
   /// advance the rear-most checker, until the dice are spent. Returns the moves

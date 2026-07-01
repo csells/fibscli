@@ -27,46 +27,6 @@ void main() {
     });
   });
 
-  group('GammonRules.greedyMoveForDie (issue #11)', () {
-    test('bears off from the highest point when the die allows', () {
-      final board = makeBoard({6: -1, 3: -1});
-      final move = GammonRules.greedyMoveForDie(board, GammonPlayer.one, 6);
-      expect(move, isNotNull);
-      expect(move!.fromPipNo, 6);
-      expect(move.toPipNo, GammonRules.offPipNoFor(GammonPlayer.one)); // 0
-    });
-
-    test('advances the rearmost checker when no bear-off is possible', () {
-      final board = makeBoard({6: -1, 3: -1});
-      // a 2 cannot bear anything off; greedy advances the rearmost (pip 6)
-      final move = GammonRules.greedyMoveForDie(board, GammonPlayer.one, 2);
-      expect(move, isNotNull);
-      expect(move!.fromPipNo, 6);
-      expect(move.toPipNo, 4);
-    });
-
-    test('takes a checker off rather than moving within (greedy example)', () {
-      // From mkebackgammon's greedy article: with home-board checkers and a 6,
-      // the greedy play bears a checker off (6/off) instead of shuffling within
-      // the board. With a 6-1, greedy bears off with BOTH dice (6/off, 1/off).
-      final board = makeBoard({6: -1, 5: -1, 2: -1, 1: -1});
-
-      final six = GammonRules.greedyMoveForDie(board, GammonPlayer.one, 6)!;
-      expect(six.fromPipNo, 6);
-      expect(six.toPipNo, GammonRules.offPipNoFor(GammonPlayer.one)); // off
-
-      final one = GammonRules.greedyMoveForDie(board, GammonPlayer.one, 1)!;
-      expect(one.fromPipNo, 1);
-      expect(one.toPipNo, GammonRules.offPipNoFor(GammonPlayer.one)); // off
-    });
-
-    test('returns null when the die has no legal play', () {
-      // player1 on the bar; the entry point for a 1 (pip 24) is blocked
-      final board = makeBoard({25: -1, 24: 2});
-      expect(GammonRules.greedyMoveForDie(board, GammonPlayer.one, 1), isNull);
-    });
-  });
-
   group('GammonRules.autoBearOffTurn (issue #11)', () {
     test('greedily bears off checkers for the whole turn', () {
       final board = makeBoard({6: -1, 5: -1, 2: -1, 1: -1});

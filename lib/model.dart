@@ -199,28 +199,24 @@ class GammonState extends ChangeNotifier {
 
   // Play the rest of the game greedily. Only meaningful in a pure race, where
   // no decision affects the outcome, so the player can skip clicking out every
-  // bear-off. Mutates state directly (no per-move animation).
+  // bear-off. Mutates state directly (no per-move animation). Uses the engine's
+  // one shared greedy bear-off policy (the same GammonRules.autoBearOffTurn the
+  // FIBS play view uses), so there's a single strategy, not two.
   void autoBearOff() {
     if (_gameOver) return;
 
     while (!_gameOver) {
-      // play every available die greedily for the current turn
-      while (true) {
-        final available = _dice
-            .where((d) => d.available)
-            .map((d) => d.roll)
-            .toList();
-        if (available.isEmpty) break;
-
-        GammonMove? chosen;
-        for (final die in available) {
-          chosen = GammonRules.greedyMoveForDie(board, _turnPlayer, die);
-          if (chosen != null) break;
-        }
-        if (chosen == null) break; // no legal move for any remaining die
-
-        final deltas = applyMove(move: chosen);
-        if (deltas.isEmpty) break; // safety: avoid spinning
+      final available = _dice
+          .where((d) => d.available)
+          .map((d) => d.roll)
+          .toList();
+      for (final move in GammonRules.autoBearOffTurn(
+        board,
+        _turnPlayer,
+        available,
+      )) {
+        applyMove(move: move);
+        if (_gameOver) break;
       }
 
       if (_gameOver) break;
