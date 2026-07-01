@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:developer' as dev;
 import 'dart:typed_data';
 
+import 'package:meta/meta.dart';
+
 // The cross-platform entry point: WebSocketChannel.connect picks the dart:io or
 // dart:html implementation via conditional compilation, so the same code runs
 // on native (desktop/mobile) and on the web.
@@ -40,6 +42,19 @@ class FibsConnection {
 
   /// Stream of parsed CookieMessage objects received from the server.
   Stream<CookieMessage> get stream => _streamController.stream;
+
+  /// Parse one raw websocket frame into cookies (drives the residual-line
+  /// buffering across frames). Exposed so the frame-splitting logic can be
+  /// tested without a live socket; [asState] optionally forces the parser's
+  /// starting message state.
+  @visibleForTesting
+  List<CookieMessage> receiveFrame(
+    String frame, {
+    CookieMonsterState? asState,
+  }) {
+    if (asState != null) _monster.messageState = asState;
+    return _receive(frame);
+  }
 
   /// Logs in to the FIBS server with the given username and password.
   ///
@@ -159,16 +174,28 @@ class FibsConnection {
     dev.log('RECEIVE: $message');
 
     // Prepend any partial line from the previous frame, then split on newlines.
-    // In the run state (who-list, boards), hold back an incomplete trailing
-    // line so it can be completed by the next frame; during login the prompt
-    // ("login: ") has no trailing newline and must be processed immediately.
+    // Every part but the last is a complete, newline-terminated line; the last
+    // is the (possibly incomplete) trailing segment.
     final parts = (_residual + message).split('\n');
-    final buffering =
-        _monster.messageState == CookieMonsterState.FIBS_RUN_STATE;
-    _residual = buffering ? parts.removeLast() : '';
-    return [
+    final last = parts.removeLast();
+    final cms = [
       for (final line in parts) _monster.eatCookie(line.replaceAll('\r', '')),
     ];
+
+    // Decide the trailing segment by the state AFTER those complete lines, not
+    // the state at the start of the frame -- a frame can cross the MOTD_END ->
+    // RUN transition, after which an incomplete who-list/board line must be
+    // held for the next frame. During login the prompt ("login: ") has no
+    // trailing newline and must be processed immediately.
+    if (_monster.messageState == CookieMonsterState.FIBS_RUN_STATE) {
+      _residual = last; // buffer the incomplete trailing line
+    } else {
+      _residual = '';
+      if (last.isNotEmpty) {
+        cms.add(_monster.eatCookie(last.replaceAll('\r', '')));
+      }
+    }
+    return cms;
   }
 
   /// Closes the WebSocket connection to the FIBS server.
