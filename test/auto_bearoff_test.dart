@@ -67,6 +67,34 @@ void main() {
     });
   });
 
+  group('GammonRules.autoBearOffTurn (issue #11)', () {
+    test('greedily bears off checkers for the whole turn', () {
+      final board = makeBoard({6: -1, 5: -1, 2: -1, 1: -1});
+      final off = GammonRules.offPipNoFor(GammonPlayer.one);
+      // with a 6 and a 1, greedy bears off from 6 and from 1
+      final moves = GammonRules.autoBearOffTurn(board, GammonPlayer.one, [
+        6,
+        1,
+      ]);
+      expect(moves.length, 2);
+      expect(moves.map((m) => m.toPipNo), everyElement(off));
+    });
+
+    test('advances the rear-most checker when no bear-off fits', () {
+      final board = makeBoard({6: -1, 3: -1});
+      // a lone 2 can't bear anything off; greedy advances the rear-most (pip 6)
+      final moves = GammonRules.autoBearOffTurn(board, GammonPlayer.one, [2]);
+      expect(moves.first.fromPipNo, 6);
+    });
+
+    test('does not mutate the input board', () {
+      final board = makeBoard({6: -1, 1: -1});
+      final before = board.map((c) => c.length).toList();
+      GammonRules.autoBearOffTurn(board, GammonPlayer.one, [6, 1]);
+      expect(board.map((c) => c.length).toList(), before);
+    });
+  });
+
   group('GammonState.autoBearOff (issue #11)', () {
     test('plays a pure race to completion', () {
       final board = makeBoard({

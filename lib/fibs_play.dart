@@ -1,4 +1,5 @@
 import 'fibs_board.dart';
+import 'fibs_move.dart';
 import 'model.dart';
 
 // Legal-move generation for a live FIBS game, so an autonomous/assisted player
@@ -85,33 +86,16 @@ class FibsPlay {
   }
 
   // Render a chosen turn (a list of single-hop moves) as one FIBS `move`
-  // command, e.g. "move 24-18 13-11".
+  // command, e.g. "move 24-18 13-11". Moves are in the canonical engine frame,
+  // so each waypoint is mapped back to FIBS coordinates via fb.mirror.
   static String _mergeTurn(FibsBoard fb, Iterable<GammonMove> moves) {
-    final hops = moves.map((m) => commandFor(fb, m).substring('move '.length));
-    return 'move ${hops.join(' ')}';
+    final pairs = moves.expand((m) => hopPairs(m, mapPip: fb.mirror));
+    return 'move ${pairs.join(' ')}';
   }
 
   // Translate one canonical GammonMove into a FIBS `move` command, mapping each
-  // waypoint back to absolute FIBS coordinates (bar/off use keywords).
-  static String commandFor(FibsBoard fb, GammonMove move) {
-    final player = move.player;
-    final barPip = GammonRules.barPipNoFor(player);
-    final offPip = GammonRules.offPipNoFor(player);
-    String label(int canonicalPos) {
-      if (canonicalPos == barPip) return 'bar';
-      if (canonicalPos == offPip) return 'off';
-      return '${fb.mirror(canonicalPos)}'; // engine pip -> FIBS coord
-    }
-
-    final hops = <String>[];
-    var pos = move.fromPipNo;
-    for (final hop in move.hops) {
-      var next = pos + hop;
-      if (next < 0) next = 0;
-      if (next > 25) next = 25;
-      hops.add('${label(pos)}-${label(next)}');
-      pos = next;
-    }
-    return 'move ${hops.join(' ')}';
-  }
+  // waypoint back to absolute FIBS coordinates (bar/off use keywords). Shares
+  // the one hop-walk renderer with the viewer path ([hopPairs]).
+  static String commandFor(FibsBoard fb, GammonMove move) =>
+      'move ${hopPairs(move, mapPip: fb.mirror).join(' ')}';
 }

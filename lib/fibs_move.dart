@@ -1,21 +1,26 @@
 import 'model.dart';
 
-// The `from-to` pairs (one per die) for a move, e.g. ['13-9', '9-7'], with the
-// bar/off keywords.
+// The `from-to` pairs (one per die) for [move], e.g. ['13-9', '9-7'], with the
+// bar/off keywords. [mapPip] maps each engine pip to its output coordinate:
+// identity for a move already in the viewer/FIBS frame (the default), or
+// FibsBoard.mirror for a move generated in the canonical engine frame. The one
+// place hop-walk + bar/off/overshoot rendering lives -- shared by
+// [fibsTurnCommand] (viewer) and FibsPlay.commandFor (canonical).
 //
 // Validated against live FIBS data and the meowbg OSS client: FIBS move
 // coordinates are absolute board positions, identical to our pip numbering, so
 // each hop becomes a `from-to` pair (dash-joined). The bar uses the keyword
 // `bar` and bearing off uses `off`; an overshooting bear-off clamps onto the
 // off tray. e.g. GammonMove(13 -> 7, hops [-4,-2]) => ['13-9', '9-7'].
-List<String> _hopPairs(GammonMove move) {
+List<String> hopPairs(GammonMove move, {int Function(int)? mapPip}) {
+  final map = mapPip ?? (p) => p;
   final player = move.player;
   final barPip = GammonRules.barPipNoFor(player);
   final offPip = GammonRules.offPipNoFor(player);
   String label(int pip) {
     if (pip == barPip) return 'bar';
     if (pip == offPip) return 'off';
-    return '$pip';
+    return '${map(pip)}';
   }
 
   final hops = <String>[];
@@ -37,4 +42,4 @@ List<String> _hopPairs(GammonMove move) {
 // here when the player taps the dice to commit. An empty turn (a dance) is just
 // "move".
 String fibsTurnCommand(List<GammonMove> moves) =>
-    'move ${moves.expand(_hopPairs).join(' ')}'.trimRight();
+    'move ${moves.expand(hopPairs).join(' ')}'.trimRight();

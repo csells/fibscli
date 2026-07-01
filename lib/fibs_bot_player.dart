@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:fibscli_lib/fibscli_lib.dart';
 
+import 'fibs_play.dart';
 import 'fibs_state.dart';
 
 /// The outcome of a [FibsBotPlayer.run].
@@ -205,7 +206,16 @@ class FibsBotPlayer {
     } else if (_fibs.canRoll) {
       _fibs.roll();
     } else if (_fibs.canMoveNow) {
-      _fibs.playFirstLegalMove(); // null == a legitimate dance: send nothing
+      // policy lives here (not in FibsState): pick the best complete turn, then
+      // hand the pre-built command to the connection to send + commit.
+      final board = _fibs.board;
+      final cmd = board == null
+          ? null
+          : FibsPlay.bestTurnCommand(board, dice: _fibs.activeDice) ??
+                FibsPlay.fullTurnCommand(board, dice: _fibs.activeDice);
+      // null == a legitimate dance (dice but no legal move): send nothing and
+      // let FIBS auto-pass.
+      if (cmd != null) _fibs.commitTurnCommand(cmd);
     }
     _resetStall();
   }

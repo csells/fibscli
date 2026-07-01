@@ -1,3 +1,4 @@
+import 'package:fibscli/fibs_play.dart';
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/model.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,12 +61,18 @@ void main() {
     expect(fibs.canRoll, isFalse);
     expect(fibs.canMoveNow, isTrue);
 
-    final cmd = fibs.playFirstLegalMove();
+    // the caller (here standing in for FibsBotPlayer) picks the turn...
+    final cmd = FibsPlay.bestTurnCommand(fibs.board!, dice: fibs.activeDice);
     expect(cmd, isNotNull);
+    // ...and hands the command to FibsState to send + commit
+    fibs.commitTurnCommand(cmd!);
     // committing the whole turn flips canMoveNow off until the next board, so a
     // second move can't be sent into a turn we already played
     expect(fibs.canMoveNow, isFalse);
-    expect(fibs.playFirstLegalMove, throwsA(isA<FibsStateError>()));
+    expect(
+      () => fibs.commitTurnCommand('move 1-2'),
+      throwsA(isA<FibsStateError>()),
+    );
   });
 
   test('submitTurn sends the whole turn at once and commits', () async {
@@ -98,7 +105,9 @@ void main() {
       fibs.roll();
       fake.feed('You roll 6 and 4');
       await Future<void>.delayed(Duration.zero);
-      fibs.playFirstLegalMove();
+      fibs.commitTurnCommand(
+        FibsPlay.bestTurnCommand(fibs.board!, dice: fibs.activeDice)!,
+      );
       expect(fibs.canMoveNow, isFalse); // committed
 
       // our next turn arrives as a fresh board with no dice
@@ -123,8 +132,10 @@ void main() {
     // the roll proves it's our turn: we must be able to move OUR checkers
     expect(fibs.isMyTurn, isTrue);
     expect(fibs.canMoveNow, isTrue);
-    final cmd = fibs.playFirstLegalMove();
+    final cmd = FibsPlay.bestTurnCommand(fibs.board!, dice: fibs.activeDice);
     expect(cmd, isNotNull);
+    fibs.commitTurnCommand(cmd!);
+    expect(fibs.canMoveNow, isFalse);
   });
 
   test(

@@ -8,7 +8,6 @@ import 'bot_policy.dart';
 import 'fibs_board.dart';
 import 'fibs_lobby.dart';
 import 'fibs_move.dart';
-import 'fibs_play.dart';
 import 'fibs_session.dart';
 import 'fibs_transport.dart';
 import 'model.dart';
@@ -220,27 +219,20 @@ class FibsState extends ChangeNotifier {
     if (moves.isNotEmpty) _conn.send(fibsTurnCommand(moves));
   }
 
-  // Play a legal move for us automatically (drives an assisted/auto game).
-  // Picks the first legal move from the engine and sends it; returns the
-  // command sent, or null if there's nothing to play. Bots-only, so safe to
-  // automate.
-  String? playFirstLegalMove() {
+  // Send a pre-built whole-turn `move ...` [command] and mark the turn
+  // committed (canMoveNow off until the next board). This is pure transport:
+  // the POLICY of WHICH turn to play (pubeval / an AI engine) lives in the
+  // caller -- e.g. FibsBotPlayer -- so this connection/state machine stays free
+  // of move selection. Throws if it isn't our turn to move.
+  void commitTurnCommand(String command) {
     if (!canMoveNow) {
       throw FibsStateError(
-        'playFirstLegalMove: not our turn to move '
+        'commitTurnCommand: not our turn to move '
         '(isMyTurn=$isMyTurn dice=$activeDice)',
       );
     }
-    // FIBS wants the whole turn in one command; pick the best complete turn
-    final cmd =
-        FibsPlay.bestTurnCommand(board!, dice: activeDice) ??
-        FibsPlay.fullTurnCommand(board!, dice: activeDice);
-    // null == a legitimate dance (we have dice but no legal move): send nothing
-    // and let FIBS auto-pass. That is NOT an error, so don't throw.
-    if (cmd == null) return null;
     _session = _session.committed(); // canMoveNow false until the next board
-    _conn.send(cmd);
-    return cmd;
+    _conn.send(command);
   }
 
   void offerDouble() {

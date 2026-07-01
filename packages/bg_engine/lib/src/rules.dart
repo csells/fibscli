@@ -405,6 +405,52 @@ class GammonRules {
     return pool.first;
   }
 
+  /// A greedy full turn for [player] with [dice] from [board] (issue #11):
+  /// repeatedly play a move that bears a checker off if one exists, else
+  /// advance the rear-most checker, until the dice are spent. Returns the moves
+  /// (to apply/submit); [board] is not mutated. Only sensible in a pure race
+  /// (no decision affects the outcome) -- callers gate on [isRace].
+  static List<GammonMove> autoBearOffTurn(
+    List<List<int>> board,
+    GammonPlayer? player,
+    List<int> dice,
+  ) {
+    final work = copyBoard(board);
+    final remaining = List<int>.of(dice);
+    final chosen = <GammonMove>[];
+    int rearness(int pipNo) => player == GammonPlayer.one ? pipNo : -pipNo;
+    final offPipNo = offPipNoFor(player);
+
+    while (remaining.isNotEmpty) {
+      final legal = getForcedLegalMoves(work, player, remaining);
+      if (legal.isEmpty) break;
+
+      // prefer a move that bears a checker off; else advance the rear-most
+      GammonMove? move;
+      for (final moves in legal.values) {
+        for (final m in moves) {
+          if (m.toPipNo == offPipNo) {
+            move = m;
+            break;
+          }
+        }
+        if (move != null) break;
+      }
+      if (move == null) {
+        final fromPips = legal.keys.toList()
+          ..sort((a, b) => rearness(b).compareTo(rearness(a)));
+        move = legal[fromPips.first]!.first;
+      }
+
+      chosen.add(move);
+      applyMove(work, move);
+      for (final hop in move.hops) {
+        remaining.remove(hop.abs());
+      }
+    }
+    return chosen;
+  }
+
   /// A deep copy of the engine board (each point list is copied), so callers
   /// can try a move without mutating the original. The one canonical board copy
   /// in the engine -- `turn_search`/`RaceEval` delegate here.

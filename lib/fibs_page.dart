@@ -413,11 +413,10 @@ class _PlayViewState extends State<_PlayView> {
   // gone (the turn passed), so reading them then would give the wrong dice.
   List<int> _prevDice = const [];
   final _animator = BoardAnimator();
-  // Board orientation. Null means "use our perspective": player two (O) moves
-  // up the board, so we flip it by default to put our home at the bottom --
-  // same view the local game gives the down-moving player. The flip button
-  // overrides it.
-  bool? _reversed;
+  // Board orientation. FIBS already hands us the board from our own perspective
+  // (home lower-right), so we never auto-flip; the flip button just toggles
+  // this preference.
+  bool _reversed = false;
 
   @override
   void initState() {
@@ -526,31 +525,21 @@ class _PlayViewState extends State<_PlayView> {
   // never decides a contested position and only acts on a button press.
   bool get _canAutoBearOff => _turn != null && GammonRules.isRace(_turn!.board);
 
-  // Play the whole current turn greedily and submit it: bear a checker off when
-  // we can, else advance the rear-most checker. Completes the turn (so it's
-  // ready to submit), then submits.
+  // Play the whole current turn greedily and submit it, using the engine's
+  // shared bear-off policy (bear a checker off when we can, else advance the
+  // rear-most checker). Completes the turn locally, then submits.
   void _autoBearOff() {
     final turn = _turn;
     if (turn == null) return;
-    while (true) {
-      final legal = turn.getAllLegalMoves();
-      if (legal.isEmpty) break;
-      final off = GammonRules.offPipNoFor(turn.turnPlayer);
-      // prefer a move that bears a checker off
-      GammonMove? move;
-      for (final moves in legal.values) {
-        for (final m in moves) {
-          if (m.toPipNo == off) {
-            move = m;
-            break;
-          }
-        }
-        if (move != null) break;
-      }
-      // else advance the rear-most checker (we are player one: home is 1..6, so
-      // the rear-most is the highest pip)
-      final fromPips = legal.keys.toList()..sort((a, b) => b.compareTo(a));
-      move ??= legal[fromPips.first]!.first;
+    final dice = turn.dice
+        .where((d) => d.available)
+        .map((d) => d.roll)
+        .toList();
+    for (final move in GammonRules.autoBearOffTurn(
+      turn.board,
+      turn.turnPlayer,
+      dice,
+    )) {
       _moves.add(move);
       turn.applyMove(move: move);
     }
@@ -604,9 +593,7 @@ class _PlayViewState extends State<_PlayView> {
     final p1IsUs = b.player1Name == 'You' || b.player1Name == fibs.user;
     final opponent = p1IsUs ? b.player2Name : b.player1Name;
 
-    // FIBS already hands us the board from our perspective (we move toward our
-    // home in the lower-right), so no auto-flip; the button is a preference.
-    final reversed = _reversed ?? false;
+    final reversed = _reversed;
 
     return Scaffold(
       backgroundColor: Colors.green,
