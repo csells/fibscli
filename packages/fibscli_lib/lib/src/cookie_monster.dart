@@ -45,6 +45,18 @@ import 'package:quiver/strings.dart';
 part 'cookie_tables.dart';
 part 'fibs_cookie.dart';
 
+/// Thrown when a REQUIRED crumb is absent -- a clear, boundary-local error that
+/// names the cookie and the key, instead of a null-check crash far from the
+/// parse or a silently-empty value (the class of the hostName bug).
+class MissingCrumbError implements Exception {
+  MissingCrumbError(this.cookie, this.key);
+  final FibsCookie cookie;
+  final String key;
+
+  @override
+  String toString() => 'MissingCrumbError: $cookie has no crumb "$key"';
+}
+
 class CookieMessage {
   CookieMessage(this.cookie, this.raw, this.crumbs, this.eatState)
     : // Cannot have zero-length crumb dictionary. Pass null instead.
@@ -52,8 +64,18 @@ class CookieMessage {
 
   final FibsCookie cookie;
   final String raw;
-  Map<String, String>? crumbs;
+  final Map<String, String>? crumbs;
   final CookieMonsterState eatState;
+
+  /// A REQUIRED crumb by [key]. Throws [MissingCrumbError] (naming the cookie
+  /// and key) when absent -- the one place the untyped crumb map is unpacked,
+  /// so a missing/mis-named crumb fails loudly here rather than as a null-deref
+  /// (or a silent '') at some distant use site.
+  String crumb(String key) =>
+      crumbs?[key] ?? (throw MissingCrumbError(cookie, key));
+
+  /// An OPTIONAL crumb by [key] (null when absent).
+  String? crumbOrNull(String key) => crumbs?[key];
 
   @override
   String toString() =>

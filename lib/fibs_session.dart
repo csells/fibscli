@@ -97,20 +97,22 @@ class FibsSession {
     FibsCookie.FIBS_YouRoll => _afterYouRoll(cm),
     FibsCookie.FIBS_Board => _afterBoard(cm),
     FibsCookie.FIBS_AcceptRejectDouble => copyWith(doubleOffered: true),
-    FibsCookie.FIBS_SavedMatch => _withSavedMatch(cm.crumbs!['player1']),
+    FibsCookie.FIBS_SavedMatch => _withSavedMatch(cm.crumbOrNull('player1')),
     FibsCookie.FIBS_NoSavedGames => copyWith(savedMatches: const {}),
     FibsCookie.FIBS_ResumeMatchRequest => copyWith(
-      resumeRequestFrom: cm.crumbs!['name'],
+      resumeRequestFrom: cm.crumbOrNull('name'),
     ),
     FibsCookie.FIBS_JoinNextGame => copyWith(mustJoin: true),
-    FibsCookie.FIBS_ResumeMatchAck0 || FibsCookie.FIBS_ResumeMatchAck5 =>
-      copyWith(savedMatches: {...savedMatches}..remove(cm.crumbs!['opponent'])),
+    FibsCookie.FIBS_ResumeMatchAck0 ||
+    FibsCookie.FIBS_ResumeMatchAck5 => copyWith(
+      savedMatches: {...savedMatches}..remove(cm.crumbOrNull('opponent')),
+    ),
     _ => this,
   };
 
   FibsSession _afterYouRoll(CookieMessage cm) {
-    final d1 = int.parse(cm.crumbs!['die1']!);
-    final d2 = int.parse(cm.crumbs!['die2']!);
+    final d1 = int.parse(cm.crumb('die1'));
+    final d2 = int.parse(cm.crumb('die2'));
     final dice = d1 == d2 ? [d1, d1, d1, d1] : [d1, d2];
     // A YouRoll proves it's OUR turn. FIBS sometimes sends it WITHOUT a fresh
     // board (e.g. it auto-rolls for us after the opponent dances), leaving the

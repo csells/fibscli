@@ -137,7 +137,7 @@ class FibsState extends ChangeNotifier {
   // session reducer via _applyCookie (one place, one source of truth).
   late final Map<FibsCookie, void Function(CookieMessage)> _handlers = {
     FibsCookie.CLIP_WHO_INFO: (cm) => lobby.upsert(WhoInfo.from(cm)),
-    FibsCookie.CLIP_LOGOUT: (cm) => lobby.remove(cm.crumbs!['name']!),
+    FibsCookie.CLIP_LOGOUT: (cm) => lobby.remove(cm.crumb('name')),
     FibsCookie.CLIP_KIBITZES: _onChatMessage,
     FibsCookie.CLIP_MESSAGE: _onChatMessage,
     FibsCookie.CLIP_SAYS: _onChatMessage,
@@ -176,7 +176,7 @@ class FibsState extends ChangeNotifier {
   }
 
   void _onChatMessage(CookieMessage cm) => messages.add(
-    FibsMessage(cm.cookie, cm.crumbs!['name']!, cm.crumbs!['message']!),
+    FibsMessage(cm.cookie, cm.crumb('name'), cm.crumb('message')),
   );
 
   // --- play actions (bots only) ---------------------------------------------

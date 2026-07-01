@@ -21,4 +21,28 @@ void main() {
     final who = WhoInfo.from(cm);
     expect(who.hostname, 'fibs.com');
   });
+
+  // The typed crumb boundary: a missing/mis-named required crumb now fails
+  // LOUDLY with a MissingCrumbError naming the cookie+key at the parse
+  // boundary, instead of a bare null-check crash (a TypeError) at a distant use
+  // site -- the failure mode that let the hostName bug hide.
+  test('a missing required crumb throws a clear MissingCrumbError', () {
+    final cm = CookieMessage(
+      FibsCookie.CLIP_WHO_INFO,
+      'raw',
+      {'name': 'bob'}, // deliberately missing the rest
+      CookieMonsterState.FIBS_RUN_STATE,
+    );
+    expect(cm.crumb('name'), 'bob');
+    expect(
+      () => WhoInfo.from(cm),
+      throwsA(
+        isA<MissingCrumbError>().having(
+          (e) => e.toString(),
+          'message',
+          contains('opponent'),
+        ),
+      ),
+    );
+  });
 }

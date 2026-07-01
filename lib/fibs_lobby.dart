@@ -113,20 +113,20 @@ class WhoInfo {
   factory WhoInfo.from(CookieMessage cm) {
     assert(cm.cookie == FibsCookie.CLIP_WHO_INFO);
     return WhoInfo(
-      user: cm.crumbs!['name']!,
-      opponent: CookieMonster.parseOptional(cm.crumbs!['opponent']!) ?? '',
-      watching: CookieMonster.parseOptional(cm.crumbs!['watching']!) ?? '',
-      ready: CookieMonster.parseBool(cm.crumbs!['ready']),
-      away: CookieMonster.parseBool(cm.crumbs!['away']),
-      rating: double.parse(cm.crumbs!['rating']!),
-      experience: int.parse(cm.crumbs!['experience']!),
+      user: cm.crumb('name'),
+      opponent: CookieMonster.parseOptional(cm.crumb('opponent')) ?? '',
+      watching: CookieMonster.parseOptional(cm.crumb('watching')) ?? '',
+      ready: CookieMonster.parseBool(cm.crumbOrNull('ready')),
+      away: CookieMonster.parseBool(cm.crumbOrNull('away')),
+      rating: double.parse(cm.crumb('rating')),
+      experience: int.parse(cm.crumb('experience')),
       lastActive: DateTime.now().add(
-        Duration(seconds: int.parse(cm.crumbs!['idle']!)),
+        Duration(seconds: int.parse(cm.crumb('idle'))),
       ),
-      lastLogin: CookieMonster.parseTimestamp(cm.crumbs!['login']!),
-      hostname: cm.crumbs!['hostName']!,
-      client: CookieMonster.parseOptional(cm.crumbs!['client']!) ?? '',
-      email: CookieMonster.parseOptional(cm.crumbs!['email']!) ?? '',
+      lastLogin: CookieMonster.parseTimestamp(cm.crumb('login')),
+      hostname: cm.crumb('hostName'),
+      client: CookieMonster.parseOptional(cm.crumb('client')) ?? '',
+      email: CookieMonster.parseOptional(cm.crumb('email')) ?? '',
     );
   }
   final String user;
