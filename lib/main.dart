@@ -20,13 +20,15 @@ Future<void> main() async {
   // uncaught error -- framework and async -- to the log instead of letting it
   // vanish.
   setupLogging();
-  final log = Logger('app');
   FlutterError.onError = (details) =>
-      log.severe('flutter error', details.exception, details.stack);
-  await runZonedGuarded(() async {
-    await bootstrap();
-    runApp(const App());
-  }, (error, stack) => log.severe('uncaught error', error, stack));
+      reportError(details.exception, details.stack, context: 'flutter error');
+  await runZonedGuarded(
+    () async {
+      await bootstrap();
+      runApp(const App());
+    },
+    (error, stack) => reportError(error, stack, context: 'uncaught zone error'),
+  );
 }
 
 // Load persisted state before any UI builds, so App.creds is populated whenever

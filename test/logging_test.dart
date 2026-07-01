@@ -19,4 +19,29 @@ void main() {
     expect(first, 1); // the first sink received the record
     expect(second, 0); // the second call did not attach a duplicate sink
   });
+
+  // #3: uncaught errors are reported through ONE centralized seam
+  // (package:logging), carrying the operation context, the error, and the
+  // stack -- so the FlutterError handler and the zone handler format
+  // identically and a single sink sees every crash.
+  test(
+    'reportError routes error + context + stack to package:logging',
+    () async {
+      Logger.root.level = Level.ALL;
+      final records = <LogRecord>[];
+      final sub = Logger.root.onRecord.listen(records.add);
+      final stack = StackTrace.current;
+
+      reportError(StateError('boom'), stack, context: 'saving prefs');
+      await Future<void>.delayed(Duration.zero); // let onRecord dispatch
+      await sub.cancel();
+
+      expect(records, hasLength(1));
+      final r = records.single;
+      expect(r.level, Level.SEVERE); // reported at severe
+      expect(r.message, 'saving prefs'); // the operation context
+      expect(r.error, isA<StateError>()); // the error object
+      expect(r.stackTrace, same(stack)); // and its stack
+    },
+  );
 }
