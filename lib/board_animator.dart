@@ -27,14 +27,20 @@ class BoardAnimator extends ChangeNotifier {
 
   /// Start animating [anim]; the returned future completes once every piece has
   /// finished (immediately, with no redraw, when there's nothing to animate).
-  Future<void> play(MoveAnimation anim) {
-    assert(_layouts.isEmpty, 'an animation is already in flight');
-    if (anim.layouts.isEmpty) return Future<void>.value();
+  ///
+  /// Serialized: if a move is still in flight (a fast second tap, or an AI move
+  /// landing on the tail of the human's animation), this waits for it to settle
+  /// before starting rather than clobbering the in-flight tweens.
+  Future<void> play(MoveAnimation anim) async {
+    while (isAnimating) {
+      await _done!.future;
+    }
+    if (anim.layouts.isEmpty) return;
     _layouts.addAll(anim.layouts);
     _delays.addAll(anim.delays);
     _done = Completer<void>();
     notifyListeners();
-    return _done!.future;
+    await _done!.future;
   }
 
   /// Called by the view when a piece's tween finishes. Once the last piece is

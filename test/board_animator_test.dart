@@ -54,6 +54,47 @@ void main() {
     expect(animator.layouts, isEmpty);
   });
 
+  // Regression: play() asserted _layouts.isEmpty, so a second move started
+  // before the first settled (a fast double-tap, or an AI move on the tail of
+  // the human's animation) threw / clobbered the in-flight tweens. play() now
+  // serializes: the second waits for the first to finish.
+  test('a second play() while animating serializes, not asserts', () async {
+    final animator = BoardAnimator();
+    final order = <String>[];
+    final f1 = animator
+        .play(
+          MoveAnimation({
+            5: [_layout(5, 0), _layout(5, 100)],
+          }, const {}),
+        )
+        .then((_) => order.add('a'));
+    expect(animator.isAnimating, isTrue);
+
+    // second play while the first is still in flight -- must NOT throw
+    final f2 = animator
+        .play(
+          MoveAnimation({
+            6: [_layout(6, 0), _layout(6, 100)],
+          }, const {}),
+        )
+        .then((_) => order.add('b'));
+
+    // only the first animation is installed so far; the second is queued
+    expect(animator.layouts.containsKey(5), isTrue);
+    expect(animator.layouts.containsKey(6), isFalse);
+
+    animator.endPiece(5); // first finishes -> second starts
+    await f1;
+    await Future<void>.delayed(Duration.zero); // let the queued play B install
+    expect(animator.isAnimating, isTrue);
+    expect(animator.layouts.containsKey(6), isTrue);
+
+    animator.endPiece(6);
+    await f2;
+    expect(order, ['a', 'b']); // serialized in order
+    expect(animator.isAnimating, isFalse);
+  });
+
   test('endPiece notifies (to redraw the settled board) only when empty', () {
     final animator = BoardAnimator();
     unawaited(
