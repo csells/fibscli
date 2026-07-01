@@ -8,19 +8,20 @@ import 'package:logging/logging.dart';
 //
 // Idempotent: safe to call early in main() (so the log sink exists before the
 // FlutterError handler is wired) AND again in bootstrap without double-logging.
+// [sink] is injectable so the idempotency is testable; it defaults to dev.log.
 var _loggingSetUp = false;
-void setupLogging() {
+void setupLogging({void Function(LogRecord record)? sink}) {
   if (_loggingSetUp) return;
   _loggingSetUp = true;
   Logger.root.level = Level.INFO;
-  Logger.root.onRecord.listen((r) {
-    dev.log(
-      r.message,
-      name: r.loggerName,
-      level: r.level.value,
-      time: r.time,
-      error: r.error,
-      stackTrace: r.stackTrace,
-    );
-  });
+  Logger.root.onRecord.listen(sink ?? _logToDevConsole);
 }
+
+void _logToDevConsole(LogRecord r) => dev.log(
+  r.message,
+  name: r.loggerName,
+  level: r.level.value,
+  time: r.time,
+  error: r.error,
+  stackTrace: r.stackTrace,
+);

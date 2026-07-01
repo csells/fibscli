@@ -43,6 +43,25 @@ class FibsConnection {
   /// Stream of parsed CookieMessage objects received from the server.
   Stream<CookieMessage> get stream => _streamController.stream;
 
+  /// The login outcome for a batch of parsed [cookies], chosen by precedence
+  /// (welcome > failed-login > re-prompt), or null if none is present yet. A
+  /// single failed-login frame can carry several of these (bogus "** ..." lines
+  /// plus a re-`login:` prompt), so we must pick by precedence and NEVER use
+  /// `.single` (which would throw and hang the login until its timeout).
+  @visibleForTesting
+  static FibsCookie? loginOutcome(Iterable<FibsCookie> cookies) {
+    const precedence = <FibsCookie>[
+      FibsCookie.CLIP_WELCOME,
+      FibsCookie.FIBS_FailedLogin,
+      FibsCookie.FIBS_LoginPrompt,
+    ];
+    final present = cookies.toSet();
+    for (final cookie in precedence) {
+      if (present.contains(cookie)) return cookie;
+    }
+    return null;
+  }
+
   /// Parse one raw websocket frame into cookies (drives the residual-line
   /// buffering across frames). Exposed so the frame-splitting logic can be
   /// tested without a live socket; [asState] optionally forces the parser's
@@ -99,21 +118,8 @@ class FibsConnection {
             _loginState = _LoginState.sentcred;
 
           case _LoginState.sentcred:
-            // Wait for the login outcome, in precedence order. A single
-            // failed-login frame can carry several matches (bogus "** ..."
-            // lines + a re-`login:` prompt), so pick by precedence, never
-            // `.single` (which would throw and hang the login until timeout).
-            const expecting = <FibsCookie>[
-              FibsCookie.CLIP_WELCOME,
-              FibsCookie.FIBS_FailedLogin,
-              FibsCookie.FIBS_LoginPrompt,
-            ];
-            final present = cms.map((cm) => cm.cookie).toSet();
-            final cookie = expecting.firstWhere(
-              present.contains,
-              orElse: () => FibsCookie.FIBS_Empty,
-            );
-            if (cookie == FibsCookie.FIBS_Empty) return; // wait for next batch
+            final cookie = loginOutcome(cms.map((cm) => cm.cookie));
+            if (cookie == null) return; // no outcome yet; wait for next batch
 
             // complete the login
             _loginCompleter!.complete(cookie);
