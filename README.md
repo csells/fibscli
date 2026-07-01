@@ -43,6 +43,17 @@ build, a `websocat` proxy (above) must be reachable from wherever the app runs â
 the browser can't open a raw telnet socket, so the websocketâ†’telnet hop is
 required in production too.
 
+Point the app at a hosted proxy at build time (defaults are `localhost:8080`
+over plain `ws://`). A build served from an `https://` origin must use a `wss://`
+proxy:
+
+```sh
+$ flutter build web --release \
+    --dart-define=fibs_proxy_host=proxy.example.com \
+    --dart-define=fibs_proxy_port=443 \
+    --dart-define=fibs_proxy_secure=true
+```
+
 ### Optional: remote crash reporting
 
 Uncaught errors are always surfaced to the user (a SnackBar with a **Details**

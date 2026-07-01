@@ -22,11 +22,18 @@ class FibsConnection {
   ///
   /// Manages the login process and incoming/outgoing messages.
   /// Parses incoming raw message strings into CookieMessage objects.
-  FibsConnection(this._proxy, this._port);
+  FibsConnection(this._proxy, this._port, {this.secure = false});
 
   static const _fibsVersion = '1008';
   final String _proxy;
   final int _port;
+
+  /// Whether to reach the proxy over TLS (`wss://`). A production deployment
+  /// behind an HTTPS origin needs this; the local dev bridge uses plain `ws://`.
+  final bool secure;
+
+  /// The websocket URL of the proxy bridge. `wss://` when [secure].
+  Uri get url => Uri.parse('${secure ? 'wss' : 'ws'}://$_proxy:$_port');
   final _streamController = StreamController<CookieMessage>();
   WebSocketChannel? _channel;
   final _monster = CookieMonster();
@@ -90,7 +97,7 @@ class FibsConnection {
     assert(!connected);
 
     _residual = ''; // start with a clean line buffer
-    _channel = WebSocketChannel.connect(Uri.parse('ws://$_proxy:$_port'));
+    _channel = WebSocketChannel.connect(url);
 
     _channel!.stream.listen(
       (dynamic frame) {

@@ -49,11 +49,19 @@ class FibsMessage {
 }
 
 class FibsState extends ChangeNotifier {
-  // The proxy host/port the websocat bridge listens on (see README). Defaults
-  // to the local bridge; overridable so tooling can target 127.0.0.1 directly.
-  FibsState({String proxy = 'localhost', int port = 8080})
-    : _makeTransport = (() =>
-          FibsConnectionTransport(FibsConnection(proxy, port)));
+  // The proxy host/port/scheme the websocat bridge listens on (see README).
+  // Defaults come from --dart-define (fibs_proxy_host / fibs_proxy_port /
+  // fibs_proxy_secure) so a production build can target a hosted wss:// proxy,
+  // falling back to the local dev bridge; still overridable per-instance so
+  // tooling can target 127.0.0.1 directly.
+  FibsState({String? proxy, int? port, bool? secure})
+    : _makeTransport = (() => FibsConnectionTransport(
+        FibsConnection(
+          proxy ?? _envProxyHost,
+          port ?? _envProxyPort,
+          secure: secure ?? _envProxySecure,
+        ),
+      ));
 
   // Inject a transport (e.g. a fake) to drive the state without a live server.
   FibsState.withTransport(FibsTransport transport)
@@ -63,6 +71,19 @@ class FibsState extends ChangeNotifier {
   // exercise reconnect / re-login with production-like (single-subscription,
   // real-close) transport semantics, which a single reused fake would hide.
   FibsState.withTransportFactory(this._makeTransport);
+
+  // ignore: do_not_use_environment -- compile-time proxy config seam
+  static const _envProxyHost = String.fromEnvironment(
+    'fibs_proxy_host',
+    defaultValue: 'localhost',
+  );
+  // ignore: do_not_use_environment -- compile-time proxy config seam
+  static const _envProxyPort = int.fromEnvironment(
+    'fibs_proxy_port',
+    defaultValue: 8080,
+  );
+  // ignore: do_not_use_environment -- compile-time proxy config seam
+  static const _envProxySecure = bool.fromEnvironment('fibs_proxy_secure');
 
   // the FIBS lobby roster (who-list + bot-only invite/watch queries)
   final lobby = FibsLobby();
