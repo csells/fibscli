@@ -200,6 +200,8 @@ class FibsSession {
     myDice: const [],
     rolling: false,
     committedTurn: false,
+    gameEnded: false, // leaving clears any announced result
+    iWon: null,
   );
 
   static const _unset = Object();
