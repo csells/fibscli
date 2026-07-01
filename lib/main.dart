@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:bg_engine/bg_engine.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_close_stub.dart' if (dart.library.html) 'app_close_web.dart';
 import 'backgammon_ai_player.dart';
 import 'credential_store.dart';
+import 'error_log_dialog.dart';
 import 'fibs_page.dart';
 import 'fibs_state.dart';
 import 'game_play_page.dart';
@@ -88,9 +88,11 @@ class App extends StatefulWidget {
   final SecureCredentialStore creds;
 
   static const title = 'Backgammon';
-  // Lets the app show error SnackBars from the global error handlers, which
-  // have no BuildContext of their own -- see _AppState._showError.
+  // Lets the app show error SnackBars + the error-log dialog from the global
+  // error handlers, which have no BuildContext of their own (see
+  // _AppState._showError).
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  static final navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   _AppState createState() => _AppState();
@@ -130,23 +132,34 @@ class _AppState extends State<App> {
           content: Text(error.message),
           backgroundColor: Colors.red[900],
           duration: const Duration(seconds: 8),
-          // "Copy" gives the user the full message + detail to paste into a bug
-          // report -- the actionable affordance for an otherwise opaque crash.
+          // "Details" opens the retained error log so the user can read the
+          // full detail and copy recent errors into a bug report -- the
+          // actionable affordance for an otherwise opaque, transient crash.
           action: SnackBarAction(
-            label: 'Copy',
+            label: 'Details',
             textColor: Colors.white,
-            onPressed: () => unawaited(
-              Clipboard.setData(ClipboardData(text: error.clipboardText)),
-            ),
+            onPressed: _showErrorLog,
           ),
         ),
       );
+  }
+
+  void _showErrorLog() {
+    final context = App.navigatorKey.currentContext;
+    if (context == null) return;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (_) => const ErrorLogDialog(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: App.title,
     scaffoldMessengerKey: App.scaffoldMessengerKey,
+    navigatorKey: App.navigatorKey,
     theme: ThemeData(
       primarySwatch: Colors.green,
       visualDensity: VisualDensity.adaptivePlatformDensity,

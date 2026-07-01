@@ -1,3 +1,4 @@
+import 'package:fibscli/error_log_dialog.dart';
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/logging.dart';
 import 'package:fibscli/main.dart';
@@ -11,11 +12,12 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     appErrors.value = null;
+    errorHistory.clear();
   });
 
   // An uncaught error reported from anywhere (here, the global handlers'
   // reportError) is shown to the USER as a SnackBar carrying the context + a
-  // Copy action -- not silently dropped into the dev console.
+  // Details action -- not silently dropped into the dev console.
   testWidgets('a reported error is surfaced to the user as a SnackBar', (
     tester,
   ) async {
@@ -35,8 +37,27 @@ void main() {
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.textContaining('login'), findsOneWidget); // what went wrong
     expect(
-      find.widgetWithText(SnackBarAction, 'Copy'),
+      find.widgetWithText(SnackBarAction, 'Details'),
       findsOneWidget,
     ); // action
+  });
+
+  // The SnackBar is transient; "Details" opens the retained error log so the
+  // user can read the full detail and copy recent errors into a bug report.
+  testWidgets('tapping Details opens the retained error log', (tester) async {
+    await tester.pumpWidget(App(fibs: FibsState(), creds: await fakeCreds()));
+    await tester.pump();
+
+    reportError(StateError('boom detail'), StackTrace.current, context: 'fibs');
+    await tester.pump(); // listener fires, SnackBar starts animating in
+    await tester.pump(const Duration(seconds: 1)); // fully on-screen
+
+    await tester.tap(find.widgetWithText(SnackBarAction, 'Details'));
+    await tester.pump(); // start the dialog route
+    await tester.pump(const Duration(milliseconds: 300)); // animate it in
+
+    expect(find.byType(ErrorLogDialog), findsOneWidget);
+    // the retained error's detail is shown
+    expect(find.textContaining('boom detail'), findsWidgets);
   });
 }
