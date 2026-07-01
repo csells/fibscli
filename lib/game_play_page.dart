@@ -303,6 +303,9 @@ class _GameViewState extends State<GameView> {
   void dispose() {
     if (_game != null) _game!.removeListener(_gameChanged);
     _animator.dispose();
+    // Release the AI engine's resources (e.g. the gnubg adapter's http.Client
+    // connection pool). pubeval/backgammon_ai have a no-op dispose.
+    widget.ai?.dispose();
     super.dispose();
   }
 

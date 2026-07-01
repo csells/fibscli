@@ -36,6 +36,7 @@ class HttpGnubgClient extends GnubgClient {
     required this.baseUrl,
     this.apiKey,
     this.plies = 2,
+    this.timeout = const Duration(seconds: 10),
     http.Client? httpClient,
   }) : _http = httpClient ?? http.Client();
 
@@ -47,6 +48,11 @@ class HttpGnubgClient extends GnubgClient {
 
   /// gnubg evaluation depth (plies).
   final int plies;
+
+  /// Bound the wait on the service so a hung/half-open connection surfaces as a
+  /// `TimeoutException` (an Exception the retry loop handles) rather than
+  /// leaving the AI turn frozen forever.
+  final Duration timeout;
 
   final http.Client _http;
 
@@ -63,14 +69,16 @@ class HttpGnubgClient extends GnubgClient {
     );
     final id = '$positionId:$matchId';
 
-    final resp = await _http.post(
-      baseUrl.resolve('/v1/eval'),
-      headers: {
-        'content-type': 'application/json',
-        if (apiKey != null) 'x-api-key': apiKey!,
-      },
-      body: jsonEncode({'gnubg_id': id, 'plies': plies}),
-    );
+    final resp = await _http
+        .post(
+          baseUrl.resolve('/v1/eval'),
+          headers: {
+            'content-type': 'application/json',
+            if (apiKey != null) 'x-api-key': apiKey!,
+          },
+          body: jsonEncode({'gnubg_id': id, 'plies': plies}),
+        )
+        .timeout(timeout);
 
     if (resp.statusCode != 200) {
       final body = resp.body;
@@ -80,14 +88,22 @@ class HttpGnubgClient extends GnubgClient {
       );
     }
 
-    final json = jsonDecode(resp.body) as Map<String, dynamic>;
-    final moves = json['moves'] as List<dynamic>? ?? const [];
-    return [
-      for (final m in moves.cast<Map<String, dynamic>>())
-        GnubgRankedMove(
-          play: m['play'] as String,
-          equity: (m['equity'] as num?)?.toDouble() ?? 0.0,
-        ),
-    ];
+    // Parse defensively: a valid-HTTP-but-unexpected-shape body (missing/wrong
+    // fields) must surface as a catchable Exception so the adapter's retry /
+    // GnubgUnavailableException path handles it, not a raw TypeError (an Error)
+    // that would escape `on Exception catch`.
+    try {
+      final json = jsonDecode(resp.body) as Map<String, dynamic>;
+      final moves = json['moves'] as List<dynamic>? ?? const [];
+      return [
+        for (final m in moves.cast<Map<String, dynamic>>())
+          GnubgRankedMove(
+            play: m['play'] as String,
+            equity: (m['equity'] as num?)?.toDouble() ?? 0.0,
+          ),
+      ];
+    } on Object catch (e) {
+      throw GnubgServiceError(resp.statusCode, 'malformed response: $e');
+    }
   }
 }

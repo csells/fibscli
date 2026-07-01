@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:bg_engine/bg_engine.dart';
@@ -66,6 +67,51 @@ void main() {
         ),
         throwsA(isA<GnubgServiceError>()),
       );
+    });
+
+    BgPosition opening() => BgPosition(
+      board: GammonRules.initialBoard(),
+      onRoll: GammonPlayer.one,
+      dice: const [3, 1],
+    );
+
+    // Regression: a hung service left the request awaiting forever (freezing
+    // the AI turn); the retry loop only catches thrown Exceptions, and a hang
+    // throws nothing. A bounded timeout makes it a catchable TimeoutException.
+    test('a hung service times out instead of hanging forever', () async {
+      final mock = MockClient(
+        (_) => Completer<Response>().future,
+      ); // never done
+      final client = HttpGnubgClient(
+        baseUrl: Uri.parse('https://gnubg.example'),
+        httpClient: mock,
+        timeout: const Duration(milliseconds: 50),
+      );
+      await expectLater(
+        client.evalMoves(opening()),
+        throwsA(isA<TimeoutException>()),
+      );
+    });
+
+    // Regression: a valid-HTTP-but-wrong-shape body threw a raw TypeError (an
+    // Error), which escaped the adapter's `on Exception catch` retry/unavailable
+    // path. It must surface as a catchable Exception.
+    test('a malformed 200 body throws an Exception, not a raw Error', () async {
+      final mock = MockClient(
+        (_) async => Response(
+          jsonEncode({
+            'moves': [
+              {'equity': 0.1}, // 'play' missing -> old code: TypeError
+            ],
+          }),
+          200,
+        ),
+      );
+      final client = HttpGnubgClient(
+        baseUrl: Uri.parse('https://gnubg.example'),
+        httpClient: mock,
+      );
+      await expectLater(client.evalMoves(opening()), throwsA(isA<Exception>()));
     });
   });
 }
