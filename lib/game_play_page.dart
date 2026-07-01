@@ -473,6 +473,7 @@ class _GameViewState extends State<GameView> {
       );
     }
     if (accepted == null) return; // dismissed
+    if (!mounted) return; // the page was popped during the await
 
     if (accepted) {
       _game!.acceptDouble();

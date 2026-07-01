@@ -245,12 +245,16 @@ class GammonState extends ChangeNotifier {
   // The recommended cube action for the player currently on roll (issue #14).
   // Exact in a pure race; heuristic with contact. Shares the one [CubePolicy]
   // the AI uses, so the advice the UI shows matches how the AI plays the cube.
-  CubeAction get recommendedCubeAction => CubePolicy.recommendedAction(
-    board: board,
-    onRoll: _turnPlayer!,
-    cubeValue: cube.value,
-    cubeOwner: cube.owner,
-  );
+  CubeAction get recommendedCubeAction {
+    final onRoll = _turnPlayer;
+    if (onRoll == null) return CubeAction.noDouble; // nobody on roll yet
+    return CubePolicy.recommendedAction(
+      board: board,
+      onRoll: onRoll,
+      cubeValue: cube.value,
+      cubeOwner: cube.owner,
+    );
+  }
 
   // True when the win chances and cube action are exact (a pure race) rather
   // than a pip-count estimate, so the UI can label them honestly (issue #14).

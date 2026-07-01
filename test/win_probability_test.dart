@@ -1,7 +1,20 @@
+import 'package:fibscli/dice.dart';
 import 'package:fibscli/model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  // Regression: recommendedCubeAction dereferenced _turnPlayer! and threw when
+  // nobody was on roll (e.g. a state built with turnPlayer: null), unlike its
+  // sibling winProbabilityFor which guards. It now returns noDouble.
+  test('recommendedCubeAction is noDouble when nobody is on roll', () {
+    final game = GammonState.from(
+      board: GammonRules.initialBoard(),
+      dice: [DieState(3), DieState(1)],
+      turnPlayer: null,
+    );
+    expect(game.recommendedCubeAction, CubeAction.noDouble);
+  });
+
   group('CubePolicy.raceWinProbability (issue #14)', () {
     double wp(int my, int opp) =>
         CubePolicy.raceWinProbability(myPips: my, oppPips: opp);

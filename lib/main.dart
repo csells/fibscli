@@ -15,8 +15,11 @@ import 'logging.dart';
 import 'tinystate.dart';
 
 Future<void> main() async {
-  // Route every uncaught error -- framework and async -- to the log instead of
-  // letting it vanish. setupLogging() (in bootstrap) sends these to dev.log.
+  // Attach the log sink FIRST, so the FlutterError handler wired next (and any
+  // framework error during binding init) actually has a subscriber. Route every
+  // uncaught error -- framework and async -- to the log instead of letting it
+  // vanish.
+  setupLogging();
   final log = Logger('app');
   FlutterError.onError = (details) =>
       log.severe('flutter error', details.exception, details.stack);

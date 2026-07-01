@@ -99,20 +99,23 @@ class FibsConnection {
             _loginState = _LoginState.sentcred;
 
           case _LoginState.sentcred:
-            // wait for login prompt
-            final expecting = <FibsCookie>[
+            // Wait for the login outcome, in precedence order. A single
+            // failed-login frame can carry several matches (bogus "** ..."
+            // lines + a re-`login:` prompt), so pick by precedence, never
+            // `.single` (which would throw and hang the login until timeout).
+            const expecting = <FibsCookie>[
               FibsCookie.CLIP_WELCOME,
               FibsCookie.FIBS_FailedLogin,
               FibsCookie.FIBS_LoginPrompt,
             ];
-            final found = cms
-                .map((cm) => cm.cookie)
-                .where(expecting.contains)
-                .toList();
-            if (found.isEmpty) return; // wait for next batch
+            final present = cms.map((cm) => cm.cookie).toSet();
+            final cookie = expecting.firstWhere(
+              present.contains,
+              orElse: () => FibsCookie.FIBS_Empty,
+            );
+            if (cookie == FibsCookie.FIBS_Empty) return; // wait for next batch
 
             // complete the login
-            final cookie = found.single;
             _loginCompleter!.complete(cookie);
             _loginCompleter = null;
             _loginState = _LoginState.postlogin;
