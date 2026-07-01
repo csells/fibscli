@@ -178,10 +178,13 @@ class GammonState extends ChangeNotifier {
     final deltas = GammonRules.applyMove(board, move);
 
     if (deltas.isNotEmpty) {
-      // update used dice
+      // Mark every die this move spent, THEN recompute which remaining dice are
+      // still usable -- disabling between the hops of one move could strand a
+      // die a later hop of the same move needs.
       for (final hop in move.hops) {
         _useDie(hop.abs());
       }
+      _disableUnusableDice();
 
       // check for game over
       final offPipNo = GammonRules.offPipNoFor(_turnPlayer);
@@ -268,7 +271,6 @@ class GammonState extends ChangeNotifier {
 
   void _useDie(int roll) {
     _dice.firstWhere((d) => d.roll == roll && d.available).available = false;
-    _disableUnusableDice();
   }
 
   void _rollDice({bool disableUnusableDice = true}) {
