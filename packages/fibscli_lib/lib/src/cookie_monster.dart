@@ -216,27 +216,12 @@ class CookieMonster {
 
     cm ??= CookieMessage(FibsCookie.FIBS_Unknown, raw, {'raw': raw}, eatState);
 
-    // output the initial state if no state has been shown at all
+    // track the initial state and each transition (see oldMessageState)
     // ignore: prefer_conditional_assignment
     if (oldMessageState == null) {
-      // Logger.root.log(Level.FINE, 'State= $eatState');
-      // print('State= $eatState');
       oldMessageState = eatState;
     }
-
-    // Logger.root.log(Level.FINE, 'State= $eatState');
-    // print('State= $eatState');
-    // if (cm.crumbs != null) {
-    // final crumbs = cm.crumbs.keys.map(
-    //  (key) => '$key= ${cm.crumbs[key]}').join(', ');
-    // Logger.root.log(Level.FINE, '\t$crumbs');
-    // print('\t$crumbs');
-    // }
-
-    // output the new state as soon as we transition
     if (oldMessageState != messageState) {
-      // Logger.root.log(Level.FINE, 'State= $messageState');
-      // print('State= $messageState');
       oldMessageState = messageState;
     }
 

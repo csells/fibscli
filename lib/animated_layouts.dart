@@ -96,15 +96,7 @@ class PieceLayoutTween extends Tween<PieceLayout> {
   PieceLayoutTween({required PieceLayout begin, required PieceLayout end})
     : assert(begin.highlight == end.highlight),
       assert(begin.pieceID == end.pieceID),
-      super(begin: begin, end: end) {
-    // only the offset and the pipno changes (accept when it doesn't...)
-    // assert(begin.offset != end.offset);
-    // assert(begin.pipNo != end.pipNo);
-
-    // label could change...
-    // assert(begin.label == end.label);
-    // assert(begin.edge == end.edge);
-  }
+      super(begin: begin, end: end);
 
   @override
   PieceLayout lerp(double t) => PieceLayout(

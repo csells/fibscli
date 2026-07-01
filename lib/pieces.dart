@@ -255,6 +255,17 @@ class PieceLayout {
   static const _offset = Offset(36, 28);
   static const _edgeSize = Size(32, 11);
 
+  // Board geometry for the 4 point quadrants: the baseline y of the bottom vs
+  // top rows, and the x of the FIRST column of each quadrant. Columns step by
+  // _offset.dx toward the board's center -- so -dx on the right/bottom sides
+  // and +dx on the left/top sides (see baseSlotOffset).
+  static const _bottomRowY = 371.0;
+  static const _topRowY = 21.0;
+  static const _bottomRightX = 468.0;
+  static const _bottomLeftX = 204.0;
+  static const _topLeftX = 24.0;
+  static const _topRightX = 288.0;
+
   final int pipNo;
   final int pieceID;
   final Offset offset;
@@ -271,10 +282,10 @@ class PieceLayout {
   static Offset baseSlotOffset(int pipNo) {
     assert(pipNo >= 1 && pipNo <= 24);
     final dx = _offset.dx * ((pipNo - 1) % 6);
-    if (pipNo <= 6) return Offset(468 - dx, 371); // bottom right
-    if (pipNo <= 12) return Offset(204 - dx, 371); // bottom left
-    if (pipNo <= 18) return Offset(24 + dx, 21); // top left
-    return Offset(288 + dx, 21); // top right
+    if (pipNo <= 6) return Offset(_bottomRightX - dx, _bottomRowY);
+    if (pipNo <= 12) return Offset(_bottomLeftX - dx, _bottomRowY);
+    if (pipNo <= 18) return Offset(_topLeftX + dx, _topRowY);
+    return Offset(_topRightX + dx, _topRowY);
   }
 
   PieceLayout get animated =>
