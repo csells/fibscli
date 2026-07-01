@@ -128,12 +128,12 @@ void main() {
   });
 
   test(
-    'moving when it is not our turn throws (loud, not a silent no-op)',
+    'submitting when it is not our turn throws (loud, not a silent no-op)',
     () async {
       final fake = FakeTransport();
       final fibs = await _inGame(fake); // our turn but no dice -> can't move
       expect(fibs.canMoveNow, isFalse);
-      expect(() => fibs.move(24, 18), throwsA(isA<FibsStateError>()));
+      expect(() => fibs.submitTurn(const []), throwsA(isA<FibsStateError>()));
     },
   );
 

@@ -15,18 +15,17 @@ class _ThrowingSecretStore implements SecretStore {
 }
 
 void main() {
-  // The app loads SharedPreferences BEFORE building any UI, so App.prefs is
-  // never null while widgets exist. That invariant is what lets the login view
-  // read remembered credentials synchronously (no load-race retry dance).
-  test('bootstrap loads SharedPreferences before the app runs', () async {
+  // The app loads persisted state BEFORE building any UI, so App.creds is set
+  // and its remembered username is available while widgets exist. That
+  // invariant is what lets the login view read remembered credentials
+  // synchronously (no load-race retry dance).
+  test('bootstrap loads remembered credentials before the app runs', () async {
     TestWidgetsFlutterBinding.ensureInitialized();
     SharedPreferences.setMockInitialValues({'user': 'joe_grammer'});
-    App.prefs.value = null;
 
     await bootstrap();
 
-    expect(App.prefs.value, isNotNull);
-    expect(App.prefs.value!.getString('user'), 'joe_grammer');
+    expect(App.creds.user, 'joe_grammer');
   });
 
   test(
@@ -34,12 +33,11 @@ void main() {
     () async {
       TestWidgetsFlutterBinding.ensureInitialized();
       SharedPreferences.setMockInitialValues({'user': 'joe', 'remember': true});
-      App.prefs.value = null;
 
       // Must not throw even though the secure-storage read blows up.
       await bootstrap(secretStore: _ThrowingSecretStore());
 
-      expect(App.prefs.value, isNotNull);
+      expect(App.creds.user, 'joe'); // username still recovered from prefs
       expect(
         App.creds.password,
         isNull,

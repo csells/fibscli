@@ -102,12 +102,6 @@ class FibsState extends ChangeNotifier {
   bool get canMoveNow => _session.canMoveNow;
   bool get canRoll => _session.canRoll;
 
-  // Legal moves for the UI to highlight. The viewer gameState already has us as
-  // player one moving toward our home, so the engine's own move generation is
-  // correct -- no special mirror handling needed.
-  Map<int, List<GammonMove>> get legalMoves =>
-      canMoveNow ? gameState!.getAllLegalMoves() : const {};
-
   // Whether a who-list entry is a bot. The detection policy (allowlists +
   // precision-first rationale) lives in BotPolicy so it can evolve without
   // touching this connection/state machine.
@@ -207,19 +201,6 @@ class FibsState extends ChangeNotifier {
     }
     _session = _session.startedRolling(); // canRoll false until our dice arrive
     _conn.send('roll');
-  }
-
-  // move one checker one die at a time; the server validates (tap-to-move).
-  // Throws if it isn't our turn to move. The pips are viewer pips (== FIBS
-  // pips; viewerState doesn't renumber), and in the viewer frame WE are player
-  // one, so the bar/off keywords render from player one's convention.
-  void move(int fromPip, int toPip) {
-    if (!canMoveNow) {
-      throw FibsStateError(
-        'move: not our turn to move (isMyTurn=$isMyTurn dice=$activeDice)',
-      );
-    }
-    _conn.send(fibsRawMove(fromPip, toPip, GammonPlayer.one));
   }
 
   // Submit a WHOLE turn the player built locally on the shared board (the same

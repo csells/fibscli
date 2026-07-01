@@ -11,6 +11,22 @@ FibsBoard parseBoard(String raw) {
   return FibsBoard.fromCrumbs(m.eatCookie(raw).crumbs!);
 }
 
+// Every individual legal move for the on-roll player as a FIBS `move` command.
+// Production only ever submits whole turns, so this enumeration (formerly
+// FibsPlay.legalMoveCommands) now lives here purely to keep the coverage that a
+// real captured position generates the bot's real move via the shared frame.
+List<String> _legalMoveCommands(FibsBoard fb, List<int> dice) {
+  final byPip = GammonRules.getForcedLegalMoves(
+    fb.position.toBoard(),
+    fb.turnPlayer,
+    dice,
+  );
+  return [
+    for (final moves in byPip.values)
+      for (final m in moves) FibsPlay.commandFor(fb, m),
+  ];
+}
+
 void main() {
   // Real frame captured live, just before BlunderBot_II (the player on roll)
   // played 13-9 9-7 with a roll of 4 and 2. This frame is MIRRORED relative to
@@ -45,13 +61,13 @@ void main() {
     test("reproduces the bot's real 13-9 9-7 move as a legal option", () {
       final fb = parseBoard(beforeBlunderMove);
       // the roll arrives after this board frame, so supply it explicitly
-      final commands = FibsPlay.legalMoveCommands(fb, dice: const [4, 2]);
+      final commands = _legalMoveCommands(fb, const [4, 2]);
       expect(commands, contains('move 13-9 9-7'));
     });
 
     test('every generated command is well-formed and non-empty', () {
       final fb = parseBoard(beforeBlunderMove);
-      final commands = FibsPlay.legalMoveCommands(fb, dice: const [4, 2]);
+      final commands = _legalMoveCommands(fb, const [4, 2]);
       expect(commands, isNotEmpty);
       for (final c in commands) {
         expect(c, startsWith('move '));

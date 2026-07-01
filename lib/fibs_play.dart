@@ -15,22 +15,6 @@ class FibsPlay {
   // and what we generate/commit can never diverge (both honor `mirror`).
   static List<List<int>> _canonicalBoard(FibsBoard fb) => fb.position.toBoard();
 
-  // Every individual legal move for the on-roll player, as FIBS `move` commands
-  // (used for highlighting/validation, not for committing a turn).
-  static List<String> legalMoveCommands(FibsBoard fb, {List<int>? dice}) {
-    final d = dice ?? fb.activeDice;
-    if (d.isEmpty || fb.turnPlayer == null) return const [];
-    final byPip = GammonRules.getForcedLegalMoves(
-      _canonicalBoard(fb),
-      fb.turnPlayer,
-      d,
-    );
-    return [
-      for (final moves in byPip.values)
-        for (final m in moves) commandFor(fb, m),
-    ];
-  }
-
   // A COMPLETE legal turn for the on-roll player as one FIBS `move` command --
   // FIBS requires the whole turn at once (e.g. "move 24-18 13-11"), not one die
   // at a time. Greedily plays forced-legal moves until the dice are spent.

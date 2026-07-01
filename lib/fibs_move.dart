@@ -1,20 +1,13 @@
 import 'model.dart';
 
-// Translate a local [GammonMove] into the FIBS `move` command.
+// The `from-to` pairs (one per die) for a move, e.g. ['13-9', '9-7'], with the
+// bar/off keywords.
 //
 // Validated against live FIBS data and the meowbg OSS client: FIBS move
 // coordinates are absolute board positions, identical to our pip numbering, so
-// each hop becomes a `from-to` pair (dash-joined, space-separated for multiple
-// hops). The bar uses the keyword `bar` and bearing off uses `off`; an
-// overshooting bear-off clamps onto the off tray.
-//
-// e.g. GammonMove(13 -> 7, hops [-4,-2])  =>  "move 13-9 9-7"
-//      GammonMove(3 -> off, hops [-3])    =>  "move 3-off"
-//      GammonMove(bar -> 22, hops [-3])   =>  "move bar-22"
-String fibsMoveCommand(GammonMove move) => 'move ${_hopPairs(move).join(' ')}';
-
-// The `from-to` pairs (one per die) for a move, e.g. ['13-9', '9-7'], with the
-// bar/off keywords. Shared by fibsMoveCommand and fibsTurnCommand.
+// each hop becomes a `from-to` pair (dash-joined). The bar uses the keyword
+// `bar` and bearing off uses `off`; an overshooting bear-off clamps onto the
+// off tray. e.g. GammonMove(13 -> 7, hops [-4,-2]) => ['13-9', '9-7'].
 List<String> _hopPairs(GammonMove move) {
   final player = move.player;
   final barPip = GammonRules.barPipNoFor(player);
@@ -45,18 +38,3 @@ List<String> _hopPairs(GammonMove move) {
 // "move".
 String fibsTurnCommand(List<GammonMove> moves) =>
     'move ${moves.expand(_hopPairs).join(' ')}'.trimRight();
-
-// A single-die FIBS move from one absolute pip to another, for tap-to-move
-// (the player moves one checker one die at a time and the server validates).
-// [player] is the mover, used to render the bar/off keywords correctly.
-String fibsRawMove(int fromPip, int toPip, GammonPlayer player) {
-  final barPip = GammonRules.barPipNoFor(player);
-  final offPip = GammonRules.offPipNoFor(player);
-  String label(int pip) {
-    if (pip == barPip) return 'bar';
-    if (pip == offPip) return 'off';
-    return '$pip';
-  }
-
-  return 'move ${label(fromPip)}-${label(toPip)}';
-}

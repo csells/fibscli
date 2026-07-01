@@ -37,17 +37,6 @@ void main() {
     expect(fibs.canMoveNow, isTrue);
   });
 
-  testWidgets('tap-to-move sends the absolute-coordinate move command', (
-    tester,
-  ) async {
-    final fake = FakeTransport();
-    final fibs = await _startGame(tester, fake);
-
-    // exactly what the board's tap handler invokes: source pip then destination
-    fibs.move(24, 18);
-    expect(fake.sent, contains('move 24-18'));
-  });
-
   testWidgets('roll button appears on our turn with no dice and sends roll', (
     tester,
   ) async {
@@ -100,7 +89,7 @@ void main() {
 
     // O's checkers are on 24/13/8/6 and must move DOWN toward the 1-point;
     // the old bug highlighted 6->9 etc. (up, away from home).
-    final byPip = fibs.legalMoves;
+    final byPip = fibs.gameState!.getAllLegalMoves();
     expect(byPip.keys, contains(24));
     for (final moves in byPip.values) {
       for (final m in moves) {
@@ -164,8 +153,9 @@ void main() {
     final fibs = await _startGame(tester, fake);
 
     // make one move on the local working board, the way a tap does
-    final from = fibs.legalMoves.keys.first;
-    final to = fibs.legalMoves[from]!.first.toPipNo;
+    final legal = fibs.gameState!.getAllLegalMoves();
+    final from = legal.keys.first;
+    final to = legal[from]!.first.toPipNo;
     BoardView board() => tester.widget<BoardView>(find.byType(BoardView));
     board().onTapPip!(from); // select
     await tester.pump();

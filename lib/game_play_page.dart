@@ -115,15 +115,19 @@ class _GamePlayPageState extends State<GamePlayPage> {
             onPressed: controller.canUndo ? _tapUndo : null,
             child: const Icon(Icons.undo),
           ),
-          body: FutureBuilder2<SharedPreferences>(
+          // hold first paint until prefs resolve (the controller reads
+          // `reversed` from them); GameView itself doesn't need the value.
+          body: FutureBuilder<SharedPreferences>(
             future: _prefsFuture,
-            data: (context, prefs) => GameView(
-              controller: _controller,
-              aiSide: widget.aiSide,
-              ai: widget.ai,
-              aiThinkDelay: widget.aiThinkDelay,
-              aiMoveDelay: widget.aiMoveDelay,
-            ),
+            builder: (context, snapshot) => snapshot.hasData
+                ? GameView(
+                    controller: _controller,
+                    aiSide: widget.aiSide,
+                    ai: widget.ai,
+                    aiThinkDelay: widget.aiThinkDelay,
+                    aiMoveDelay: widget.aiMoveDelay,
+                  )
+                : const Center(child: CircularProgressIndicator()),
           ),
         ),
       );

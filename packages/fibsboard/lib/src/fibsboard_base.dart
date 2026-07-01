@@ -1,80 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:dartx/dartx.dart';
-
-/// Converts a board representation as a 2D list of ints into a Dart string
-/// that can be used to initialize a board variable.
-///
-/// Parameters:
-///
-/// - board: The 2D list representing the board.
-///
-/// Returns: A Dart string representing the board initialization code.
-String dartFromBoard(List<List<int>> board) {
-  checkBoard(board);
-
-  String pipLine(int pip) {
-    final sb = StringBuffer();
-    final p1pieces = board[pip].where((pid) => pid < 0).length;
-    final p2pieces = board[pip].where((pid) => pid > 0).length;
-    final p1label = p1pieces == 0 ? null : '${p1pieces}x player1';
-    final p2label = p2pieces == 0 ? null : '${p2pieces}x player2';
-    final labels = <String>[
-      if (p1label != null) p1label,
-      if (p2label != null) p2label,
-    ];
-
-    sb.write('  [');
-    sb.write(board[pip].sorted().map((pid) => pid.toString()).join(', '));
-    sb.writeln('], // $pip: ${labels.join(", ")}');
-
-    return sb.toString();
-  }
-
-  final sb = StringBuffer();
-  sb.writeln('final board = <List<int>>[');
-
-  {
-    sb.writeln('');
-    sb.writeln('  // player1 off, player2 bar');
-    sb.write(pipLine(0));
-  }
-
-  sb.writeln('');
-  sb.writeln('  // player1 home board');
-  for (var pip = 1; pip != 7; ++pip) {
-    sb.write(pipLine(pip));
-  }
-
-  sb.writeln('');
-  sb.writeln('  // player1 outer board');
-  for (var pip = 7; pip != 13; ++pip) {
-    sb.write(pipLine(pip));
-  }
-
-  sb.writeln('');
-  sb.writeln('  // player2 outer board');
-  for (var pip = 13; pip != 19; ++pip) {
-    sb.write(pipLine(pip));
-  }
-
-  sb.writeln('');
-  sb.writeln('  // player2 home board');
-  for (var pip = 19; pip != 25; ++pip) {
-    sb.write(pipLine(pip));
-  }
-
-  {
-    sb.writeln('');
-    sb.writeln('  // player1 off, player2 bar');
-    sb.write(pipLine(25));
-  }
-
-  sb.writeln('');
-  sb.writeln('];');
-  return sb.toString();
-}
-
 /// Converts a textual representation of a board into a 2D list representation.
 ///
 /// The input is a list of 13 lines representing the board. Each line contains
@@ -290,18 +215,6 @@ const _boardTemplate = '''
 /// Returns: A list of the 13 non-empty board line strings
 List<String> linesFromString(String s) =>
     s.split('\n').where((l) => l.isNotEmpty).toList();
-
-/// Converts a list of board line strings into a single string
-/// representing the board.
-///
-/// Joins the line strings together with Unix-style (\n) newlines.
-///
-/// Parameters:
-///
-/// lines - The list of board line strings
-///
-/// Returns: The joined string representing the board.
-String stringFromLines(Iterable<String> lines) => lines.join('\n');
 
 List<String> _linesFromTemplate() =>
     linesFromString(_boardTemplate.replaceAll('.', ' '));

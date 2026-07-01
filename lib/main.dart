@@ -26,9 +26,9 @@ Future<void> main() async {
   }, (error, stack) => log.severe('uncaught error', error, stack));
 }
 
-// Load persisted state before any UI builds, so App.prefs / App.creds are
-// populated whenever a widget reads them. The login view relies on this to read
-// remembered credentials synchronously (no load-race retry needed).
+// Load persisted state before any UI builds, so App.creds is populated whenever
+// a widget reads it. The login view relies on this to read remembered
+// credentials synchronously (no load-race retry needed).
 Future<void> bootstrap({
   SecretStore secretStore = const FlutterSecretStore(),
 }) async {
@@ -38,7 +38,6 @@ Future<void> bootstrap({
   // built-in pubeval (gnubg is registered separately once a URL is configured).
   AiRegistry.register(BackgammonAiPlayerFactory());
   final prefs = await SharedPreferences.getInstance();
-  App.prefs.value = prefs;
   App.creds = SecureCredentialStore(prefs, secretStore);
   try {
     await App.creds.load();
@@ -60,7 +59,6 @@ class App extends StatefulWidget {
   static const title = 'Backgammon';
   // mutable so tests can swap in a fake-backed FibsState before pumping the UI
   static FibsState fibs = FibsState();
-  static final prefs = ValueNotifier<SharedPreferences?>(null);
   // remembered credentials (password in platform secure storage). Set in
   // bootstrap before any UI builds; tests inject their own.
   static late SecureCredentialStore creds;
