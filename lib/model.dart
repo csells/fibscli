@@ -27,7 +27,7 @@ class GammonStats {
 }
 
 class GammonState extends ChangeNotifier {
-  GammonState() {
+  GammonState({Random? random}) : _rand = random ?? Random() {
     _setState(
       board: GammonRules.initialBoard(),
       dice: <DieState>[],
@@ -41,11 +41,12 @@ class GammonState extends ChangeNotifier {
     required List<DieState> dice,
     required GammonPlayer? turnPlayer,
     int moveNo = 1,
-  }) {
+    Random? random,
+  }) : _rand = random ?? Random() {
     _setState(board: board, dice: dice, turnPlayer: turnPlayer);
     _moveNo = moveNo;
   }
-  static final _rand = Random();
+  final Random _rand;
 
   // index: 1-24 == board, 0 == player1 home/player2 bar, 25 == player1 bar/player2 home
   // value: list of piece ids, <0 == player1, >0 == player2

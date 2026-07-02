@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:fibscli/dice.dart';
 import 'package:fibscli/local_ai_driver.dart';
 import 'package:fibscli/model.dart'; // re-exports bg_engine (PubevalAiPlayer, …)
@@ -151,7 +153,7 @@ void main() {
   });
 
   test('two pubeval AIs play a full local game to completion', () async {
-    final state = GammonState();
+    final state = GammonState(random: Random(1));
     final ai = PubevalAiPlayer();
 
     var turns = 0;

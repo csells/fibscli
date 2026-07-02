@@ -42,13 +42,15 @@ The manual GitHub Actions deploy workflow expects these repository settings:
 - `ENVIRONMENT` — `dev`, `staging`, or `prod`.
 - `VERSION` — release identifier or git SHA.
 - `ALLOWED_ORIGINS` — comma-separated browser origins allowed to open the
-  bridge. Empty means origin checks are disabled.
+  bridge. Empty rejects browser-origin requests.
 - `FIBS_PROXY_ANALYTICS` — Workers Analytics Engine binding.
 
 Production should set `ENVIRONMENT=prod`, `VERSION` to the release identifier,
 and `ALLOWED_ORIGINS` to the deployed Flutter app origins before promoting the
-route. Include `http://localhost:8088` when running `tool/browser_e2e/run.sh`
-against the hosted Worker.
+route. Include the public origins (`https://playfibs.com`,
+`https://www.playfibs.com`, and `https://playfibs-f3c5b.web.app`) plus
+`http://127.0.0.1:18088` and `http://localhost:18088` when running
+`tool/browser_e2e/run.sh` against the hosted Worker.
 
 The current production endpoint is:
 

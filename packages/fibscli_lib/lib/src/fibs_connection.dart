@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as dev;
 import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
@@ -113,7 +112,6 @@ class FibsConnection {
         // native delivers binary frames as bytes; the web may deliver a String
         // or a ByteBuffer, so decode whatever the platform hands us
         final message = _decodeFrame(frame);
-        dev.log('stream.message: $message');
         final cms = _receive(message);
         // broadcast every parsed cookie to external subscribers, then drive the
         // login handshake off the same batch
@@ -148,13 +146,11 @@ class FibsConnection {
         }
       },
       onDone: () {
-        dev.log('stream.onDone');
         // fire-and-forget teardown; close() captures-and-nulls up front so a
         // concurrent onError close can't double-close
         unawaited(close());
       },
       onError: (error) {
-        dev.log('stream.onError: $error');
         unawaited(close());
       },
       cancelOnError: false,
@@ -176,7 +172,6 @@ class FibsConnection {
   void send(String s) {
     assert(connected);
     assert(!s.endsWith('\n'));
-    dev.log('SEND: $s');
     _channel!.sink.add('$s\n');
   }
 
@@ -196,8 +191,6 @@ class FibsConnection {
   // generator (which would silently change how many times we broadcast if a
   // caller ever consumed the result lazily).
   List<CookieMessage> _receive(String message) {
-    dev.log('RECEIVE: $message');
-
     // Prepend any partial line from the previous frame, then split on newlines.
     // Every part but the last is a complete, newline-terminated line; the last
     // is the (possibly incomplete) trailing segment.

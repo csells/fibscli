@@ -152,7 +152,7 @@ class _LobbyHeader extends StatelessWidget {
               onPressed: () => GoRouter.maybeOf(context)?.go('/'),
             ),
             const SizedBox(width: 4),
-            Text('fibscli', style: Theme.of(context).textTheme.headlineSmall),
+            Text('playfibs', style: Theme.of(context).textTheme.headlineSmall),
             const Spacer(),
             TextButton(
               onPressed: () => unawaited(fibs.logout()),

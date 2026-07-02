@@ -93,6 +93,26 @@ void main() {
     expect(computerTop, lessThan(localTop));
   });
 
+  testWidgets('home route discloses sanitized analytics', (tester) async {
+    await pumpAt(tester, AppRoutes.home);
+
+    expect(
+      find.textContaining('Analytics are aggregate app events only'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('We never send passwords', findRichText: true),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('privacy route is deep-linkable', (tester) async {
+    await pumpAt(tester, AppRoutes.privacy);
+
+    expect(find.byType(PrivacyPage), findsOneWidget);
+    expect(find.text('FIBS connection'), findsOneWidget);
+  });
+
   testWidgets('local game route is deep-linkable', (tester) async {
     await pumpAt(tester, AppRoutes.local);
 

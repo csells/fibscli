@@ -25,6 +25,12 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
+      - name: Validate allowed origins
+        run: |
+          if [ -z "$(printf '%s' "$FIBS_PROXY_ALLOWED_ORIGINS" | tr -d '[:space:]')" ]; then
+            echo "FIBS_PROXY_ALLOWED_ORIGINS must list the deployed app origins."
+            exit 1
+          fi
       - name: Deploy Worker
         run: >
           npx wrangler deploy

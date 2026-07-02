@@ -66,6 +66,25 @@ describe('request handling', () => {
     expect(allMetricText(h.analytics)).toContain('bad_origin');
   });
 
+  test('empty origin allowlist rejects browser origins', async () => {
+    const h = makeTestHarness();
+
+    const response = await handleRequest(
+      new Request('https://proxy.example.com/fibs', {
+        headers: {
+          Origin: 'https://play.example.com',
+          Upgrade: 'websocket',
+        },
+      }),
+      h.env,
+      h.deps,
+    );
+
+    expect(response.status).toBe(403);
+    expect(h.tcpConnect).not.toHaveBeenCalled();
+    expect(allMetricText(h.analytics)).toContain('bad_origin');
+  });
+
   test('records Cloudflare request location metadata when available', async () => {
     const h = makeTestHarness();
     const request = new Request('https://proxy.example.com/fibs', {

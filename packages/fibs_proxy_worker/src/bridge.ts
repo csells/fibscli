@@ -667,7 +667,7 @@ function categorizeOrigin(request: Request, env: BridgeEnvironment) {
     .filter(Boolean);
   const origin = request.headers.get('Origin');
 
-  if (allowed.length === 0) return origin ? 'allowed' : 'missing';
+  if (allowed.length === 0) return origin === null ? 'missing' : 'rejected';
   if (origin === null) return 'missing';
   return allowed.includes(origin) ? 'allowed' : 'rejected';
 }

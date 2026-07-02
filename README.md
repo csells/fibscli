@@ -10,7 +10,7 @@ hosted Cloudflare Worker bridge in `packages/fibs_proxy_worker`.
 # screenshot
 ![screenshot](readme/screenshot.png)
 
-You can try it live here: https://playfibs-f3c5b.web.app/#/
+You can try it live here: https://playfibs.com/
 
 It works on desktop and mobile form factors.
 
@@ -80,8 +80,11 @@ the bridge; it is app infrastructure.
 - `ANALYTICS_URL` defaults to `https://proxy.playfibs.com/analytics`.
 - `ANALYTICS_ENVIRONMENT` defaults to `prod`.
 - `APP_VERSION` defaults to the current git SHA.
+- A dirty worktree appends `-dirty` to `APP_VERSION`.
 
 Set `ANALYTICS_URL=` to disable app analytics for an ad hoc release build.
+The public app includes a `/privacy` page describing the Firebase Hosting,
+Cloudflare proxy, FIBS credential flow, and analytics fields.
 
 ### Optional: remote crash reporting
 

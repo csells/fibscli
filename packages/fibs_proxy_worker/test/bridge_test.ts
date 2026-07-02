@@ -17,9 +17,18 @@ function websocketRequest(url = 'https://proxy.example.com/fibs') {
   });
 }
 
+function makeBridgeHarness(
+  options: Parameters<typeof makeTestHarness>[0] = {},
+) {
+  return makeTestHarness({
+    allowedOrigins: 'https://play.example.com',
+    ...options,
+  });
+}
+
 describe('websocket to FIBS TCP bridge', () => {
   test('accepts a WebSocket and always connects only to fibs.com:4321', async () => {
-    const h = makeTestHarness({ allowedOrigins: 'https://play.example.com' });
+    const h = makeBridgeHarness();
 
     const response = await handleRequest(
       websocketRequest('https://proxy.example.com/fibs?host=evil.test&port=25'),
@@ -37,7 +46,7 @@ describe('websocket to FIBS TCP bridge', () => {
   });
 
   test('forwards text and binary browser messages to FIBS as bytes', async () => {
-    const h = makeTestHarness();
+    const h = makeBridgeHarness();
     await handleRequest(websocketRequest(), h.env, h.deps);
     await flushAsync();
 
@@ -52,7 +61,7 @@ describe('websocket to FIBS TCP bridge', () => {
   });
 
   test('forwards FIBS bytes back to the browser as binary messages', async () => {
-    const h = makeTestHarness();
+    const h = makeBridgeHarness();
     await handleRequest(websocketRequest(), h.env, h.deps);
     await flushAsync();
 
@@ -65,7 +74,7 @@ describe('websocket to FIBS TCP bridge', () => {
   });
 
   test('closes the TCP socket when the browser closes', async () => {
-    const h = makeTestHarness();
+    const h = makeBridgeHarness();
     await handleRequest(websocketRequest(), h.env, h.deps);
     await flushAsync();
 
@@ -78,7 +87,7 @@ describe('websocket to FIBS TCP bridge', () => {
   });
 
   test('ignores TCP read errors after the browser already closed', async () => {
-    const h = makeTestHarness();
+    const h = makeBridgeHarness();
     await handleRequest(websocketRequest(), h.env, h.deps);
     await flushAsync();
 
@@ -92,7 +101,7 @@ describe('websocket to FIBS TCP bridge', () => {
   });
 
   test('observes TCP closed rejections during intentional browser teardown', async () => {
-    const h = makeTestHarness();
+    const h = makeBridgeHarness();
     await handleRequest(websocketRequest(), h.env, h.deps);
     await flushAsync();
 
@@ -105,7 +114,7 @@ describe('websocket to FIBS TCP bridge', () => {
   });
 
   test('closes the WebSocket when FIBS closes', async () => {
-    const h = makeTestHarness();
+    const h = makeBridgeHarness();
     await handleRequest(websocketRequest(), h.env, h.deps);
     await flushAsync();
 
@@ -118,7 +127,7 @@ describe('websocket to FIBS TCP bridge', () => {
 
   test('uses a stricter idle timeout before the browser sends data', async () => {
     const timers = new FakeTimers();
-    const h = makeTestHarness({ idleTimeoutMs: 1000, timers });
+    const h = makeBridgeHarness({ idleTimeoutMs: 1000, timers });
     Object.assign(h.deps, { preClientIdleTimeoutMs: 100 });
 
     await handleRequest(websocketRequest(), h.env, h.deps);
@@ -138,7 +147,7 @@ describe('websocket to FIBS TCP bridge', () => {
   });
 
   test('rejects oversized browser messages before writing to FIBS', async () => {
-    const h = makeTestHarness();
+    const h = makeBridgeHarness();
     await handleRequest(websocketRequest(), h.env, h.deps);
     await flushAsync();
 
@@ -154,7 +163,7 @@ describe('websocket to FIBS TCP bridge', () => {
 
   test('resets the normal idle timeout after FIBS traffic follows browser data', async () => {
     const timers = new FakeTimers();
-    const h = makeTestHarness({ idleTimeoutMs: 1000, timers });
+    const h = makeBridgeHarness({ idleTimeoutMs: 1000, timers });
     Object.assign(h.deps, { preClientIdleTimeoutMs: 100 });
     await handleRequest(websocketRequest(), h.env, h.deps);
     await flushAsync();
@@ -177,7 +186,7 @@ describe('websocket to FIBS TCP bridge', () => {
   });
 
   test('closes the WebSocket when the FIBS stream errors', async () => {
-    const h = makeTestHarness();
+    const h = makeBridgeHarness();
     await handleRequest(websocketRequest(), h.env, h.deps);
     await flushAsync();
 
@@ -190,7 +199,7 @@ describe('websocket to FIBS TCP bridge', () => {
   });
 
   test('closes the WebSocket and emits tcp_connect_failed when FIBS cannot connect', async () => {
-    const h = makeTestHarness();
+    const h = makeBridgeHarness();
     h.tcpConnect.mockRejectedValueOnce(new Error('connect refused'));
 
     await handleRequest(websocketRequest(), h.env, h.deps);

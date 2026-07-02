@@ -1,11 +1,11 @@
 {
-    "name": "Backgammon",
-    "short_name": "Backgammon",
+    "name": "playfibs",
+    "short_name": "playfibs",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#4CAF50",
-    "theme_color": "#4CAF50",
-    "description": "Play backgammon on the web.",
+    "background_color": "#F5F2EB",
+    "theme_color": "#F5F2EB",
+    "description": "Play backgammon on FIBS or against the computer.",
     "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [
