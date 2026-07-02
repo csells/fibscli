@@ -1,6 +1,8 @@
 import 'package:fibscli/fibs_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'fake_transport.dart';
+
 WhoInfo who(
   String user, {
   String opponent = '',
@@ -76,6 +78,22 @@ void main() {
       ]);
 
       expect(state.watchableBots.map((w) => w.user), ['BlunderBot']);
+    });
+
+    test('who-info cookies notify FibsState listeners', () async {
+      final fake = FakeTransport();
+      final state = FibsState.withTransport(fake);
+      await state.login(user: 'joe', pass: 'pw');
+      var notifications = 0;
+      state.addListener(() => notifications += 1);
+
+      fake.feed(
+        '5 BlunderBot - - 1 0 1500.00 42 0 1041253132 host ParlorBot -',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(state.availableBots.map((w) => w.user), ['BlunderBot']);
+      expect(notifications, greaterThan(0));
     });
   });
 }

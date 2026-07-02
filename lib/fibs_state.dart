@@ -4,6 +4,7 @@ import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
+import 'analytics.dart';
 import 'bot_policy.dart';
 import 'fibs_board.dart';
 import 'fibs_crumb_keys.dart';
@@ -52,29 +53,37 @@ class FibsState extends ChangeNotifier {
   // The app's hosted WebSocket-to-FIBS bridge. Compile-time overrides are for
   // development, staging, and live test infrastructure; the UI never exposes
   // proxy selection.
-  FibsState({String? proxy, int? port, bool? secure, String? path})
-    : _makeTransport = (() => FibsConnectionTransport(
-        FibsConnection(
-          proxy ?? _envProxyHost,
-          port ?? _envProxyPort,
-          secure: secure ?? _envProxySecure,
-          path: path ?? _envProxyPath,
-        ),
-      ));
+  FibsState({
+    String? proxy,
+    int? port,
+    bool? secure,
+    String? path,
+    AppAnalytics? analytics,
+  }) : analytics = analytics ?? AppAnalytics.disabled(),
+       _makeTransport = (() => FibsConnectionTransport(
+         FibsConnection(
+           proxy ?? _envProxyHost,
+           port ?? _envProxyPort,
+           secure: secure ?? _envProxySecure,
+           path: path ?? _envProxyPath,
+         ),
+       ));
 
   // Inject a transport (e.g. a fake) to drive the state without a live server.
-  FibsState.withTransport(FibsTransport transport)
-    : _makeTransport = (() => transport);
+  FibsState.withTransport(FibsTransport transport, {AppAnalytics? analytics})
+    : analytics = analytics ?? AppAnalytics.disabled(),
+      _makeTransport = (() => transport);
 
   // Inject a transport FACTORY -- a fresh transport per login() -- so tests can
   // exercise reconnect / re-login with production-like (single-subscription,
   // real-close) transport semantics, which a single reused fake would hide.
-  FibsState.withTransportFactory(this._makeTransport);
+  FibsState.withTransportFactory(this._makeTransport, {AppAnalytics? analytics})
+    : analytics = analytics ?? AppAnalytics.disabled();
 
   // ignore: do_not_use_environment -- compile-time proxy config seam
   static const _envProxyHost = String.fromEnvironment(
     'fibs_proxy_host',
-    defaultValue: 'fibs-proxy.csells.workers.dev',
+    defaultValue: 'proxy.playfibs.com',
   );
   // ignore: do_not_use_environment -- compile-time proxy config seam
   static const _envProxyPort = int.fromEnvironment(
@@ -96,6 +105,7 @@ class FibsState extends ChangeNotifier {
   final lobby = FibsLobby();
   NotifierList<WhoInfo> get whoInfos => lobby.entries;
   final messages = NotifierList<FibsMessage>();
+  final AppAnalytics analytics;
   // A connection isn't reusable once closed (its stream controller is closed
   // for good), so we build a FRESH transport per login instead of reusing one
   // for the app's lifetime. Null before the first login / after teardown.
@@ -126,6 +136,11 @@ class FibsState extends ChangeNotifier {
   // that itself drops before welcome therefore does NOT loop -- it lands the
   // user on the login screen.
   bool _reconnectUsed = false;
+  bool _lobbyReadyTracked = false;
+  var _cookieCount = 0;
+  FibsCookie? _lastCookie;
+  var _whoInfoCookieCount = 0;
+  var _whoListComplete = false;
 
   // the game model for rendering, derived from the session (null when not in a
   // game); the raw FIBS board snapshot behind it (turn, dice, names, canMove)
@@ -157,6 +172,11 @@ class FibsState extends ChangeNotifier {
   // The current game has finished (FIBS announced a result, or 15 borne off).
   bool get isGameOver => _session.isGameOver;
 
+  int get cookieCount => _cookieCount;
+  String? get lastCookie => _lastCookie?.name;
+  int get whoInfoCookieCount => _whoInfoCookieCount;
+  bool get whoListComplete => _whoListComplete;
+
   // Whether WE won the finished game (false = the opponent won). Null while a
   // game is in progress. Prefers FIBS's announced result, falling back to the
   // board's borne-off winner.
@@ -176,6 +196,10 @@ class FibsState extends ChangeNotifier {
   void Function(CookieMessage cm)? cookieObserver;
 
   void _streamItem(CookieMessage cm) {
+    _cookieCount += 1;
+    _lastCookie = cm.cookie;
+    if (cm.cookie == FibsCookie.CLIP_WHO_INFO) _whoInfoCookieCount += 1;
+    if (cm.cookie == FibsCookie.CLIP_WHO_END) _whoListComplete = true;
     // log only the cookie TYPE -- the crumbs/raw carry other users' PII
     // (who-list emails, chat text). Full content goes only to the opt-in,
     // local trace via cookieObserver (e.g. the live e2e), never the app log.
@@ -190,8 +214,9 @@ class FibsState extends ChangeNotifier {
   // notifiers, so they stay here; every game/turn cookie folds into the pure
   // session reducer via _applyCookie (one place, one source of truth).
   late final Map<FibsCookie, void Function(CookieMessage)> _handlers = {
-    FibsCookie.CLIP_WHO_INFO: (cm) => lobby.upsert(WhoInfo.from(cm)),
-    FibsCookie.CLIP_LOGOUT: (cm) => lobby.remove(cm.crumb(FibsCrumbKeys.name)),
+    FibsCookie.CLIP_WHO_INFO: _onWhoInfo,
+    FibsCookie.CLIP_WHO_END: (_) => _trackLobbyReady(),
+    FibsCookie.CLIP_LOGOUT: _onWhoLogout,
     FibsCookie.CLIP_KIBITZES: _onChatMessage,
     FibsCookie.CLIP_MESSAGE: _onChatMessage,
     FibsCookie.CLIP_SAYS: _onChatMessage,
@@ -232,7 +257,10 @@ class FibsState extends ChangeNotifier {
 
   // fold an inbound game/turn cookie into the session and republish
   void _applyCookie(CookieMessage cm) {
+    final wasInGame = _session.board != null;
+    final wasGameOver = _session.isGameOver;
     _session = _session.reduce(cm);
+    _trackSessionTransition(wasInGame: wasInGame, wasGameOver: wasGameOver);
     notifyListeners();
   }
 
@@ -240,11 +268,59 @@ class FibsState extends ChangeNotifier {
   // loads on its own. FIBS sometimes reloads the match and sends a board
   // directly; otherwise it waits for a `join`, which this sends automatically.
   void _applyAndAutoJoin(CookieMessage cm) {
+    final wasInGame = _session.board != null;
+    final wasGameOver = _session.isGameOver;
     _session = _session.reduce(cm);
+    _trackSessionTransition(wasInGame: wasInGame, wasGameOver: wasGameOver);
     if (_session.mustJoin || _session.resumeRequestFrom != null) {
       joinGame(); // sends `join` and clears the prompt
     }
     notifyListeners();
+  }
+
+  void _onWhoInfo(CookieMessage cm) {
+    lobby.upsert(WhoInfo.from(cm));
+    notifyListeners();
+  }
+
+  void _onWhoLogout(CookieMessage cm) {
+    lobby.remove(cm.crumb(FibsCrumbKeys.name));
+    notifyListeners();
+  }
+
+  void _trackLobbyReady() {
+    if (_lobbyReadyTracked) return;
+    _lobbyReadyTracked = true;
+    analytics.track(
+      'app_fibs_lobby_ready',
+      screen: 'fibs_lobby',
+      whoInfoCount: whoInfos.length,
+      availableBotCount: availableBots.length,
+      watchableBotCount: watchableBots.length,
+      savedMatchCount: savedMatches.length,
+      messageCount: messages.length,
+    );
+  }
+
+  void _trackSessionTransition({
+    required bool wasInGame,
+    required bool wasGameOver,
+  }) {
+    final inGame = _session.board != null;
+    if (!wasInGame && inGame) {
+      final watching = _session.myColor == null;
+      analytics.track(
+        'app_fibs_game_start',
+        screen: watching ? 'fibs_watch' : 'fibs_play',
+        mode: watching ? 'watching' : 'playing',
+      );
+    }
+    if (!wasGameOver && _session.isGameOver) {
+      final won = didIWin;
+      var result = 'unknown';
+      if (won != null) result = won ? 'win' : 'loss';
+      analytics.track('app_fibs_game_end', screen: 'fibs_play', result: result);
+    }
   }
 
   void _onChatMessage(CookieMessage cm) => messages.add(
@@ -261,13 +337,29 @@ class FibsState extends ChangeNotifier {
   // 3-point match so the doubling cube matters but games finish quickly.
   void invite(WhoInfo bot, {int matchLength = 3}) {
     assert(isBot(bot), 'bots only');
+    analytics.track(
+      'app_fibs_invite',
+      screen: 'fibs_lobby',
+      mode: 'match_$matchLength',
+      whoInfoCount: whoInfos.length,
+      availableBotCount: availableBots.length,
+      watchableBotCount: watchableBots.length,
+      savedMatchCount: savedMatches.length,
+    );
     _conn?.send('invite ${bot.user} $matchLength');
   }
 
   // resume an unfinished match with [opponent]: inviting a player we have a
   // saved match with makes FIBS reload it instead of starting a new game. Good
   // citizenship (and connection-drop recovery) -- always finish saved matches.
-  void resumeSavedMatch(String opponent) => _conn?.send('invite $opponent');
+  void resumeSavedMatch(String opponent) {
+    analytics.track(
+      'app_fibs_resume_saved_match',
+      screen: 'fibs_lobby',
+      savedMatchCount: savedMatches.length,
+    );
+    _conn?.send('invite $opponent');
+  }
 
   // continue a resumed/next game when FIBS asks us to type 'join' (also accepts
   // an opponent's resume request tracked in [resumeRequestFrom])
@@ -353,6 +445,7 @@ class FibsState extends ChangeNotifier {
   void resign() => _conn?.send('resign n'); // resign a normal loss
 
   void leaveGame() {
+    analytics.track('app_fibs_leave_game', screen: 'fibs_play');
     _conn?.send('leave');
     _session = _session.outOfGame();
     notifyListeners();
@@ -371,12 +464,20 @@ class FibsState extends ChangeNotifier {
 
   void watch(WhoInfo who) {
     assert(isBot(who), 'bots only');
+    analytics.track(
+      'app_fibs_watch',
+      screen: 'fibs_lobby',
+      whoInfoCount: whoInfos.length,
+      availableBotCount: availableBots.length,
+      watchableBotCount: watchableBots.length,
+    );
     _session = _session.outOfGame();
     _conn?.send('watch ${who.user}');
     notifyListeners();
   }
 
   void stopWatching() {
+    analytics.track('app_fibs_stop_watching', screen: 'fibs_watch');
     _conn?.send('unwatch');
     _session = _session.outOfGame();
     notifyListeners();
@@ -388,7 +489,9 @@ class FibsState extends ChangeNotifier {
   // autologin at most once per session. Without this, a connection that drops
   // right after login (e.g. FIBS kicking a duplicate login) recreates the login
   // view, which re-fires autologin, which reconnects and gets dropped again --
-  // an infinite login<->lobby flash. An explicit logout re-arms it.
+  // an infinite login<->lobby flash. An explicit logout keeps it spent for this
+  // app session so remembered or baked-in credentials do not sign back in
+  // immediately.
   bool _autoLoginTried = false;
   bool get autoLoginTried => _autoLoginTried;
 
@@ -401,6 +504,7 @@ class FibsState extends ChangeNotifier {
 
   Future<void> login({required String user, required String pass}) async {
     assert(!loggedIn);
+    analytics.track('app_fibs_login_attempt', screen: 'fibs_login');
 
     // A connection can't be reused once closed, so build a FRESH transport per
     // login -- this is what makes retry-after-failed-login and login-after-
@@ -424,6 +528,11 @@ class FibsState extends ChangeNotifier {
       await _sub?.cancel(); // don't leave the failed session's listener live
       _sub = null;
       await conn.close();
+      analytics.track(
+        'app_fibs_login_failed',
+        screen: 'fibs_login',
+        result: cookie == FibsCookie.FIBS_Timeout ? 'timeout' : 'rejected',
+      );
       throw Exception(
         cookie == FibsCookie.FIBS_Timeout
             ? 'unable to connect; check your internet connection'
@@ -433,6 +542,8 @@ class FibsState extends ChangeNotifier {
 
     _session = _session.loggedInAs(user);
     _reconnectUsed = false; // a live session re-arms one auto-reconnect
+    _lobbyReadyTracked = false;
+    analytics.track('app_fibs_login_success', screen: 'fibs_lobby');
     // raw board frames are required for parsing; moreboards is toggled on from
     // CLIP_OWN_INFO below so FIBS sends a board after every roll/move
     _conn?.send('set boardstyle 3');
@@ -471,7 +582,16 @@ class FibsState extends ChangeNotifier {
     _sub = null;
     await conn
         ?.close(); // actually tear the connection down (no lingering socket)
-    _autoLoginTried = false; // a deliberate logout re-arms autologin
+    analytics.track(
+      'app_fibs_logout',
+      screen: 'fibs_login',
+      whoInfoCount: whoInfos.length,
+      availableBotCount: availableBots.length,
+      watchableBotCount: watchableBots.length,
+      savedMatchCount: savedMatches.length,
+      messageCount: messages.length,
+    );
+    _autoLoginTried = true; // stay logged out until the user acts or relaunches
     _reset();
   }
 
@@ -491,10 +611,23 @@ class FibsState extends ChangeNotifier {
   // reconnect hook is wired and unspent) or tells the user to log in again.
   void _onUnexpectedClose(String what) {
     final expected = _expectClose;
+    if (!expected) {
+      analytics.track(
+        'app_fibs_connection_lost',
+        screen: _session.board == null ? 'fibs_lobby' : 'fibs_play',
+        result: what.startsWith('FIBS') ? 'error' : 'closed',
+        whoInfoCount: whoInfos.length,
+        availableBotCount: availableBots.length,
+        watchableBotCount: watchableBots.length,
+        savedMatchCount: savedMatches.length,
+        messageCount: messages.length,
+      );
+    }
     _reset();
     if (expected) return;
     if (onReconnect != null && !_reconnectUsed) {
       _reconnectUsed = true;
+      analytics.track('app_fibs_reconnect_attempt', screen: 'fibs_login');
       _notice('$what Reconnecting...');
       unawaited(_attemptReconnect());
     } else {
@@ -509,6 +642,7 @@ class FibsState extends ChangeNotifier {
       // No remembered creds, or the reconnect login failed: land on the login
       // screen. _reconnectUsed stays set, so a drop of that attempt won't loop.
       _log.warning('auto-reconnect failed', ex, st);
+      analytics.track('app_fibs_reconnect_failed', screen: 'fibs_login');
       _notice('Reconnect failed. Please log in again.');
     }
   }
@@ -522,6 +656,11 @@ class FibsState extends ChangeNotifier {
     lobby.clear();
     messages.clear();
     _session = const FibsSession();
+    _lobbyReadyTracked = false;
+    _cookieCount = 0;
+    _lastCookie = null;
+    _whoInfoCookieCount = 0;
+    _whoListComplete = false;
     notifyListeners();
   }
 

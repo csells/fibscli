@@ -2,6 +2,9 @@ name = "fibs-proxy"
 main = "src/index.ts"
 compatibility_date = "2026-07-01"
 workers_dev = true
+routes = [
+  { pattern = "proxy.playfibs.com", custom_domain = true },
+]
 
 [vars]
 ENVIRONMENT = "dev"

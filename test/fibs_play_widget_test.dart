@@ -1,6 +1,7 @@
 import 'package:fibscli/board_view.dart';
 import 'package:fibscli/fibs_page.dart';
 import 'package:fibscli/fibs_state.dart';
+import 'package:fibscli/game_board.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,9 +10,17 @@ import 'fake_creds.dart';
 import 'fake_transport.dart';
 
 // our own game: player1 is the literal "You"; an opening position, our turn (O)
-String boardLine({String turn = '1', String p1dice = '6:3'}) =>
-    'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
-    ':2:0:$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
+String boardLine({
+  String player1 = 'You',
+  String player2 = 'wildbg',
+  String turn = '1',
+  String p1dice = '6:3',
+}) => [
+  'board:$player1:$player2:1:0:0:0',
+  '-2:0:0:0:0:5:0:3:0:0:0:-5:5',
+  '0:0:0:-3:0:-5:0:0:0:0:2:0',
+  '$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0',
+].join(':');
 
 // a finished game where we (player1 "You" = X) have borne off all 15.
 String gameOverLine() => [
@@ -129,7 +138,7 @@ void main() {
 
     await tester.tap(find.text('Back to lobby'));
     await tester.pumpAndSettle();
-    expect(find.text('Bots'), findsOneWidget); // back at the lobby
+    expect(find.text('Bots online'), findsOneWidget); // back at the lobby
   });
 
   testWidgets('the lobby has no "Play for me" (cheating on FIBS)', (
@@ -145,6 +154,39 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Play for me'), findsNothing);
+  });
+
+  testWidgets('watch UI uses the full read-only board and updates frames', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'me', pass: 'x');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+      ),
+    );
+
+    fake.feed(boardLine(player1: 'alice', player2: 'wildbg'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BoardView), findsOneWidget);
+    expect(find.text('Watching alice vs wildbg'), findsWidgets);
+    expect(find.textContaining('alice to move'), findsOneWidget);
+    expect(find.textContaining('alice pips'), findsOneWidget);
+    expect(find.textContaining('wildbg pips'), findsOneWidget);
+
+    GameBoard board() => tester.widget<GameBoard>(find.byType(GameBoard));
+    expect(board().interactive, isFalse);
+    expect(board().onMove, isNull);
+    expect(board().game.dice.map((d) => d.roll).toList(), [6, 3]);
+
+    fake.feed(boardLine(player1: 'alice', player2: 'wildbg', p1dice: '4:2'));
+    await tester.pumpAndSettle();
+
+    expect(board().game.dice.map((d) => d.roll).toList(), [4, 2]);
+    expect(find.textContaining('dice 4, 2'), findsOneWidget);
   });
 
   testWidgets('auto bear-off in a pure race submits a bear-off turn', (

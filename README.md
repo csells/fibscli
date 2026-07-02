@@ -21,7 +21,7 @@ owns 100% of its source — there is no external upstream and nothing to sync to
 
 # FIBS development
 The production web app uses the hosted Cloudflare Worker bridge:
-`wss://fibs-proxy.csells.workers.dev/fibs`.
+`wss://proxy.playfibs.com/fibs`.
 
 Local development can still run a developer-only
 [websocat](https://github.com/vi/websocat) bridge. This is for contributors and
@@ -68,12 +68,20 @@ $ npx wrangler deploy
 Build the release web bundle:
 
 ```sh
-$ ./build-web.sh   # flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true
+$ ./build-web.sh
 ```
 
 The output in `build/web` is a static bundle. To play FIBS from a deployed
 build, the app uses the hosted Cloudflare Worker bridge. Users do not configure
 the bridge; it is app infrastructure.
+
+`build-web.sh` enables sanitized app analytics by default:
+
+- `ANALYTICS_URL` defaults to `https://proxy.playfibs.com/analytics`.
+- `ANALYTICS_ENVIRONMENT` defaults to `prod`.
+- `APP_VERSION` defaults to the current git SHA.
+
+Set `ANALYTICS_URL=` to disable app analytics for an ad hoc release build.
 
 ### Optional: remote crash reporting
 
@@ -98,7 +106,7 @@ build at a gnubg-service:
 ```sh
 $ flutter build web --release \
     --dart-define=gnubg_service_url=https://gnubg.example.com \
-    --dart-define=gnubg_api_key=...   # optional, sent as x-api-key
+    --dart-define=gnubg_api_key=...   # optional, sent as "Authorization: Bearer <key>"
 ```
 
 With no `gnubg_service_url`, the gnubg engine is simply not listed.

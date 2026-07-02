@@ -76,14 +76,14 @@ void main() {
     expect(find.text('Connect'), findsOneWidget); // the login screen is shown
   });
 
-  test('an explicit logout re-arms autologin', () async {
+  test('explicit logout keeps autologin spent for this app session', () async {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake)..markAutoLoginTried();
     expect(fibs.autoLoginTried, isTrue);
 
     await fibs.login(user: 'joe', pass: 'x');
     await fibs.logout();
-    expect(fibs.autoLoginTried, isFalse); // logout re-arms it
+    expect(fibs.autoLoginTried, isTrue); // logout stays logged out
   });
 
   testWidgets('does NOT auto-connect without remembered creds', (tester) async {

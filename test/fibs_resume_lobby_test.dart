@@ -30,6 +30,7 @@ void main() {
     expect(find.text('MG'), findsOneWidget);
     expect(find.textContaining('RESUME'), findsWidgets);
 
+    await tester.ensureVisible(find.text('MG'));
     await tester.tap(find.text('MG'));
     await tester.pumpAndSettle();
 

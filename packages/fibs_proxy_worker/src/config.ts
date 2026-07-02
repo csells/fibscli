@@ -5,3 +5,4 @@ export const FIBS_TARGET = {
 
 export const BRIDGE_PATHS = new Set(['/', '/fibs']);
 export const HEALTH_PATH = '/healthz';
+export const APP_ANALYTICS_PATH = '/analytics';

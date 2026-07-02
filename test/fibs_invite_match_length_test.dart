@@ -38,7 +38,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('BlunderBot_II'));
+    final invite = find.byKey(const ValueKey('invite-BlunderBot_II'));
+    await tester.ensureVisible(invite);
+    await tester.tap(invite);
     await tester.pumpAndSettle();
 
     // default is a 3-point match; switch to 5 and invite
@@ -66,7 +68,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('wildbg'));
+    final invite = find.byKey(const ValueKey('invite-wildbg'));
+    await tester.ensureVisible(invite);
+    await tester.tap(invite);
     await tester.pumpAndSettle();
 
     expect(find.text('Invite (1 pt)'), findsOneWidget);

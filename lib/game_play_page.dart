@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
@@ -80,6 +81,11 @@ class _GamePlayPageState extends State<GamePlayPage> {
         builder: (context, controller, child) => Scaffold(
           appBar: AppBar(
             title: const Text(App.title),
+            leading: IconButton(
+              tooltip: 'Home',
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => GoRouter.maybeOf(context)?.go(AppRoutes.home),
+            ),
             actions: [
               if (controller.canAutoBearOff)
                 IconButton(

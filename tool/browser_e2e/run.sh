@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# One-shot browser e2e of the FIBS web client: build the web app with the FIBS
-# credentials baked in (from .env, never echoed), bring up the websocat proxy
-# and a static server, then drive it once with Playwright (single FIBS login).
+# One-shot browser e2e of the served Flutter web app: build with FIBS
+# credentials baked in (from .env, never echoed), serve it locally, then drive
+# local play, AI play, and one FIBS login through the hosted proxy.
 #
 # Usage (from repo root):  ./tool/browser_e2e/run.sh
 #
@@ -9,14 +9,24 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."   # repo root
 
-PORT=8088
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  cat <<'USAGE'
+One-shot browser e2e of the served Flutter web app.
+
+Usage (from repo root): ./tool/browser_e2e/run.sh
+
+Builds with FIBS credentials from .env, serves build/web with SPA path
+fallback, then drives /, /local, /computer, and one live /fibs login/logout.
+USAGE
+  exit 0
+fi
+
+PORT=${PORT:-18088}
 HERE=tool/browser_e2e
-started_proxy=""
 server_pid=""
 
 cleanup() {
   [ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null || true
-  [ -n "$started_proxy" ] && kill "$started_proxy" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -26,23 +36,25 @@ P=$(grep -i '^fibs_pword[ ]*=' .env | head -1 | sed -E 's/^[^=]*=[ ]*//; s/^["'\
 [ -n "$U" ] && [ -n "$P" ] || { echo "missing fibs_uname/fibs_pword in .env"; exit 1; }
 echo "building web for user=$U (password hidden)"
 
-flutter build web --release \
-  --dart-define=fibs_uname="$U" --dart-define=fibs_pword="$P" \
-  --dart-define=fibs_proxy_host=127.0.0.1 \
-  --dart-define=fibs_proxy_port=8080 \
-  --dart-define=fibs_proxy_secure=false \
-  --dart-define=fibs_proxy_path= >/dev/null
-
-# --- websocat proxy (start only if not already up) --------------------------
-if ! lsof -nP -iTCP:8080 -sTCP:LISTEN 2>/dev/null | grep -q websocat; then
-  echo "starting websocat proxy on :8080"
-  websocat --binary ws-l:127.0.0.1:8080 tcp:fibs.com:4321 --exit-on-eof &
-  started_proxy=$!
-  sleep 1
+if lsof -nP -iTCP:8080 -sTCP:LISTEN 2>/dev/null | grep -q websocat; then
+  echo "websocat is running on :8080; stop it before hosted-proxy e2e" >&2
+  exit 1
+fi
+if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "port :$PORT is already in use; set PORT to a free port" >&2
+  exit 1
 fi
 
+flutter build web --release \
+  --dart-define=fibs_uname="$U" \
+  --dart-define=fibs_pword="$P" \
+  --dart-define=fibs_e2e_probe=true \
+  --dart-define=analytics_url=https://proxy.playfibs.com/analytics \
+  --dart-define=analytics_environment=e2e \
+  --dart-define=app_version=e2e-local >/dev/null
+
 # --- static server for build/web --------------------------------------------
-( cd build/web && python3 -m http.server "$PORT" >/dev/null 2>&1 ) &
+node "$HERE/spa_server.mjs" "$PORT" build/web >/dev/null 2>&1 &
 server_pid=$!
 sleep 1
 

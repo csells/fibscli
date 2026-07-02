@@ -52,8 +52,8 @@ class _PlayViewState extends State<_PlayView> {
       appBar: AppBar(
         title: Text('vs $opponent'),
         leading: IconButton(
-          icon: const Icon(Icons.flag),
-          tooltip: 'resign / leave',
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back to lobby',
           onPressed: () => _confirmLeave(context),
         ),
         actions: [

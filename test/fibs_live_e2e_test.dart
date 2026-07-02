@@ -6,9 +6,8 @@
 //
 // GATED so a normal `flutter test` never touches the live server: tagged `live`
 // (see dart_test.yaml) and only runs when FIBS_LIVE=1. Run it explicitly with
-// the websocat proxy up and credentials in .env:
+// credentials in .env:
 //
-//   websocat --binary ws-l:127.0.0.1:8080 tcp:fibs.com:4321 --exit-on-eof &
 //   FIBS_LIVE=1 flutter test test/fibs_live_e2e_test.dart
 //
 // FIBS etiquette (see AGENTS.md): one login per run, weak BlunderBot bots only,
@@ -44,12 +43,7 @@ void main() {
     'resume saved matches, then win human-paced matches vs a weak bot',
     () async {
       final env = _env();
-      final fibs = FibsState(
-        proxy: '127.0.0.1',
-        port: 8080,
-        secure: false,
-        path: '',
-      );
+      final fibs = FibsState();
       Directory('tmp').createSync(recursive: true); // trace output (gitignored)
       final trace = File('tmp/game_trace.txt').openWrite();
 
@@ -82,7 +76,7 @@ void main() {
     timeout: const Timeout(Duration(minutes: 30)),
     skip: Platform.environment['FIBS_LIVE'] == '1'
         ? null
-        : 'live FIBS test — run with FIBS_LIVE=1 (needs .env creds + a '
-              'websocat proxy on :8080); see AGENTS.md FIBS testing etiquette',
+        : 'live FIBS test — run with FIBS_LIVE=1 (needs .env creds); '
+              'see AGENTS.md FIBS testing etiquette',
   );
 }

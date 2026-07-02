@@ -1,0 +1,4 @@
+interface:
+  display_name: "FIBS UI E2E"
+  short_description: "Verify FIBS browser e2e correctly"
+  default_prompt: "Use $fibs-ui-e2e to verify the FIBS browser UI end to end."

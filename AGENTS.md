@@ -24,6 +24,10 @@ Cloudflare Worker guidance for this repo is project-scoped under
 skills here when they are specific to the FIBS proxy Worker; do not install them
 into the shared user skill tree for this project.
 
+Use the project-scoped `fibs-ui-e2e` skill for browser validation of the live
+FIBS UI through the hosted proxy. It requires protocol evidence, sanitized app
+probe state, and clean logout before claiming end-to-end success.
+
 ## Monorepo workspace
 
 **We own 100% of the code in this repo.** Every file here — including all
@@ -64,8 +68,8 @@ login (with optional autologin from `--dart-define` `fibs_uname`/`fibs_pword`),
 the live bot list (invite / watch), tap-to-move play, **"Play for me"**
 (starts the autonomous `FibsBotPlayer`), resume of saved matches, and the
 doubling cube. It drives `lib/fibs_state.dart` (`FibsState`, default
-`localhost:8080`) over a [websocat](https://github.com/vi/websocat)
-websocket→telnet proxy (see README). Move generation lives in
+`proxy.playfibs.com`) over the hosted Cloudflare Worker websocket→telnet proxy
+(see README). Move generation lives in
 `lib/fibs_play.dart`: `bestTurnCommand` (pubeval) and `bestTurnCommandWithAi`
 (any `BgAiPlayer`) both standardize on `bg_engine`'s shared `enumerateLegalTurns`
 + canonical board — the FIBS protocol parse/mirror is the only FIBS-specific
@@ -122,12 +126,8 @@ suggestions:
 ### The live tests (committed, but not run by default)
 
 These hit the real server, so they're **gated** — a normal `flutter test` skips
-them and never connects. Run them deliberately, with the websocat proxy up and
-credentials in `.env` (`fibs_uname` / `fibs_pword`, never logged/committed):
-
-```sh
-websocat --binary ws-l:127.0.0.1:8080 tcp:fibs.com:4321 --exit-on-eof &
-```
+them and never connects. Run them deliberately, with credentials in `.env`
+(`fibs_uname` / `fibs_pword`, never logged/committed):
 
 - **`test/fibs_live_e2e_test.dart`** — drives the app's own `FibsState`
   **event-driven (no polling)** with human-paced delays: resumes saved matches
@@ -141,8 +141,10 @@ websocat --binary ws-l:127.0.0.1:8080 tcp:fibs.com:4321 --exit-on-eof &
 
 - **`tool/browser_e2e/`** — Playwright browser e2e of the served web build:
   landing → autologin (creds via `--dart-define`, never typed) → live bot list
-  → logout. Run `./tool/browser_e2e/run.sh` (it builds, serves, and drives in
-  one pass). See its README.
+  → logout. It enables an e2e-only JS probe that exposes sanitized counts and
+  state only; no credentials or raw FIBS payloads. Run
+  `./tool/browser_e2e/run.sh` (it builds, serves, and drives in one pass). See
+  its README.
 
 ## Architecture
 

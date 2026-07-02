@@ -2,15 +2,20 @@ import 'dart:async';
 
 import 'package:bg_engine/bg_engine.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ai_engines.dart';
+import 'analytics.dart';
 import 'app_close_stub.dart' if (dart.library.html) 'app_close_web.dart';
 import 'backgammon_ai_player.dart';
 import 'credential_store.dart';
 import 'error_log_dialog.dart';
+import 'fibs_e2e_probe_stub.dart'
+    if (dart.library.html) 'fibs_e2e_probe_web.dart';
 import 'fibs_page.dart';
 import 'fibs_state.dart';
 import 'game_play_page.dart';
@@ -20,6 +25,7 @@ import 'theme.dart';
 import 'tinystate.dart';
 
 Future<void> main() async {
+  usePathUrlStrategy();
   // Attach the log sink FIRST, so the FlutterError handler wired next (and any
   // framework error during binding init) actually has a subscriber. Route every
   // uncaught error -- framework and async -- to the log instead of letting it
@@ -45,6 +51,27 @@ class AppDeps {
   final SecureCredentialStore creds;
 }
 
+abstract final class AppRoutes {
+  static const home = '/';
+  static const local = '/local';
+  static const computer = '/computer';
+  static const fibs = '/fibs';
+  static const fibsLogin = '/fibs/login';
+  static const fibsBots = '/fibs/bots';
+  static const fibsPlay = '/fibs/play';
+  static const fibsWatch = '/fibs/watch';
+
+  static String computerLocation({String? engine, String? level}) {
+    final query = <String, String>{};
+    if (engine != null && engine.isNotEmpty) query['engine'] = engine;
+    if (level != null && level.isNotEmpty) query['level'] = level;
+    return Uri(
+      path: computer,
+      queryParameters: query.isEmpty ? null : query,
+    ).toString();
+  }
+}
+
 // Load persisted state before any UI builds, then hand the ready-to-use
 // dependencies back to main(). The login view reads remembered credentials
 // synchronously from the injected store (no load-race retry needed).
@@ -61,6 +88,29 @@ Future<AppDeps> bootstrap({
   if (crashReportUrl.isNotEmpty) {
     errorSink = httpErrorSink(Uri.parse(crashReportUrl));
   }
+  // Opt-in product analytics. The proxy Worker `/analytics` route writes these
+  // sanitized app lifecycle rows to the same Workers Analytics Engine dataset
+  // used by the WebSocket bridge.
+  // ignore: do_not_use_environment
+  const analyticsUrl = String.fromEnvironment('analytics_url');
+  // ignore: do_not_use_environment
+  const analyticsEnvironment = String.fromEnvironment(
+    'analytics_environment',
+    defaultValue: 'dev',
+  );
+  // ignore: do_not_use_environment
+  const appVersion = String.fromEnvironment(
+    'app_version',
+    defaultValue: 'local',
+  );
+  final analytics = analyticsUrl.isEmpty
+      ? AppAnalytics.disabled()
+      : AppAnalytics.http(
+          Uri.parse(analyticsUrl),
+          environment: analyticsEnvironment,
+          version: appVersion,
+        );
+  analytics.track('app_start', screen: 'landing');
   // Offer Gary Gammon (five levels) as the computer opponent, and the
   // gnubg-service engine too when a service URL is configured via
   // --dart-define=gnubg_service_url=... (optional gnubg_api_key). No URL -> the
@@ -84,7 +134,7 @@ Future<AppDeps> bootstrap({
     // startup -- the user can still type their credentials.
     Logger('bootstrap').warning('credential load failed', ex, st);
   }
-  final fibs = FibsState();
+  final fibs = FibsState(analytics: analytics);
   // Wire end-of-session cleanup without FibsState depending on credentials:
   // an explicit logout forgets the remembered password.
   fibs.onLogout = creds.forget;
@@ -99,12 +149,18 @@ Future<AppDeps> bootstrap({
 }
 
 class App extends StatefulWidget {
-  const App({required this.fibs, required this.creds, super.key});
+  const App({
+    required this.fibs,
+    required this.creds,
+    this.initialLocation,
+    super.key,
+  });
 
   // The live FIBS connection and the remembered-credentials store, threaded
   // down to the views.
   final FibsState fibs;
   final SecureCredentialStore creds;
+  final String? initialLocation;
 
   static const title = 'Backgammon';
   // App-wide SharedPreferences, loaded once in bootstrap() so the landing page
@@ -122,6 +178,8 @@ class App extends StatefulWidget {
 }
 
 class _AppState extends State<App> {
+  late final GoRouter _router;
+
   @override
   void initState() {
     super.initState();
@@ -137,6 +195,53 @@ class _AppState extends State<App> {
     onAppClose(() {
       if (widget.fibs.loggedIn) widget.fibs.send('bye');
     });
+    installFibsE2eProbe(widget.fibs);
+
+    _router = GoRouter(
+      navigatorKey: App.navigatorKey,
+      initialLocation: widget.initialLocation,
+      refreshListenable: widget.fibs,
+      redirect: _redirect,
+      routes: [
+        GoRoute(
+          path: AppRoutes.home,
+          builder: (context, state) => ChangeNotifierBuilder<FibsState>(
+            notifier: widget.fibs,
+            builder: (context, fibs, child) => const LandingPage(),
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.local,
+          builder: (context, state) => const GamePlayPage(),
+        ),
+        GoRoute(path: AppRoutes.computer, builder: _buildComputerRoute),
+        GoRoute(
+          path: AppRoutes.fibs,
+          builder: (context, state) =>
+              FibsPage(fibs: widget.fibs, creds: widget.creds),
+        ),
+        GoRoute(
+          path: AppRoutes.fibsLogin,
+          builder: (context, state) =>
+              FibsPage(fibs: widget.fibs, creds: widget.creds),
+        ),
+        GoRoute(
+          path: AppRoutes.fibsBots,
+          builder: (context, state) =>
+              FibsPage(fibs: widget.fibs, creds: widget.creds),
+        ),
+        GoRoute(
+          path: AppRoutes.fibsPlay,
+          builder: (context, state) =>
+              FibsPage(fibs: widget.fibs, creds: widget.creds),
+        ),
+        GoRoute(
+          path: AppRoutes.fibsWatch,
+          builder: (context, state) =>
+              FibsPage(fibs: widget.fibs, creds: widget.creds),
+        ),
+      ],
+    );
   }
 
   @override
@@ -179,19 +284,83 @@ class _AppState extends State<App> {
   }
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
+  Widget build(BuildContext context) => MaterialApp.router(
     title: App.title,
     scaffoldMessengerKey: App.scaffoldMessengerKey,
-    navigatorKey: App.navigatorKey,
     theme: buildAppTheme(),
     debugShowCheckedModeBanner: false,
-    // listen to the FIBS instance at the root so the app can react to
-    // connection state (App owns it and hands it to the landing page)
-    home: ChangeNotifierBuilder<FibsState>(
-      notifier: widget.fibs,
-      builder: (context, fibs, child) =>
-          LandingPage(fibs: widget.fibs, creds: widget.creds),
+    routerConfig: _router,
+  );
+
+  String? _redirect(BuildContext context, GoRouterState state) {
+    final path = state.uri.path;
+    if (!path.startsWith(AppRoutes.fibs)) return null;
+
+    final target = _fibsPathFor(widget.fibs);
+    if (path == AppRoutes.fibs) return target;
+    if (path == target) return null;
+
+    final knownFibsPath = switch (path) {
+      AppRoutes.fibsLogin ||
+      AppRoutes.fibsBots ||
+      AppRoutes.fibsPlay ||
+      AppRoutes.fibsWatch => true,
+      _ => false,
+    };
+    return knownFibsPath ? target : AppRoutes.home;
+  }
+
+  static String _fibsPathFor(FibsState fibs) {
+    if (!fibs.loggedIn) return AppRoutes.fibsLogin;
+    if (fibs.gameState == null) return AppRoutes.fibsBots;
+    return fibs.myColor == null ? AppRoutes.fibsWatch : AppRoutes.fibsPlay;
+  }
+
+  Widget _buildComputerRoute(BuildContext context, GoRouterState state) {
+    final params = state.uri.queryParameters;
+    final engineName = params['engine'] ?? 'Gary Gammon';
+    final factory =
+        AiRegistry.byName(engineName) ??
+        AiRegistry.byName('Gary Gammon') ??
+        (AiRegistry.available.isEmpty ? null : AiRegistry.available.first);
+    if (factory == null) {
+      return const _ComputerUnavailablePage('No computer engines registered.');
+    }
+    final level = _validLevel(factory, params['level']);
+    try {
+      final ai = factory.create(level: level);
+      return GamePlayPage(aiSide: GammonPlayer.two, ai: ai);
+    } on Object catch (e, st) {
+      Logger('main').warning('failed to create AI engine', e, st);
+      return _ComputerUnavailablePage('Computer engine unavailable: $e');
+    }
+  }
+
+  static String? _validLevel(BgAiPlayerFactory factory, String? requested) {
+    if (factory.levels.isEmpty) return null;
+    if (requested != null && factory.levels.contains(requested)) {
+      return requested;
+    }
+    return factory.levels[factory.levels.length ~/ 2];
+  }
+}
+
+class _ComputerUnavailablePage extends StatelessWidget {
+  const _ComputerUnavailablePage(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text(App.title),
+      leading: IconButton(
+        tooltip: 'Home',
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => GoRouter.maybeOf(context)?.go(AppRoutes.home),
+      ),
     ),
+    body: Center(child: Text(message)),
   );
 }
 
@@ -199,10 +368,7 @@ class _AppState extends State<App> {
 // hot-seat game, Gary Gammon (with an inline difficulty selector), and the live
 // FIBS bot client. Keeps the working local game as a first-class path.
 class LandingPage extends StatefulWidget {
-  const LandingPage({required this.fibs, required this.creds, super.key});
-
-  final FibsState fibs;
-  final SecureCredentialStore creds;
+  const LandingPage({super.key});
 
   @override
   State<LandingPage> createState() => _LandingPageState();
@@ -305,18 +471,14 @@ class _LandingPageState extends State<LandingPage> {
                     const SizedBox(height: 22),
                     _ModeRow(
                       index: '01',
-                      tag: 'Hot-seat',
-                      title: 'Local 2-Player',
+                      tag: 'Live · fibs.com',
+                      title: 'Play a Bot on FIBS',
                       description:
-                          'Two players, one screen, one '
-                          'board. Pass the device between turns — '
-                          'no server, no wait.',
-                      cta: 'Play',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const GamePlayPage(),
-                        ),
-                      ),
+                          'Log in to the real server. '
+                          'Browse who is online, invite a bot, or '
+                          'watch a match already in play.',
+                      cta: 'Connect',
+                      onTap: () => context.go(AppRoutes.fibs),
                     ),
                     _ModeRow(
                       index: '02',
@@ -332,19 +494,14 @@ class _LandingPageState extends State<LandingPage> {
                     ),
                     _ModeRow(
                       index: '03',
-                      tag: 'Live · fibs.com',
-                      title: 'Play a Bot on FIBS',
+                      tag: 'Hot-seat',
+                      title: 'Local 2-Player',
                       description:
-                          'Log in to the real server. '
-                          'Browse who is online, invite a bot, or '
-                          'watch a match already in play.',
-                      cta: 'Connect',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              FibsPage(fibs: widget.fibs, creds: widget.creds),
-                        ),
-                      ),
+                          'Two players, one screen, one '
+                          'board. Pass the device between turns — '
+                          'no server, no wait.',
+                      cta: 'Play',
+                      onTap: () => context.go(AppRoutes.local),
                     ),
                   ],
                 ),
@@ -417,8 +574,6 @@ class _LandingPageState extends State<LandingPage> {
   // engine is registered), then start the chosen 1-player game.
   Future<void> _playVsComputer() async {
     if (!mounted) return;
-    final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     final choice = await showDialog<AiChoice>(
       context: context,
       builder: (_) => OpponentPicker(
@@ -432,19 +587,11 @@ class _LandingPageState extends State<LandingPage> {
     if (choice.level != null) {
       await App.prefs?.setString(_aiLevelKey, choice.level!);
     }
-    final BgAiPlayer ai;
-    try {
-      ai = choice.factory.create(level: choice.level);
-    } on Object catch (e, st) {
-      Logger('main').warning('failed to create AI engine', e, st);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Could not start ${choice.factory.name}: $e')),
-      );
-      return;
-    }
-    await navigator.push(
-      MaterialPageRoute<void>(
-        builder: (_) => GamePlayPage(aiSide: GammonPlayer.two, ai: ai),
+    if (!mounted) return;
+    context.go(
+      AppRoutes.computerLocation(
+        engine: choice.factory.name,
+        level: choice.level,
       ),
     );
   }
@@ -461,21 +608,10 @@ class _LandingPageState extends State<LandingPage> {
     await App.prefs?.setString(_aiEngineKey, factory.name);
     await App.prefs?.setString(_aiLevelKey, level);
     if (!mounted) return;
-    final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final BgAiPlayer ai;
-    try {
-      ai = factory.create(level: factory.levels.isEmpty ? null : level);
-    } on Object catch (e, st) {
-      Logger('main').warning('failed to create AI engine', e, st);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Could not start ${factory.name}: $e')),
-      );
-      return;
-    }
-    await navigator.push(
-      MaterialPageRoute<void>(
-        builder: (_) => GamePlayPage(aiSide: GammonPlayer.two, ai: ai),
+    context.go(
+      AppRoutes.computerLocation(
+        engine: factory.name,
+        level: factory.levels.isEmpty ? null : level,
       ),
     );
   }

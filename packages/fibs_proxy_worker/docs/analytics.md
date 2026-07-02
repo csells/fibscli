@@ -1,7 +1,8 @@
 # Analytics
 
 The Worker records usage and reliability metrics with Workers Analytics Engine.
-Metrics are emitted at bounded lifecycle points, not for every frame.
+Metrics are emitted at bounded lifecycle points, not for every frame. The same
+dataset also receives sanitized app lifecycle events through `POST /analytics`.
 
 Durable Objects are not required for these metrics. Historical concurrency can
 be derived from `session_start` and `session_close` events; exact live global
@@ -17,6 +18,23 @@ state is out of scope for the first implementation.
 - `session_reject`
 - `limit_hit`
 - `bridge_error`
+- `app_start`
+- `app_fibs_login_attempt`
+- `app_fibs_login_success`
+- `app_fibs_login_failed`
+- `app_fibs_lobby_ready`
+- `app_fibs_invite`
+- `app_fibs_resume_saved_match`
+- `app_fibs_watch`
+- `app_fibs_game_start`
+- `app_fibs_game_end`
+- `app_fibs_leave_game`
+- `app_fibs_stop_watching`
+- `app_fibs_logout`
+- `app_fibs_connection_lost`
+- `app_fibs_reconnect_attempt`
+- `app_fibs_reconnect_failed`
+- `app_analytics_reject`
 
 ## Blob Columns
 
@@ -34,8 +52,16 @@ The Worker writes blobs in this order:
 10. country
 11. origin category
 12. client kind
+13. app event
+14. app screen
+15. app mode
+16. app environment
+17. app version
+18. app platform
 
-Payload content is never recorded.
+Payload content is never recorded. App events must not include usernames,
+opponent names, raw FIBS lines, hostnames, emails, chat, game commands, or
+credentials.
 
 ## Double Columns
 
@@ -55,6 +81,12 @@ The Worker writes doubles in this order:
 12. error count
 13. idle timeout count
 14. oversize-message count
+15. app event count
+16. app who-info count
+17. app available-bot count
+18. app watchable-bot count
+19. app saved-match count
+20. app message count
 
 ## Starter Queries
 
@@ -264,4 +296,30 @@ FROM fibs_proxy_events
 WHERE blob1 = 'bridge_request'
 GROUP BY day
 ORDER BY day DESC
+```
+
+App FIBS lobby readiness:
+
+```sql
+SELECT
+  toStartOfInterval(timestamp, INTERVAL '1' HOUR) AS hour,
+  sum(_sample_interval * double15) AS ready_events,
+  quantileExactWeighted(0.5)(double16, _sample_interval) AS p50_who_rows,
+  quantileExactWeighted(0.5)(double17 + double18, _sample_interval) AS p50_bots
+FROM fibs_proxy_events
+WHERE blob1 = 'app_fibs_lobby_ready'
+GROUP BY hour
+ORDER BY hour DESC
+```
+
+App FIBS funnel:
+
+```sql
+SELECT
+  blob1 AS event,
+  sum(_sample_interval * double15) AS events
+FROM fibs_proxy_events
+WHERE startsWith(blob1, 'app_fibs_')
+GROUP BY event
+ORDER BY events DESC
 ```

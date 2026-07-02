@@ -1,4 +1,5 @@
 import {
+  APP_ANALYTICS_PATH,
   BRIDGE_PATHS,
   FIBS_TARGET,
   HEALTH_PATH,
@@ -74,7 +75,7 @@ export interface BridgeDependencies<R extends BridgeResponseLike = Response> {
   preClientIdleTimeoutMs?: number;
 }
 
-type RouteName = '/' | '/fibs' | '/healthz' | 'unknown';
+type RouteName = '/' | '/fibs' | '/healthz' | '/analytics' | 'unknown';
 
 interface MetricEvent {
   type: string;
@@ -101,6 +102,18 @@ interface MetricEvent {
   errorCount?: number;
   idleTimeoutCount?: number;
   oversizeCount?: number;
+  appEvent?: string;
+  appScreen?: string;
+  appMode?: string;
+  appEnvironment?: string;
+  appVersion?: string;
+  appPlatform?: string;
+  appEventCount?: number;
+  appWhoInfoCount?: number;
+  appAvailableBotCount?: number;
+  appWatchableBotCount?: number;
+  appSavedMatchCount?: number;
+  appMessageCount?: number;
 }
 
 interface RequestContext {
@@ -149,6 +162,10 @@ export async function handleRequest<
     return new Response('ok', { status: 200 });
   }
 
+  if (route === '/analytics') {
+    return handleAppAnalytics(request, env, deps, context);
+  }
+
   if (!BRIDGE_PATHS.has(url.pathname)) {
     return reject(request, env, deps, {
       status: 404,
@@ -195,6 +212,110 @@ export async function handleRequest<
   deps.waitUntil?.(session);
 
   return deps.createWebSocketResponse(pair.client);
+}
+
+async function handleAppAnalytics<R extends BridgeResponseLike>(
+  request: Request,
+  env: BridgeEnvironment,
+  deps: BridgeDependencies<R>,
+  context: RequestContext,
+) {
+  const headers = corsHeaders(request, context.originCategory);
+
+  if (request.method === 'OPTIONS') {
+    if (context.originCategory === 'rejected') {
+      return new Response('bad_origin', { status: 403 });
+    }
+    return new Response(null, { headers, status: 204 });
+  }
+
+  if (request.method !== 'POST') {
+    return rejectHttp(env, deps, {
+      context,
+      headers,
+      reason: 'bad_method',
+      status: 405,
+    });
+  }
+
+  if (context.originCategory === 'rejected') {
+    return rejectHttp(env, deps, {
+      context,
+      headers,
+      reason: 'bad_origin',
+      status: 403,
+    });
+  }
+
+  const contentLength = Number(request.headers.get('content-length') ?? 0);
+  if (contentLength > 4096) {
+    return rejectHttp(env, deps, {
+      context,
+      headers,
+      reason: 'oversize',
+      status: 413,
+    });
+  }
+
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return rejectHttp(env, deps, {
+      context,
+      headers,
+      reason: 'bad_json',
+      status: 400,
+    });
+  }
+
+  const event = appAnalyticsEvent(payload);
+  if (event === null) {
+    return rejectHttp(env, deps, {
+      context,
+      headers,
+      reason: 'bad_event',
+      status: 400,
+    });
+  }
+
+  emitMetric(env, deps, {
+    ...context,
+    ...event,
+    type: event.appEvent,
+    route: '/analytics',
+    result: event.result ?? 'accepted',
+    appEventCount: 1,
+  });
+  return new Response(null, { headers, status: 204 });
+}
+
+function rejectHttp<R extends BridgeResponseLike>(
+  env: BridgeEnvironment,
+  deps: BridgeDependencies<R>,
+  options: {
+    context: RequestContext;
+    headers: HeadersInit;
+    reason: string;
+    status: number;
+  },
+) {
+  emitMetric(env, deps, {
+    ...options.context,
+    type: 'app_analytics_reject',
+    result: 'rejected',
+    rejectReason: options.reason,
+    rejectedCount: 1,
+  });
+  logWarn(deps.logger, 'app_analytics_reject', {
+    reason: options.reason,
+    route: options.context.route,
+    status: options.status,
+  });
+  return new Response(options.reason, {
+    headers: options.headers,
+    status: options.status,
+  });
 }
 
 function reject<R extends BridgeResponseLike>(
@@ -495,6 +616,12 @@ function emitMetric<R extends BridgeResponseLike>(
         event.country ?? '',
         event.originCategory ?? '',
         event.clientKind ?? 'unknown',
+        event.appEvent ?? '',
+        event.appScreen ?? '',
+        event.appMode ?? '',
+        event.appEnvironment ?? '',
+        event.appVersion ?? '',
+        event.appPlatform ?? '',
       ],
       doubles: [
         event.requestCount ?? 0,
@@ -511,6 +638,12 @@ function emitMetric<R extends BridgeResponseLike>(
         event.errorCount ?? 0,
         event.idleTimeoutCount ?? 0,
         event.oversizeCount ?? 0,
+        event.appEventCount ?? 0,
+        event.appWhoInfoCount ?? 0,
+        event.appAvailableBotCount ?? 0,
+        event.appWatchableBotCount ?? 0,
+        event.appSavedMatchCount ?? 0,
+        event.appMessageCount ?? 0,
       ],
       indexes: [event.type],
     });
@@ -523,6 +656,7 @@ function routeName(pathname: string): RouteName {
   if (pathname === '/') return '/';
   if (pathname === '/fibs') return '/fibs';
   if (pathname === HEALTH_PATH) return '/healthz';
+  if (pathname === APP_ANALYTICS_PATH) return '/analytics';
   return 'unknown';
 }
 
@@ -547,4 +681,54 @@ function requestLocation(request: Request) {
     colo: typeof cf?.colo === 'string' ? cf.colo : '',
     country: typeof cf?.country === 'string' ? cf.country : '',
   };
+}
+
+function corsHeaders(request: Request, originCategory: string) {
+  const origin = request.headers.get('Origin');
+  const headers: Record<string, string> = {
+    'access-control-allow-headers': 'content-type',
+    'access-control-allow-methods': 'POST, OPTIONS',
+    'access-control-max-age': '86400',
+  };
+  if (origin !== null && originCategory !== 'rejected') {
+    headers['access-control-allow-origin'] = origin;
+    headers.vary = 'Origin';
+  }
+  return headers;
+}
+
+function appAnalyticsEvent(payload: unknown) {
+  if (typeof payload !== 'object' || payload === null) return null;
+  const record = payload as Record<string, unknown>;
+  const event = safeToken(record.event);
+  if (event === null || !event.startsWith('app_')) return null;
+  return {
+    appEvent: event,
+    appScreen: safeToken(record.screen) ?? '',
+    appMode: safeToken(record.mode) ?? '',
+    appEnvironment: safeToken(record.environment) ?? '',
+    appVersion: safeToken(record.version) ?? '',
+    appPlatform: safeToken(record.platform) ?? '',
+    clientKind: safeToken(record.platform) ?? 'app',
+    result: safeToken(record.result) ?? 'accepted',
+    appWhoInfoCount: safeNumber(record.whoInfoCount),
+    appAvailableBotCount: safeNumber(record.availableBotCount),
+    appWatchableBotCount: safeNumber(record.watchableBotCount),
+    appSavedMatchCount: safeNumber(record.savedMatchCount),
+    appMessageCount: safeNumber(record.messageCount),
+  };
+}
+
+function safeToken(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!/^[-A-Za-z0-9_.:]{1,80}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+function safeNumber(value: unknown) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+  return value;
 }

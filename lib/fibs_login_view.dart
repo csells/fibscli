@@ -80,7 +80,14 @@ class _LoginViewState extends State<_LoginView> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Connect to FIBS')),
+    appBar: AppBar(
+      title: const Text('Connect to FIBS'),
+      leading: IconButton(
+        tooltip: 'Home',
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => GoRouter.maybeOf(context)?.go('/'),
+      ),
+    ),
     body: Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360),

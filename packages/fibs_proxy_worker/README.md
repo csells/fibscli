@@ -31,6 +31,8 @@ The manual GitHub Actions deploy workflow expects these repository settings:
 
 - `GET /healthz` returns `ok`.
 - `GET /` or `GET /fibs` with `Upgrade: websocket` opens a bridge session.
+- `POST /analytics` accepts sanitized app lifecycle events and writes them to
+  the same Workers Analytics Engine dataset.
 - Other requests are rejected and never open a TCP connection.
 
 ## Configuration
@@ -44,23 +46,25 @@ The manual GitHub Actions deploy workflow expects these repository settings:
 - `FIBS_PROXY_ANALYTICS` — Workers Analytics Engine binding.
 
 Production should set `ENVIRONMENT=prod`, `VERSION` to the release identifier,
-and `ALLOWED_ORIGINS` to the deployed Flutter app origin before promoting the
-route.
+and `ALLOWED_ORIGINS` to the deployed Flutter app origins before promoting the
+route. Include `http://localhost:8088` when running `tool/browser_e2e/run.sh`
+against the hosted Worker.
 
 The current production endpoint is:
 
 ```text
-wss://fibs-proxy.csells.workers.dev/fibs
+wss://proxy.playfibs.com/fibs
 ```
 
-`proxy.playfibs.com` can replace the `workers.dev` endpoint after `playfibs.com`
-is added as a Cloudflare zone.
+`wrangler.toml` keeps the `proxy.playfibs.com` custom domain attached to the
+Worker. The `workers.dev` endpoint remains enabled as an operational fallback.
 
 ## Privacy
 
 The Worker must not log or emit FIBS payloads. That includes login commands,
 passwords, usernames, who-list rows, chat, and game commands. Metrics contain
-only operational metadata and aggregate byte/message counts.
+only operational metadata, aggregate byte/message counts, app lifecycle event
+names, and app-side counts.
 
 ## Local Flutter Development
 
