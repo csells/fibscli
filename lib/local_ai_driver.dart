@@ -15,11 +15,18 @@ BgPosition positionFromState(GammonState state) => BgPosition(
   cubeOwner: state.cube.owner,
 );
 
-/// Drive the AI's full turn on [state] headlessly: first an optional doubling
-/// decision, then the chosen checker play, then commit (rolling for the
-/// opponent). A dance (no legal move) just passes; stops without committing if
-/// a move ends the game. No UI or pacing — the host supplies those via hooks:
+/// Drive the AI's full turn on [state] headlessly: first an optional
+/// resignation, then an optional doubling decision, then the chosen checker
+/// play, then commit (rolling for the opponent). A dance (no legal move) just
+/// passes; stops without committing if a move ends the game. No UI or pacing —
+/// the host supplies those via hooks:
 ///
+/// - [onResign] is called when the AI decides to resign (with the stake it
+///   concedes), before the game state is touched, so the host can announce it.
+///   The resignation is then applied ([GammonState.resign]: the opponent wins)
+///   and the turn ends. The built-in engines never resign (their
+///   [BgAiPlayer.resignDecision] default plays on); the gnubg adapter resigns
+///   on the service's verdict.
 /// - [onOfferDouble] is called when the AI decides to double, with the proposed
 ///   new cube value; it returns whether the opponent takes (true) or passes
 ///   (false). When omitted the opponent takes (the headless default). A pass
@@ -32,8 +39,17 @@ Future<void> playAiTurn(
   BgAiPlayer ai, {
   Future<bool> Function(int proposedCubeValue)? onOfferDouble,
   Future<void> Function(GammonMove move)? onMove,
+  Future<void> Function(BgResignDecision decision)? onResign,
 }) async {
   if (state.gameOver || state.turnPlayer == null) return;
+
+  // The AI may concede outright before considering the cube or its dice.
+  final resignation = await ai.resignDecision(positionFromState(state));
+  if (resignation != BgResignDecision.playOn) {
+    await onResign?.call(resignation);
+    state.resign(state.turnPlayer!); // the opponent wins
+    return;
+  }
 
   // The AI may double before playing its dice.
   if (state.canOfferDouble(state.turnPlayer)) {

@@ -66,6 +66,27 @@ enum BgCubeAction {
   pass,
 }
 
+/// A resignation decision an AI can make when on roll: play on, or concede at
+/// one of the three backgammon stakes.
+enum BgResignDecision {
+  /// Keep playing; no resignation.
+  playOn(0),
+
+  /// Resign a single game (1 point, times the cube value).
+  resignSingle(1),
+
+  /// Resign a gammon (2 points, times the cube value).
+  resignGammon(2),
+
+  /// Resign a backgammon (3 points, times the cube value).
+  resignBackgammon(3);
+
+  const BgResignDecision(this.points);
+
+  /// The points conceded (times the cube value); 0 means no resignation.
+  final int points;
+}
+
 /// The base class every AI engine implements. Asynchronous so a remote engine
 /// (an HTTP service) fits the same contract; in-process engines complete the
 /// future synchronously. A moves-only engine needs only [chooseTurn]: the cube
@@ -115,6 +136,13 @@ abstract class BgAiPlayer {
         ? BgCubeAction.pass
         : BgCubeAction.take;
   }
+
+  /// Whether to resign instead of playing on, when on roll. The default never
+  /// resigns -- the built-in engines play every game to the last checker, and
+  /// there is no local resignation heuristic to consult -- while an engine
+  /// with a real evaluator (the gnubg adapter) overrides with its own verdict.
+  Future<BgResignDecision> resignDecision(BgPosition position) async =>
+      BgResignDecision.playOn;
 
   /// Release any resources held by the engine (e.g. an HTTP client).
   void dispose() {}

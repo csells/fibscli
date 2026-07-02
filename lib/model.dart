@@ -56,6 +56,7 @@ class GammonState extends ChangeNotifier {
   late GammonState _undoState; // state for implementing undo
   var _moveNo = 1;
   var _gameOver = false;
+  GammonPlayer? _winner;
   final _stats = <GammonPlayer, GammonStats>{
     GammonPlayer.one: GammonStats(),
     GammonPlayer.two: GammonStats(),
@@ -86,6 +87,17 @@ class GammonState extends ChangeNotifier {
   void declineDouble() {
     if (_gameOver) throw Exception('game over');
     _gameOver = true;
+    _winner = _turnPlayer;
+    notifyListeners();
+  }
+
+  // [player] concedes the game: the opponent wins. How much the resignation is
+  // worth (single/gammon/backgammon, times the cube) is the caller's concern;
+  // a single game only has a winner.
+  void resign(GammonPlayer player) {
+    if (_gameOver) throw Exception('game over');
+    _gameOver = true;
+    _winner = GammonRules.otherPlayer(player);
     notifyListeners();
   }
 
@@ -112,6 +124,10 @@ class GammonState extends ChangeNotifier {
   List<DieState> get dice => List.unmodifiable(_dice);
   GammonPlayer? get turnPlayer => _turnPlayer;
   bool get gameOver => _gameOver;
+
+  // Who won, once [gameOver]: the bearer-off, the doubler whose cube was
+  // declined, or the resigner's opponent. Null while the game is in progress.
+  GammonPlayer? get winner => _winner;
 
   void _firstTurn() {
     assert(_dice.isEmpty);
@@ -191,7 +207,10 @@ class GammonState extends ChangeNotifier {
       final offPips = _board[offPipNo].sumBy(
         (pid) => GammonRules.playerFor(pid) == _turnPlayer ? 1 : 0,
       );
-      if (offPips == 15) _gameOver = true;
+      if (offPips == 15) {
+        _gameOver = true;
+        _winner = _turnPlayer;
+      }
 
       notifyListeners();
     }

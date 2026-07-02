@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../rules.dart';
 
 // GNU Backgammon's base64 alphabet (standard order).
@@ -62,16 +64,60 @@ List<int> _sideCounts(List<List<int>> board, GammonPlayer player) {
   return counts;
 }
 
-/// Encode a GNU Backgammon **Match ID** for a cubeless money-game position that
-/// is mid-play with [die0]/[die1] showing (cube centred at 1, no crawford, no
-/// resignation, scores 0-0). gnubg needs this alongside the Position ID so it
-/// evaluates the right roll.
+/// Encode a GNU Backgammon **Match ID**: the 12-character companion to the
+/// Position ID that carries the match state gnubg evaluates under — dice,
+/// cube, whose roll it is, crawford, jacoby, match length and scores. The
+/// bit layout is gnubg's `MatchID()` (matchid.c) and every field here is
+/// verified bit-exact against live gnubg 1.08.003 (see `gnubg_id_test.dart`).
 ///
-/// NOTE: the Position ID encoder is verified bit-exact against gnubg; this
-/// Match-ID field layout is implemented from the published spec but its exact
-/// bytes are only fully verified once run against live gnubg (the documented
-/// gnubg follow-on). The dice/cube/state it carries are correct by construction.
-String gnubgMatchId({required int die0, required int die1}) {
+/// Players are gnubg's two seats, 0 and 1; [onRoll] names the seat on roll,
+/// which is also the perspective the companion Position ID must be encoded
+/// from. [score0]/[score1] are the seats' match scores and [cubeOwner] is the
+/// seat holding the cube (null = centred). The state is always mid-game
+/// ("playing", no double pending, no resignation on the table): cube and
+/// resignation *decisions* are carried by the gnubg-service request, not the
+/// id.
+///
+/// [die0]/[die1] are the roll to play; pass 0,0 for a pre-roll state (a cube
+/// decision point). gnubg's canonical id always carries the higher die first,
+/// so the pair is normalized to that order here. [jacoby] is the money-session
+/// Jacoby rule and only exists when [matchLength] is 0 (a money session);
+/// gnubg encodes a match as jacoby-off regardless, and so does this.
+String gnubgMatchId({
+  required int die0,
+  required int die1,
+  int cubeValue = 1,
+  int? cubeOwner,
+  int onRoll = 0,
+  bool crawford = false,
+  bool jacoby = false,
+  int matchLength = 0,
+  int score0 = 0,
+  int score1 = 0,
+}) {
+  assert(die0 >= 0 && die0 <= 6 && die1 >= 0 && die1 <= 6, 'dice must be 0..6');
+  assert(
+    (die0 == 0) == (die1 == 0),
+    'dice must be both set (rolled) or both 0 (pre-roll)',
+  );
+  assert(onRoll == 0 || onRoll == 1, 'onRoll must be seat 0 or 1');
+  assert(
+    cubeOwner == null || cubeOwner == 0 || cubeOwner == 1,
+    'cubeOwner must be seat 0, seat 1, or null (centred)',
+  );
+  assert(
+    cubeValue >= 1 && cubeValue <= 0x8000 && (cubeValue & (cubeValue - 1)) == 0,
+    'cubeValue must be a power of two',
+  );
+  assert(
+    matchLength >= 0 && matchLength <= 0x7fff,
+    'matchLength must fit in 15 bits (0 == money session)',
+  );
+  assert(
+    score0 >= 0 && score0 <= 0x7fff && score1 >= 0 && score1 <= 0x7fff,
+    'scores must fit in 15 bits',
+  );
+
   final bits = <int>[];
   void put(int value, int width) {
     for (var i = 0; i < width; i++) {
@@ -79,19 +125,22 @@ String gnubgMatchId({required int die0, required int die1}) {
     }
   }
 
-  put(0, 4); // cube value: log2(1) = 0
-  put(3, 2); // cube owner: 3 == centred
-  put(0, 1); // player on move (side 0 == the on-roll side of the Position ID)
-  put(0, 1); // crawford game: no
+  put(cubeValue.bitLength - 1, 4); // cube value as log2
+  put(cubeOwner ?? 3, 2); // cube owner seat; 3 == centred
+  put(onRoll, 1); // seat on roll (gnubg's fMove)
+  put(crawford ? 1 : 0, 1); // crawford game
   put(1, 3); // game state: 1 == playing
-  put(0, 1); // player on turn: side 0
+  put(onRoll, 1); // seat to act (fTurn) == the seat on roll
   put(0, 1); // double offered: no
   put(0, 2); // resignation: none
-  put(die0, 3); // dice die 0
-  put(die1, 3); // dice die 1
-  put(0, 15); // match length: 0 == money game
-  put(0, 15); // player 0 score
-  put(0, 15); // player 1 score
+  put(max(die0, die1), 3); // dice, higher die first (gnubg's canonical order)
+  put(min(die0, die1), 3);
+  put(matchLength, 15); // match length: 0 == money session
+  put(score0, 15); // seat 0 score
+  put(score1, 15); // seat 1 score
+  // gnubg's trailing Jacoby bit is inverted for backward compatibility
+  // (0 == Jacoby in effect) and a match is always encoded jacoby-off.
+  put(matchLength == 0 && jacoby ? 0 : 1, 1);
 
   final bytes = List<int>.filled(9, 0);
   for (var i = 0; i < bits.length; i++) {

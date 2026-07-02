@@ -259,6 +259,7 @@ class _GameViewState extends State<GameView> {
         _game!,
         widget.ai!,
         onOfferDouble: _humanAnswersAiDouble,
+        onResign: _announceAiResignation,
         onMove: (move) async {
           if (!mounted || _game!.gameOver) return;
           await _applyMoveAnimated(move);
@@ -299,6 +300,20 @@ class _GameViewState extends State<GameView> {
       );
   }
 
+  // The AI is resigning (the engine judged its position hopeless): announce
+  // the concession -- with its stake -- before the driver ends the game.
+  Future<void> _announceAiResignation(BgResignDecision decision) async {
+    if (!mounted) return;
+    final stake = switch (decision) {
+      BgResignDecision.resignGammon => ' a gammon',
+      BgResignDecision.resignBackgammon => ' a backgammon',
+      _ => '',
+    };
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('Computer resigns$stake')));
+  }
+
   // The AI offered a double; ask the human (the opponent) to take or pass.
   Future<bool> _humanAnswersAiDouble(int proposedCubeValue) async {
     if (!mounted) return false; // treat as a pass if the view is gone
@@ -321,7 +336,7 @@ class _GameViewState extends State<GameView> {
     _game!.removeListener(_gameChanged);
     final ok = await NewGameDialog.show(
       context,
-      _game!.turnPlayer,
+      _game!.winner,
       _game!,
     ); // result can be null
     if (ok ?? false) _newGame();
@@ -383,9 +398,22 @@ class _GameViewState extends State<GameView> {
     final opponent = GammonRules.otherPlayer(player);
     final bool? accepted;
     if (widget.ai != null && opponent == widget.aiSide) {
-      final response = await widget.ai!.respondToDouble(
-        positionFromState(_game!),
-      );
+      final BgCubeAction response;
+      try {
+        response = await widget.ai!.respondToDouble(positionFromState(_game!));
+      } on GnubgUnavailableException catch (e) {
+        // The engine couldn't answer the double (after its own retries). We do
+        // NOT answer on its behalf -- withdraw the offer, tell the user, and
+        // let them tap the cube again to retry.
+        _reportEngineUnavailable(e.message);
+        return;
+      } on Object catch (e, st) {
+        // Any other engine failure must not decide the cube either -- same
+        // withdraw-and-report path so the game stays recoverable.
+        _log.warning('computer engine failed to answer the double', e, st);
+        _reportEngineUnavailable('$e');
+        return;
+      }
       accepted = response == BgCubeAction.take;
       if (mounted) {
         ScaffoldMessenger.maybeOf(context)

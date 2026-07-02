@@ -23,6 +23,34 @@ GammonState _aiDominatingGame() {
   );
 }
 
+// A pubeval player that also resigns: [resignAs] scripts the resignation
+// verdict and every decision method records its call order, so the tests can
+// pin that resignation is consulted first and short-circuits the turn.
+class _ResigningAi extends PubevalAiPlayer {
+  _ResigningAi(this.resignAs);
+
+  final BgResignDecision resignAs;
+  final calls = <String>[];
+
+  @override
+  Future<BgResignDecision> resignDecision(BgPosition position) async {
+    calls.add('resign');
+    return resignAs;
+  }
+
+  @override
+  Future<BgCubeAction> cubeDecision(BgPosition position) {
+    calls.add('cube');
+    return super.cubeDecision(position);
+  }
+
+  @override
+  Future<BgTurn> chooseTurn(BgPosition position) {
+    calls.add('choose');
+    return super.chooseTurn(position);
+  }
+}
+
 void main() {
   test('positionFromState mirrors the live game state', () {
     final state = GammonState();
@@ -88,6 +116,38 @@ void main() {
     );
     // a normal opening turn plays at least one checker; onMove saw them all
     expect(moves, isNotEmpty);
+  });
+
+  test('playAiTurn resigns the game when the engine says to', () async {
+    final game = GammonState();
+    final aiSide = game.turnPlayer!;
+    final ai = _ResigningAi(BgResignDecision.resignGammon);
+    BgResignDecision? surfaced;
+    final moveNo = game.moveNo;
+
+    await playAiTurn(
+      game,
+      ai,
+      onResign: (decision) async => surfaced = decision,
+    );
+
+    expect(game.gameOver, isTrue, reason: 'the resignation concedes the game');
+    expect(game.winner, GammonRules.otherPlayer(aiSide));
+    expect(surfaced, BgResignDecision.resignGammon);
+    // resignation is decided first and ends the turn: no cube offer, no play
+    expect(ai.calls, ['resign']);
+    expect(game.moveNo, moveNo, reason: 'no checkers were played');
+  });
+
+  test('playAiTurn plays on when the engine does not resign', () async {
+    final game = GammonState();
+    final ai = _ResigningAi(BgResignDecision.playOn);
+
+    await playAiTurn(game, ai);
+
+    expect(ai.calls.first, 'resign');
+    expect(ai.calls, contains('choose'));
+    expect(game.winner, isNull);
   });
 
   test('two pubeval AIs play a full local game to completion', () async {

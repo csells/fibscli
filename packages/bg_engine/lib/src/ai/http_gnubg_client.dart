@@ -22,16 +22,17 @@ class GnubgServiceError implements Exception {
 }
 
 /// A [GnubgClient] that talks to a gnubg-service over HTTP. It encodes the
-/// position to a GNUBG id (`PositionID:MatchID`) and POSTs it to `/v1/eval`.
-///
-/// The Position ID is verified bit-exact against gnubg; full live verification
-/// of the Match ID + auth is the documented gnubg follow-on (the service is a
-/// private Cloud Run instance). The request/response plumbing is covered by a
-/// MockClient test.
+/// position — checkers, dice, and cube state — to a GNUBG id
+/// (`PositionID:MatchID`, both verified bit-exact against gnubg) and POSTs it
+/// to the decision endpoints: `/v1/eval` for the checker play, `/v1/cube` for
+/// the doubling decision, `/v1/resign` for resignation. Cube and resign
+/// requests encode a pre-roll match id (dice 0,0) — gnubg judges both before
+/// the roll. The request/response plumbing is covered by MockClient tests.
 class HttpGnubgClient extends GnubgClient {
-  /// Creates a client targeting [baseUrl]. [apiKey], when set, is sent as the
-  /// `x-api-key` header. [plies] is the gnubg evaluation depth. A custom
-  /// [httpClient] can be injected (e.g. a mock in tests).
+  /// Creates a client targeting [baseUrl]. [apiKey], when set, is sent as
+  /// `Authorization: Bearer <key>` (the service's auth contract). [plies] is
+  /// the gnubg evaluation depth. A custom [httpClient] can be injected (e.g. a
+  /// mock in tests).
   HttpGnubgClient({
     required this.baseUrl,
     this.apiKey,
@@ -40,10 +41,10 @@ class HttpGnubgClient extends GnubgClient {
     http.Client? httpClient,
   }) : _http = httpClient ?? http.Client();
 
-  /// The gnubg-service base URL (the `/v1/eval` path is appended).
+  /// The gnubg-service base URL (the `/v1/...` paths are appended).
   final Uri baseUrl;
 
-  /// Optional API key, sent as `x-api-key`.
+  /// Optional API key, sent as `Authorization: Bearer <key>`.
   final String? apiKey;
 
   /// gnubg evaluation depth (plies).
@@ -61,30 +62,76 @@ class HttpGnubgClient extends GnubgClient {
 
   @override
   Future<List<GnubgRankedMove>> evalMoves(BgPosition position) async {
+    final decoded = await _postJson('/v1/eval', {
+      'gnubg_id': _gnubgId(position, preRoll: false),
+      'plies': plies,
+    });
+    return _parseRankedMoves(decoded);
+  }
+
+  @override
+  Future<GnubgCubeDecision> cubeDecision(BgPosition position) async {
+    final decoded = await _postJson('/v1/cube', {
+      'gnubg_id': _gnubgId(position, preRoll: true),
+      'plies': plies,
+    });
+    return _parseCubeDecision(decoded);
+  }
+
+  @override
+  Future<GnubgResignDecision> resignDecision(
+    BgPosition position, {
+    int offered = 0,
+  }) async {
+    final decoded = await _postJson('/v1/resign', {
+      'gnubg_id': _gnubgId(position, preRoll: true),
+      'plies': plies,
+      'offered': offered,
+    });
+    return _parseResignDecision(decoded);
+  }
+
+  // Encode [position] as the service's canonical "PositionID:MatchID" id.
+  // [preRoll] encodes dice 0,0 -- the cube/resign decision point -- instead of
+  // the dice the position carries.
+  static String _gnubgId(BgPosition position, {required bool preRoll}) {
     final dice = position.dice;
     final positionId = gnubgPositionId(position.board, position.onRoll);
+    final cubeOwner = position.cubeOwner;
     final matchId = gnubgMatchId(
-      die0: dice.first,
-      die1: dice.length > 1 ? dice[1] : dice.first,
+      die0: preRoll ? 0 : dice.first,
+      die1: preRoll ? 0 : (dice.length > 1 ? dice[1] : dice.first),
+      cubeValue: position.cubeValue,
+      // Match-ID seat 0 is the on-roll side (the Position ID's perspective).
+      cubeOwner: cubeOwner == null
+          ? null
+          : (cubeOwner == position.onRoll ? 0 : 1),
     );
-    final id = '$positionId:$matchId';
+    return '$positionId:$matchId';
+  }
 
+  // POST [body] to [path] and return the decoded 200 JSON object. Any other
+  // status, non-JSON body, or non-object body throws GnubgServiceError.
+  Future<Map<String, dynamic>> _postJson(
+    String path,
+    Map<String, Object?> body,
+  ) async {
     final resp = await _http
         .post(
-          baseUrl.resolve('/v1/eval'),
+          baseUrl.resolve(path),
           headers: {
             'content-type': 'application/json',
-            if (apiKey != null) 'x-api-key': apiKey!,
+            if (apiKey != null) 'authorization': 'Bearer $apiKey',
           },
-          body: jsonEncode({'gnubg_id': id, 'plies': plies}),
+          body: jsonEncode(body),
         )
         .timeout(timeout);
 
     if (resp.statusCode != 200) {
-      final body = resp.body;
+      final respBody = resp.body;
       throw GnubgServiceError(
         resp.statusCode,
-        body.length > 200 ? body.substring(0, 200) : body,
+        respBody.length > 200 ? respBody.substring(0, 200) : respBody,
       );
     }
 
@@ -99,49 +146,139 @@ class HttpGnubgClient extends GnubgClient {
     } on FormatException catch (e) {
       throw GnubgServiceError(resp.statusCode, 'body is not valid JSON: $e');
     }
-    return _parseRankedMoves(decoded, resp.statusCode);
+    if (decoded is! Map<String, dynamic>) {
+      throw _schemaError('expected a JSON object, got ${decoded.runtimeType}');
+    }
+    return decoded;
   }
 
-  List<GnubgRankedMove> _parseRankedMoves(Object? decoded, int status) {
-    if (decoded is! Map<String, dynamic>) {
-      throw GnubgServiceError(
-        status,
-        'expected a JSON object, got ${decoded.runtimeType}',
-      );
+  // A wrong-shape body is always on an HTTP 200 (any other status threw
+  // before parsing), so schema errors carry that status.
+  static GnubgServiceError _schemaError(String message) =>
+      GnubgServiceError(200, message);
+
+  // [field] of [map] as a double, or a schema error naming the field.
+  static double _numField(Map<String, dynamic> map, String field) {
+    final value = map[field];
+    if (value is! num) {
+      throw _schemaError('"$field" must be a number, got ${value.runtimeType}');
     }
+    return value.toDouble();
+  }
+
+  static List<GnubgRankedMove> _parseRankedMoves(Map<String, dynamic> decoded) {
     final rawMoves = decoded['moves'];
     if (rawMoves is! List) {
-      throw GnubgServiceError(
-        status,
-        '"moves" must be a list, got ${rawMoves.runtimeType}',
-      );
+      throw _schemaError('"moves" must be a list, got ${rawMoves.runtimeType}');
     }
     final moves = <GnubgRankedMove>[];
     for (final raw in rawMoves) {
       if (raw is! Map<String, dynamic>) {
-        throw GnubgServiceError(
-          status,
+        throw _schemaError(
           'each move must be an object, got ${raw.runtimeType}',
         );
       }
       final play = raw['play'];
       if (play is! String) {
-        throw GnubgServiceError(
-          status,
+        throw _schemaError(
           'move "play" must be a string, got ${play.runtimeType}',
         );
       }
       final equity = raw['equity'];
       if (equity != null && equity is! num) {
-        throw GnubgServiceError(
-          status,
+        throw _schemaError(
           'move "equity" must be a number, got ${equity.runtimeType}',
         );
       }
       moves.add(
-        GnubgRankedMove(play: play, equity: (equity as num?)?.toDouble() ?? 0),
+        GnubgRankedMove(
+          play: play,
+          hops: _parseHops(raw['hops']),
+          equity: (equity as num?)?.toDouble() ?? 0,
+        ),
       );
     }
     return moves;
+  }
+
+  // A move's "hops": a list of {from, to} integer pairs in the service's
+  // mover-perspective numbering (see [GnubgHop]).
+  static List<GnubgHop> _parseHops(Object? rawHops) {
+    if (rawHops is! List) {
+      throw _schemaError(
+        'move "hops" must be a list, got ${rawHops.runtimeType}',
+      );
+    }
+    final hops = <GnubgHop>[];
+    for (final raw in rawHops) {
+      if (raw is! Map<String, dynamic>) {
+        throw _schemaError(
+          'each hop must be an object, got ${raw.runtimeType}',
+        );
+      }
+      hops.add(
+        GnubgHop(from: _hopField(raw, 'from'), to: _hopField(raw, 'to')),
+      );
+    }
+    return hops;
+  }
+
+  // [field] of a hop object as an int, or a schema error naming the field.
+  static int _hopField(Map<String, dynamic> hop, String field) {
+    final value = hop[field];
+    if (value is! int) {
+      throw _schemaError(
+        'hop "$field" must be an integer, got ${value.runtimeType}',
+      );
+    }
+    return value;
+  }
+
+  // The service's snake_case action strings (serde's rendering of its
+  // CubeAction enum), mapped to the client-side enum.
+  static const _cubeActions = {
+    'no_double': GnubgCubeAction.noDouble,
+    'double_take': GnubgCubeAction.doubleTake,
+    'double_pass': GnubgCubeAction.doublePass,
+    'too_good_to_double': GnubgCubeAction.tooGoodToDouble,
+  };
+
+  static GnubgCubeDecision _parseCubeDecision(Map<String, dynamic> decoded) {
+    final action = decoded['action'];
+    final mapped = action is String ? _cubeActions[action] : null;
+    if (mapped == null) {
+      throw _schemaError(
+        '"action" must be one of ${_cubeActions.keys.join('|')}, got $action',
+      );
+    }
+    return GnubgCubeDecision(
+      action: mapped,
+      cubelessEquity: _numField(decoded, 'cubeless_equity'),
+      cubefulNoDouble: _numField(decoded, 'cubeful_nodouble'),
+      cubefulDoubleTake: _numField(decoded, 'cubeful_double_take'),
+      cubefulDoublePass: _numField(decoded, 'cubeful_double_pass'),
+    );
+  }
+
+  static GnubgResignDecision _parseResignDecision(
+    Map<String, dynamic> decoded,
+  ) {
+    final advice = decoded['resign_advice'];
+    if (advice is! int || advice < 0 || advice > 3) {
+      throw _schemaError(
+        '"resign_advice" must be an integer 0..3, got $advice',
+      );
+    }
+    final accept = decoded['accept'];
+    if (accept is! bool?) {
+      throw _schemaError(
+        '"accept" must be a boolean, got ${accept.runtimeType}',
+      );
+    }
+    return GnubgResignDecision(
+      resignAdvice: advice,
+      equityPlayOn: _numField(decoded, 'equity_play_on'),
+      accept: accept,
+    );
   }
 }
