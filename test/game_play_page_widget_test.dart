@@ -1,6 +1,6 @@
-import 'package:bg_engine/bg_engine.dart';
 import 'package:fibscli/dice.dart';
 import 'package:fibscli/game_play_page.dart';
+import 'package:fibscli/model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +14,24 @@ class _RecordingAi extends BgAiPlayer {
   Future<BgTurn> chooseTurn(BgPosition position) async => const BgTurn([]);
   @override
   void dispose() => disposed = true;
+}
+
+GammonState _preRollGame() => GammonState.from(
+  board: GammonRules.initialBoard(),
+  dice: const [],
+  turnPlayer: GammonPlayer.one,
+  moveNo: 2,
+);
+
+GammonState _spentTurnGame() {
+  final die1 = DieState(1)..available = false;
+  final die2 = DieState(2)..available = false;
+  return GammonState.from(
+    board: GammonRules.initialBoard(),
+    dice: [die1, die2],
+    turnPlayer: GammonPlayer.one,
+    moveNo: 2,
+  );
 }
 
 void main() {
@@ -64,8 +82,12 @@ void main() {
   testWidgets('tapping the cube offers a double and accepting raises it', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: GamePlayPage()));
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: GameView(createGame: _preRollGame)),
+      ),
+    );
+    await tester.pump();
 
     await tester.tap(find.byType(DoublingCubeView));
     await tester.pumpAndSettle();
@@ -84,6 +106,61 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a pre-roll turn shows stable Roll and Double choices', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: GameView(createGame: _preRollGame)),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Roll'), findsOneWidget);
+    expect(find.text('Double'), findsOneWidget);
+    expect(find.byType(DieView), findsNothing);
+
+    await tester.tap(find.text('Roll'));
+    await tester.pump();
+
+    expect(find.byType(DieView), findsWidgets);
+    expect(find.text('Roll'), findsNothing);
+    expect(find.text('Double'), findsNothing);
+  });
+
+  testWidgets('the opening already-rolled dice cannot be doubled', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: GamePlayPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DieView), findsWidgets);
+    expect(find.text('Double'), findsNothing);
+
+    await tester.tap(find.byType(DoublingCubeView));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('doubles to 2'), findsNothing);
+  });
+
+  testWidgets('ending a local turn waits for the next player to roll', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: GameView(createGame: _spentTurnGame)),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byType(DieView).first);
+    await tester.pump();
+
+    expect(find.text('Roll'), findsOneWidget);
+    expect(find.text('Double'), findsOneWidget);
+    expect(find.byType(DieView), findsNothing);
   });
 
   testWidgets('reverse button toggles without error', (tester) async {

@@ -701,7 +701,7 @@ class PrivacyPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Updated July 2, 2026',
+                      'Updated July 3, 2026',
                       style: editorialKicker(color: AppColors.accent),
                     ),
                     const SizedBox(height: 28),
@@ -710,8 +710,9 @@ class PrivacyPage extends StatelessWidget {
                     const _PrivacySection(
                       title: 'FIBS connection',
                       body:
-                          'When you log in, your FIBS username, password, '
-                          'commands, and server replies pass through '
+                          'When you create an account or log in, your FIBS '
+                          'username, password, commands, and server replies '
+                          'pass through '
                           'proxy.playfibs.com so this browser app can reach '
                           'fibs.com:4321. The proxy bridges the connection and '
                           'records operational counts only. It does not log or '

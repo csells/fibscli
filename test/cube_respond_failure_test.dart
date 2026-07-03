@@ -1,4 +1,3 @@
-import 'package:fibscli/dice.dart';
 import 'package:fibscli/game_board.dart';
 import 'package:fibscli/game_play_page.dart';
 import 'package:fibscli/model.dart'; // re-exports bg_engine (GammonPlayer, …)
@@ -38,7 +37,7 @@ void main() {
             // human (player one) on roll, dice unused -> the human can double
             createGame: () => GammonState.from(
               board: GammonRules.initialBoard(),
-              dice: [DieState(3), DieState(1)],
+              dice: const [],
               turnPlayer: GammonPlayer.one,
             ),
           ),

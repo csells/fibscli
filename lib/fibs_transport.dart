@@ -5,6 +5,7 @@ import 'package:fibscli_lib/fibscli_lib.dart';
 // to drive the UI without a live server.
 abstract interface class FibsTransport {
   Future<FibsCookie> login(String user, String pass);
+  Future<void> createAccount(String user, String pass);
   void send(String s);
   Stream<CookieMessage> get stream;
   Future<void> close();
@@ -18,6 +19,9 @@ class FibsConnectionTransport implements FibsTransport {
 
   @override
   Future<FibsCookie> login(String user, String pass) => _conn.login(user, pass);
+  @override
+  Future<void> createAccount(String user, String pass) =>
+      _conn.createAccount(user, pass);
   @override
   void send(String s) => _conn.send(s);
   @override

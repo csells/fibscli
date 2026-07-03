@@ -13,12 +13,19 @@ class FakeTransport implements FibsTransport {
 
   final _ctrl = StreamController<CookieMessage>.broadcast();
   final sent = <String>[];
+  final createdAccounts = <String, String>{};
   var _connected = false;
 
   @override
   Future<FibsCookie> login(String user, String pass) async {
     _connected = true;
     return loginResult;
+  }
+
+  @override
+  Future<void> createAccount(String user, String pass) async {
+    _connected = true;
+    createdAccounts[user] = pass;
   }
 
   @override
@@ -60,6 +67,11 @@ class StrictFakeTransport implements FibsTransport {
   Future<FibsCookie> login(String user, String pass) async {
     _connected = true;
     return loginResult;
+  }
+
+  @override
+  Future<void> createAccount(String user, String pass) async {
+    _connected = true;
   }
 
   @override

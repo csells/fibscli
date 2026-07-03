@@ -64,8 +64,9 @@ same file. The landing page picks the level inline; a full engine picker only
 appears when a second engine (e.g. gnubg) is configured. A **gnubg-service** adapter (`GnubgAiPlayer` + `HttpGnubgClient` in
 `bg_engine`) is also listed when a service URL is configured
 (`--dart-define=gnubg_service_url`). `lib/fibs_page.dart` is the working FIBS client UI —
-login (with optional autologin from `--dart-define` `fibs_uname`/`fibs_pword`),
-the live bot list (invite / watch), tap-to-move play, **"Play for me"**
+account creation, login (with optional autologin from `--dart-define`
+`fibs_uname`/`fibs_pword`), the live bot list (invite / watch), tap-to-move play,
+**"Play for me"**
 (starts the autonomous `FibsBotPlayer`), resume of saved matches, and the
 doubling cube. It drives `lib/fibs_state.dart` (`FibsState`, default
 `proxy.playfibs.com`) over the hosted Cloudflare Worker websocket→telnet proxy

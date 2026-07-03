@@ -137,6 +137,7 @@ class FibsState extends ChangeNotifier {
   // user on the login screen.
   bool _reconnectUsed = false;
   bool _lobbyReadyTracked = false;
+  bool _doublePromptToggleSent = false;
   var _cookieCount = 0;
   FibsCookie? _lastCookie;
   var _whoInfoCookieCount = 0;
@@ -216,6 +217,7 @@ class FibsState extends ChangeNotifier {
   late final Map<FibsCookie, void Function(CookieMessage)> _handlers = {
     FibsCookie.CLIP_WHO_INFO: _onWhoInfo,
     FibsCookie.CLIP_WHO_END: (_) => _trackLobbyReady(),
+    FibsCookie.CLIP_OWN_INFO: _onOwnInfo,
     FibsCookie.CLIP_LOGOUT: _onWhoLogout,
     FibsCookie.CLIP_KIBITZES: _onChatMessage,
     FibsCookie.CLIP_MESSAGE: _onChatMessage,
@@ -286,6 +288,16 @@ class FibsState extends ChangeNotifier {
   void _onWhoLogout(CookieMessage cm) {
     lobby.remove(cm.crumb(FibsCrumbKeys.name));
     notifyListeners();
+  }
+
+  void _onOwnInfo(CookieMessage cm) {
+    final doublePrompt = cm.crumbOrNull('double');
+    if (doublePrompt == '1') {
+      _doublePromptToggleSent = false;
+    } else if (doublePrompt == '0' && !_doublePromptToggleSent) {
+      _doublePromptToggleSent = true;
+      _conn?.send('toggle double');
+    }
   }
 
   void _trackLobbyReady() {
@@ -543,6 +555,7 @@ class FibsState extends ChangeNotifier {
     _session = _session.loggedInAs(user);
     _reconnectUsed = false; // a live session re-arms one auto-reconnect
     _lobbyReadyTracked = false;
+    _doublePromptToggleSent = false;
     analytics.track('app_fibs_login_success', screen: 'fibs_lobby');
     // raw board frames are required for parsing; moreboards is toggled on from
     // CLIP_OWN_INFO below so FIBS sends a board after every roll/move
@@ -559,6 +572,31 @@ class FibsState extends ChangeNotifier {
     // opponent, which makes FIBS reload the saved game.)
     _conn?.send('show savedgames');
     notifyListeners();
+  }
+
+  Future<void> createAccount({
+    required String user,
+    required String pass,
+  }) async {
+    assert(!loggedIn);
+    analytics.track('app_fibs_account_create_attempt', screen: 'fibs_login');
+
+    await _sub?.cancel();
+    _sub = null;
+    _expectClose = true;
+    final conn = _makeTransport();
+    _conn = conn;
+    try {
+      await conn.createAccount(user, pass).timeout(const Duration(seconds: 10));
+      analytics.track('app_fibs_account_create_success', screen: 'fibs_login');
+    } on Object {
+      analytics.track('app_fibs_account_create_failed', screen: 'fibs_login');
+      rethrow;
+    } finally {
+      await conn.close();
+      if (identical(_conn, conn)) _conn = null;
+      _expectClose = false;
+    }
   }
 
   Future<void> logout() async {
@@ -657,6 +695,7 @@ class FibsState extends ChangeNotifier {
     messages.clear();
     _session = const FibsSession();
     _lobbyReadyTracked = false;
+    _doublePromptToggleSent = false;
     _cookieCount = 0;
     _lastCookie = null;
     _whoInfoCookieCount = 0;

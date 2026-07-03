@@ -1,13 +1,11 @@
 import 'dart:math';
 
-import 'package:fibscli/dice.dart';
 import 'package:fibscli/local_ai_driver.dart';
 import 'package:fibscli/model.dart'; // re-exports bg_engine (PubevalAiPlayer, …)
 import 'package:flutter_test/flutter_test.dart';
 
 // player two (on roll) all but home, player one stacked far back: a pure race
-// the AI wins almost surely, so it should double. Dice all available so a cube
-// offer is legal.
+// the AI wins almost surely, so it should double before rolling.
 GammonState _aiDominatingGame() {
   final position = Position(
     points: const [
@@ -20,7 +18,7 @@ GammonState _aiDominatingGame() {
   );
   return GammonState.from(
     board: position.toBoard(),
-    dice: [DieState(3), DieState(1)],
+    dice: const [],
     turnPlayer: GammonPlayer.two,
   );
 }

@@ -353,7 +353,12 @@ class _GameViewState extends State<GameView> {
     notifier: _game,
     builder: (context, game, child) => Column(
       children: [
-        _TurnBanner(game: _game!, aiSide: widget.aiSide),
+        _TurnBanner(
+          game: _game!,
+          aiSide: widget.aiSide,
+          onRoll: _rollTurn,
+          onDouble: () => unawaited(_tapCube()),
+        ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -444,6 +449,7 @@ class _GameViewState extends State<GameView> {
 
     if (accepted) {
       _game!.acceptDouble();
+      if (_game!.canRoll) _game!.rollTurn();
       _reset();
     } else {
       _game!.declineDouble(); // ends the game; _gameChanged shows the result
@@ -476,10 +482,16 @@ class _GameViewState extends State<GameView> {
     if (_aiBusy) return; // the AI is on roll; ignore taps
     // can't go to the next turn until there are no more available dice
     if (_game!.dice.every((d) => !d.available)) {
-      _game!.commitTurn();
+      _game!.commitTurn(roll: false);
       _reset();
       unawaited(_maybePlayAi()); // turn may now be the AI's
     }
+  }
+
+  void _rollTurn() {
+    if (_aiBusy || !_game!.canRoll) return;
+    _game!.rollTurn();
+    _reset();
   }
 }
 
@@ -488,12 +500,19 @@ class _GameViewState extends State<GameView> {
 // swatch matches the on-roll player's piece; the human's turn is called out in
 // the accent.
 class _TurnBanner extends StatelessWidget {
-  const _TurnBanner({required this.game, this.aiSide});
+  const _TurnBanner({
+    required this.game,
+    this.aiSide,
+    this.onRoll,
+    this.onDouble,
+  });
 
   final GammonState game;
 
   /// The side the computer plays, or null in a 2-player hot-seat game.
   final GammonPlayer? aiSide;
+  final VoidCallback? onRoll;
+  final VoidCallback? onDouble;
 
   @override
   Widget build(BuildContext context) {
@@ -521,14 +540,22 @@ class _TurnBanner extends StatelessWidget {
     }
 
     String? hint;
-    if (!over && turn != null && (aiSide == null || turn != aiSide)) {
+    final isPlayableTurn =
+        !over && turn != null && (aiSide == null || turn != aiSide);
+    if (isPlayableTurn) {
       final dice = game.dice;
-      if (dice.isNotEmpty) {
+      if (game.canRoll) {
+        hint = game.canOfferDouble(turn)
+            ? 'Choose roll or double'
+            : 'Tap Roll to throw the dice';
+      } else if (dice.isNotEmpty) {
         hint = dice.every((d) => !d.available)
             ? 'Tap the dice to end your turn'
             : 'Tap a checker to move';
       }
     }
+    final showRoll = isPlayableTurn && game.canRoll;
+    final showDouble = isPlayableTurn && game.canOfferDouble(turn);
 
     final text = Theme.of(context).textTheme;
     return Container(
@@ -567,7 +594,28 @@ class _TurnBanner extends StatelessWidget {
               ],
             ),
           ),
-          if (hint != null)
+          if (showRoll || showDouble)
+            Flexible(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  if (showRoll)
+                    FilledButton.icon(
+                      onPressed: onRoll,
+                      icon: const Icon(Icons.casino, size: 18),
+                      label: const Text('Roll'),
+                    ),
+                  if (showDouble)
+                    OutlinedButton(
+                      onPressed: onDouble,
+                      child: const Text('Double'),
+                    ),
+                ],
+              ),
+            )
+          else if (hint != null)
             Flexible(
               child: Text(
                 hint,

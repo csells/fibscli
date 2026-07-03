@@ -66,6 +66,9 @@ Future<void> playAiTurn(
   }
   if (state.gameOver) return;
 
+  if (state.canRoll) state.rollTurn();
+  if (state.gameOver) return;
+
   final turn = await ai.chooseTurn(positionFromState(state));
   for (final move in turn.moves) {
     if (onMove != null) {
@@ -75,5 +78,5 @@ Future<void> playAiTurn(
     }
     if (state.gameOver) return;
   }
-  if (!state.gameOver) state.commitTurn();
+  if (!state.gameOver) state.commitTurn(roll: false);
 }

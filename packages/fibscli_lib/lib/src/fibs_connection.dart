@@ -12,6 +12,22 @@ import 'cookie_monster.dart';
 
 enum _LoginState { prelogin, sentcred, postlogin }
 
+enum _AccountCreationState {
+  loginPrompt,
+  guestPrompt,
+  passwordPrompt,
+  retypePrompt,
+  registered,
+}
+
+class FibsAccountCreationException implements Exception {
+  FibsAccountCreationException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// Handles the WebSocket connection to the FIBS server.
 ///
 /// Manages the login process and incoming/outgoing messages.
@@ -159,6 +175,114 @@ class FibsConnection {
     _loginState = _LoginState.prelogin;
     _loginCompleter = Completer<FibsCookie>();
     return _loginCompleter!.future;
+  }
+
+  Future<void> createAccount(String user, String pass) {
+    assert(!connected);
+    if (!RegExp(r'^[A-Za-z_]+$').hasMatch(user)) {
+      throw FibsAccountCreationException(
+        'FIBS usernames may only contain letters and underscores.',
+      );
+    }
+    if (pass.length < 4) {
+      throw FibsAccountCreationException(
+        'FIBS passwords must be at least 4 characters.',
+      );
+    }
+    if (pass.contains('\n') || pass.contains('\r')) {
+      throw FibsAccountCreationException('Password may not contain newlines.');
+    }
+
+    _residual = '';
+    _channel = WebSocketChannel.connect(url);
+    final completer = Completer<void>();
+    var state = _AccountCreationState.loginPrompt;
+    var buffer = '';
+
+    void fail(String message) {
+      if (completer.isCompleted) return;
+      completer.completeError(FibsAccountCreationException(message));
+      unawaited(close());
+    }
+
+    void sendLine(String line) {
+      assert(connected);
+      _channel!.sink.add('$line\n');
+    }
+
+    void advance(String text) {
+      if (completer.isCompleted) return;
+      buffer += text.replaceAll('\r', '');
+
+      switch (state) {
+        case _AccountCreationState.loginPrompt:
+          if (!buffer.contains('login:')) return;
+          sendLine('guest');
+          buffer = '';
+          state = _AccountCreationState.guestPrompt;
+          return;
+
+        case _AccountCreationState.guestPrompt:
+          if (!buffer.contains("Type 'name username'") &&
+              !buffer.contains('Please register')) {
+            return;
+          }
+          sendLine('name $user');
+          buffer = '';
+          state = _AccountCreationState.passwordPrompt;
+          return;
+
+        case _AccountCreationState.passwordPrompt:
+          if (buffer.contains('already used by someone else')) {
+            fail('That FIBS username is already taken.');
+            return;
+          }
+          if (buffer.contains('may only contain letters')) {
+            fail('FIBS usernames may only contain letters and underscores.');
+            return;
+          }
+          if (!buffer.contains('Please give your password:')) return;
+          sendLine(pass);
+          buffer = '';
+          state = _AccountCreationState.retypePrompt;
+          return;
+
+        case _AccountCreationState.retypePrompt:
+          if (buffer.contains('Minimal password length')) {
+            fail('FIBS passwords must be at least 4 characters.');
+            return;
+          }
+          if (!buffer.contains('Please retype your password:')) return;
+          sendLine(pass);
+          buffer = '';
+          state = _AccountCreationState.registered;
+          return;
+
+        case _AccountCreationState.registered:
+          if (buffer.contains('not identical')) {
+            fail('FIBS did not accept the password confirmation.');
+            return;
+          }
+          if (!buffer.contains('You are registered.')) return;
+          completer.complete();
+          return;
+      }
+    }
+
+    _channel!.stream.listen(
+      (dynamic frame) => advance(_decodeFrame(frame)),
+      onDone: () {
+        if (!completer.isCompleted) {
+          fail('FIBS closed the connection before registration finished.');
+        }
+      },
+      onError: (_) {
+        fail('Unable to create the FIBS account. Please try again.');
+      },
+      cancelOnError: false,
+    );
+
+    return completer.future;
   }
 
   /// Sends a message to the FIBS server over the WebSocket connection.

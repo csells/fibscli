@@ -67,14 +67,17 @@ class GammonState extends ChangeNotifier {
 
   final cube = DoublingCube();
 
-  // A player may offer a double when it's their turn, before they've moved
-  // (all dice still available), and the cube allows it (issue #12).
+  // A normal turn can pause before the dice are rolled so the player can
+  // choose between rolling and offering the cube.
+  bool get canRoll => !_gameOver && _turnPlayer != null && _dice.isEmpty;
+
+  // A player may offer a double when it's their turn and before rolling.
   bool canOfferDouble(GammonPlayer? player) =>
       !_gameOver &&
       player != null &&
       player == _turnPlayer &&
       cube.canDoubleBy(player) &&
-      _dice.every((d) => d.available);
+      _dice.isEmpty;
 
   // The opponent accepts the double offered by the player on roll: play
   // continues with a higher stake.
@@ -112,7 +115,9 @@ class GammonState extends ChangeNotifier {
     }
 
     _dice.clear();
-    _dice.addAll(dice.map((d) => DieState(d.roll)).toList());
+    _dice.addAll(
+      dice.map((d) => DieState(d.roll)..available = d.available).toList(),
+    );
 
     _turnPlayer = turnPlayer;
   }
@@ -137,7 +142,10 @@ class GammonState extends ChangeNotifier {
     assert(!_gameOver);
 
     do {
-      _rollDice(disableUnusableDice: false); // all dice initally usable
+      _rollDice(
+        disableUnusableDice: false,
+        notify: false,
+      ); // all dice initally usable
     } while (_dice[0].roll == _dice[1].roll);
 
     _turnPlayer = _dice[0].roll > _dice[1].roll
@@ -156,18 +164,36 @@ class GammonState extends ChangeNotifier {
     _stats[player]!.record(_dice.map((d) => d.roll).toList());
   }
 
-  void commitTurn() {
-    if (_gameOver) throw Exception('game over');
+  void rollTurn() {
+    if (!canRoll) throw Exception('not ready to roll');
 
-    _turnPlayer = GammonRules.otherPlayer(_turnPlayer);
-    _rollDice(); // roll dice before capturing updo state
+    _rollDice(notify: false);
     _recordRoll(_turnPlayer!);
     _undoState = GammonState.from(
       board: _board,
       dice: dice,
       turnPlayer: _turnPlayer,
     );
+    notifyListeners();
+  }
+
+  void commitTurn({bool roll = true}) {
+    if (_gameOver) throw Exception('game over');
+
+    _turnPlayer = GammonRules.otherPlayer(_turnPlayer);
+    if (roll) {
+      _rollDice(notify: false); // roll dice before capturing undo state
+      _recordRoll(_turnPlayer!);
+    } else {
+      _dice.clear();
+    }
+    _undoState = GammonState.from(
+      board: _board,
+      dice: dice,
+      turnPlayer: _turnPlayer,
+    );
     ++_moveNo; // can't be undone, so not capturing it
+    notifyListeners();
   }
 
   void undoTurn() {
@@ -293,7 +319,7 @@ class GammonState extends ChangeNotifier {
     _dice.firstWhere((d) => d.roll == roll && d.available).available = false;
   }
 
-  void _rollDice({bool disableUnusableDice = true}) {
+  void _rollDice({bool disableUnusableDice = true, bool notify = true}) {
     final roll1 = _rand.nextInt(6) + 1;
     final roll2 = _rand.nextInt(6) + 1;
     final rolls = [
@@ -306,7 +332,7 @@ class GammonState extends ChangeNotifier {
     _dice.addAll([for (final roll in rolls) DieState(roll)]);
     if (disableUnusableDice) _disableUnusableDice();
 
-    notifyListeners();
+    if (notify) notifyListeners();
   }
 
   void _disableUnusableDice() {

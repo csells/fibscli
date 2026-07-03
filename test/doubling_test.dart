@@ -33,14 +33,29 @@ void main() {
 
   group('GammonState doubling (issue #12)', () {
     test('player on roll may offer a double before moving', () {
-      final game = GammonState();
+      final game = GammonState.from(
+        board: GammonRules.initialBoard(),
+        dice: const [],
+        turnPlayer: GammonPlayer.one,
+      );
       final player = game.turnPlayer!;
       expect(game.canOfferDouble(player), isTrue);
       expect(game.canOfferDouble(GammonRules.otherPlayer(player)), isFalse);
     });
 
-    test('accepting a double updates the cube and continues play', () {
+    test('rolled dice cannot be doubled', () {
       final game = GammonState();
+      final player = game.turnPlayer!;
+      expect(game.dice, isNotEmpty);
+      expect(game.canOfferDouble(player), isFalse);
+    });
+
+    test('accepting a double updates the cube and continues play', () {
+      final game = GammonState.from(
+        board: GammonRules.initialBoard(),
+        dice: const [],
+        turnPlayer: GammonPlayer.one,
+      );
       final doubler = game.turnPlayer!;
       game.acceptDouble();
       expect(game.cube.value, 2);
@@ -49,12 +64,34 @@ void main() {
     });
 
     test('declining a double ends the game for the doubler', () {
-      final game = GammonState();
+      final game = GammonState.from(
+        board: GammonRules.initialBoard(),
+        dice: const [],
+        turnPlayer: GammonPlayer.one,
+      );
       final doubler = game.turnPlayer!;
       game.declineDouble();
       expect(game.gameOver, isTrue);
       // winner is derived from turnPlayer, which stays the doubler
       expect(game.turnPlayer, doubler);
+    });
+
+    test('a committed turn can pause before the next roll', () {
+      final game = GammonState();
+      final opener = game.turnPlayer!;
+
+      game.commitTurn(roll: false);
+
+      expect(game.turnPlayer, GammonRules.otherPlayer(opener));
+      expect(game.dice, isEmpty);
+      expect(game.canRoll, isTrue);
+      expect(game.canOfferDouble(game.turnPlayer), isTrue);
+
+      game.rollTurn();
+
+      expect(game.dice, isNotEmpty);
+      expect(game.canRoll, isFalse);
+      expect(game.canOfferDouble(game.turnPlayer), isFalse);
     });
   });
 }

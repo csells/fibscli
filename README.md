@@ -3,9 +3,9 @@ An eventual [FIBS](http://fibs.com) client written in Flutter and hosted on the 
 
 # status
 The app works both as a stand-alone backgammon game (single-player and vs.
-computer) **and** as a working FIBS client — login, live bot list, watch, and
-tap-to-move play against bots on fibs.com. Browser builds reach FIBS through the
-hosted Cloudflare Worker bridge in `packages/fibs_proxy_worker`.
+computer) **and** as a working FIBS client — account creation, login, live bot
+list, watch, and tap-to-move play against bots on fibs.com. Browser builds reach
+FIBS through the hosted Cloudflare Worker bridge in `packages/fibs_proxy_worker`.
 
 # screenshot
 ![screenshot](readme/screenshot.png)

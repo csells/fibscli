@@ -1,4 +1,3 @@
-import 'package:fibscli/dice.dart';
 import 'package:fibscli/game_play_page.dart';
 import 'package:fibscli/model.dart'; // re-exports bg_engine (GammonPlayer, …)
 import 'package:flutter/material.dart';
@@ -19,7 +18,7 @@ GammonState _aiDominatingGame() {
   );
   return GammonState.from(
     board: position.toBoard(),
-    dice: [DieState(3), DieState(1)], // all available -> a cube offer is legal
+    dice: const [],
     turnPlayer: GammonPlayer.two, // the AI is on roll
   );
 }
