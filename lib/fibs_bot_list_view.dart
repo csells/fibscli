@@ -14,6 +14,8 @@ class _BotListViewState extends State<_BotListView> {
   // NOTE: no "play for me" here. Letting a bot play your moves on the live FIBS
   // server is cheating, full stop. The autonomous FibsBotPlayer still exists,
   // but only as a test/e2e driver -- never wired to a button the user can press.
+  _BotSortColumn _sortColumn = _BotSortColumn.rating;
+  var _sortAscending = true;
 
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<FibsState>(
@@ -22,10 +24,11 @@ class _BotListViewState extends State<_BotListView> {
   );
 
   Widget _build(BuildContext context, FibsState fibs, Widget? child) {
-    final free = _sortedBots(fibs.availableBots); // invite these
-    final playing = _sortedBots(fibs.watchableBots); // watch these
+    final free = fibs.availableBots; // invite these
+    final playing = fibs.watchableBots; // watch these
+    final rows = _sortedRows(free: free, playing: playing);
     final saved = fibs.savedMatches; // unfinished matches to resume
-    final empty = free.isEmpty && playing.isEmpty && saved.isEmpty;
+    final empty = rows.isEmpty && saved.isEmpty;
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -44,9 +47,12 @@ class _BotListViewState extends State<_BotListView> {
                       const SizedBox(height: 30),
                     ],
                     _BotDirectory(
-                      free: free,
-                      playing: playing,
+                      rows: rows,
+                      availableCount: free.length,
                       empty: empty,
+                      sortColumn: _sortColumn,
+                      sortAscending: _sortAscending,
+                      onSort: _sortBy,
                       onInvite: (who) => _confirmInvite(context, who),
                       onWatch: fibs.watch,
                     ),
@@ -62,16 +68,62 @@ class _BotListViewState extends State<_BotListView> {
     );
   }
 
-  static List<WhoInfo> _sortedBots(List<WhoInfo> bots) =>
-      [...bots]..sort((a, b) {
-        final rec = _recommendedRank(a).compareTo(_recommendedRank(b));
-        if (rec != 0) return rec;
-        final rating = a.rating.compareTo(b.rating);
-        if (rating != 0) return rating;
-        return a.user.compareTo(b.user);
+  List<_BotDirectoryRowData> _sortedRows({
+    required List<WhoInfo> free,
+    required List<WhoInfo> playing,
+  }) =>
+      [
+        for (final bot in free) _BotDirectoryRowData(bot: bot, available: true),
+        for (final bot in playing)
+          _BotDirectoryRowData(bot: bot, available: false),
+      ]..sort((a, b) {
+        final compared = _compareRows(a, b);
+        return _sortAscending ? compared : -compared;
       });
 
-  static int _recommendedRank(WhoInfo who) => _isRecommendedBot(who) ? 0 : 1;
+  int _compareRows(_BotDirectoryRowData a, _BotDirectoryRowData b) {
+    final primary = switch (_sortColumn) {
+      _BotSortColumn.bot => _compareBotNames(a.bot, b.bot),
+      _BotSortColumn.strength => _compareStrength(a.bot, b.bot),
+      _BotSortColumn.rating => a.bot.rating.compareTo(b.bot.rating),
+      _BotSortColumn.table => _tableRank(a).compareTo(_tableRank(b)),
+    };
+    if (primary != 0) return primary;
+
+    return switch (_sortColumn) {
+      _BotSortColumn.bot => a.bot.rating.compareTo(b.bot.rating),
+      _BotSortColumn.strength => _compareBotNames(a.bot, b.bot),
+      _BotSortColumn.rating => _compareBotNames(a.bot, b.bot),
+      _BotSortColumn.table => _compareBotNames(a.bot, b.bot),
+    };
+  }
+
+  static int _compareStrength(WhoInfo a, WhoInfo b) {
+    final strength = _strength(a).compareTo(_strength(b));
+    if (strength != 0) return strength;
+    final rating = a.rating.compareTo(b.rating);
+    if (rating != 0) return rating;
+    return _compareBotNames(a, b);
+  }
+
+  static int _compareBotNames(WhoInfo a, WhoInfo b) {
+    final folded = a.user.toLowerCase().compareTo(b.user.toLowerCase());
+    if (folded != 0) return folded;
+    return a.user.compareTo(b.user);
+  }
+
+  static int _tableRank(_BotDirectoryRowData row) => row.available ? 0 : 1;
+
+  void _sortBy(_BotSortColumn column) {
+    setState(() {
+      if (_sortColumn == column) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortColumn = column;
+        _sortAscending = true;
+      }
+    });
+  }
 
   static bool _isRecommendedBot(WhoInfo who) =>
       who.user.toLowerCase().startsWith('blunderbot');
@@ -132,6 +184,8 @@ class _BotListViewState extends State<_BotListView> {
     if (ok ?? false) fibs.invite(bot, matchLength: length);
   }
 }
+
+enum _BotSortColumn { bot, strength, rating, table }
 
 class _LobbyHeader extends StatelessWidget {
   const _LobbyHeader({required this.fibs});
@@ -228,7 +282,12 @@ class _LobbyIdentity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = fibs.user ?? 'FIBS';
+    final account = fibs.currentUserInfo;
     final initial = user.isEmpty ? '?' : user.characters.first.toLowerCase();
+    final accountLine = account == null
+        ? 'waiting for FIBS account data'
+        : 'FIBS rating ${account.rating.toStringAsFixed(0)} · '
+              '${account.experience} exp';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -278,8 +337,7 @@ class _LobbyIdentity extends StatelessWidget {
               children: [
                 Text(user, style: Theme.of(context).textTheme.titleMedium),
                 Text(
-                  '${fibs.whoInfos.length} visible · '
-                  '${fibs.availableBots.length} ready bots',
+                  accountLine,
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.inkFaint),
@@ -358,75 +416,62 @@ class _SavedMatchRow extends StatelessWidget {
 
 class _BotDirectory extends StatelessWidget {
   const _BotDirectory({
-    required this.free,
-    required this.playing,
+    required this.rows,
+    required this.availableCount,
     required this.empty,
+    required this.sortColumn,
+    required this.sortAscending,
+    required this.onSort,
     required this.onInvite,
     required this.onWatch,
   });
 
-  final List<WhoInfo> free;
-  final List<WhoInfo> playing;
+  final List<_BotDirectoryRowData> rows;
+  final int availableCount;
   final bool empty;
+  final _BotSortColumn sortColumn;
+  final bool sortAscending;
+  final ValueChanged<_BotSortColumn> onSort;
   final ValueChanged<WhoInfo> onInvite;
   final ValueChanged<WhoInfo> onWatch;
 
   @override
-  Widget build(BuildContext context) {
-    final rows = [
-      for (final bot in free) _BotDirectoryRowData(bot: bot, available: true),
-      for (final bot in playing)
-        _BotDirectoryRowData(bot: bot, available: false),
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _DirectoryToolbar(
-          title: 'Bots online',
-          meta: '${free.length} available · Rating · FIBS scale',
-        ),
-        const SizedBox(height: 16),
-        if (empty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
-            decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: AppColors.ink, width: 1.5),
-                bottom: BorderSide(color: AppColors.line),
-              ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _DirectoryToolbar(
+        title: 'Bots online',
+        meta: '$availableCount available · Rating · FIBS scale',
+      ),
+      const SizedBox(height: 16),
+      if (empty)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(color: AppColors.ink, width: 1.5),
+              bottom: BorderSide(color: AppColors.line),
             ),
-            child: Text(
-              'No bots online yet.\nWaiting for the who-list...',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppColors.inkSoft,
-                height: 1.45,
-              ),
+          ),
+          child: Text(
+            'No bots online yet.\nWaiting for the who-list...',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: AppColors.inkSoft,
+              height: 1.45,
             ),
-          )
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final narrow = constraints.maxWidth < 820;
-              if (narrow) {
-                return Column(
-                  children: [
-                    for (var i = 0; i < rows.length; i++)
-                      _BotCard(
-                        index: i + 1,
-                        row: rows[i],
-                        onInvite: onInvite,
-                        onWatch: onWatch,
-                      ),
-                  ],
-                );
-              }
+          ),
+        )
+      else
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 820;
+            if (narrow) {
               return Column(
                 children: [
-                  const _BotTableHeader(),
                   for (var i = 0; i < rows.length; i++)
-                    _BotTableRow(
+                    _BotCard(
                       index: i + 1,
                       row: rows[i],
                       onInvite: onInvite,
@@ -434,11 +479,27 @@ class _BotDirectory extends StatelessWidget {
                     ),
                 ],
               );
-            },
-          ),
-      ],
-    );
-  }
+            }
+            return Column(
+              children: [
+                _BotTableHeader(
+                  sortColumn: sortColumn,
+                  sortAscending: sortAscending,
+                  onSort: onSort,
+                ),
+                for (var i = 0; i < rows.length; i++)
+                  _BotTableRow(
+                    index: i + 1,
+                    row: rows[i],
+                    onInvite: onInvite,
+                    onWatch: onWatch,
+                  ),
+              ],
+            );
+          },
+        ),
+    ],
+  );
 }
 
 class _DirectoryToolbar extends StatelessWidget {
@@ -469,7 +530,15 @@ class _BotDirectoryRowData {
 }
 
 class _BotTableHeader extends StatelessWidget {
-  const _BotTableHeader();
+  const _BotTableHeader({
+    required this.sortColumn,
+    required this.sortAscending,
+    required this.onSort,
+  });
+
+  final _BotSortColumn sortColumn;
+  final bool sortAscending;
+  final ValueChanged<_BotSortColumn> onSort;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -480,30 +549,106 @@ class _BotTableHeader extends StatelessWidget {
     child: Row(
       children: [
         const SizedBox(width: 54),
-        Expanded(flex: 5, child: Text('BOT', style: editorialKicker(size: 10))),
         Expanded(
-          flex: 2,
-          child: Center(
-            child: Text('STRENGTH', style: editorialKicker(size: 10)),
+          flex: 5,
+          child: _SortHeaderCell(
+            label: 'BOT',
+            column: _BotSortColumn.bot,
+            activeColumn: sortColumn,
+            ascending: sortAscending,
+            onSort: onSort,
           ),
         ),
         Expanded(
           flex: 2,
-          child: Align(
+          child: _SortHeaderCell(
+            label: 'STRENGTH',
+            column: _BotSortColumn.strength,
+            activeColumn: sortColumn,
+            ascending: sortAscending,
+            alignment: Alignment.center,
+            onSort: onSort,
+          ),
+        ),
+        Expanded(
+          flex: 2,
+          child: _SortHeaderCell(
+            label: 'RATING',
+            column: _BotSortColumn.rating,
+            activeColumn: sortColumn,
+            ascending: sortAscending,
             alignment: Alignment.centerRight,
-            child: Text('RATING', style: editorialKicker(size: 10)),
+            onSort: onSort,
           ),
         ),
         SizedBox(
           width: 220,
-          child: Align(
+          child: _SortHeaderCell(
+            label: 'TABLE',
+            column: _BotSortColumn.table,
+            activeColumn: sortColumn,
+            ascending: sortAscending,
             alignment: Alignment.centerRight,
-            child: Text('TABLE', style: editorialKicker(size: 10)),
+            onSort: onSort,
           ),
         ),
       ],
     ),
   );
+}
+
+class _SortHeaderCell extends StatelessWidget {
+  const _SortHeaderCell({
+    required this.label,
+    required this.column,
+    required this.activeColumn,
+    required this.ascending,
+    required this.onSort,
+    this.alignment = Alignment.centerLeft,
+  });
+
+  final String label;
+  final _BotSortColumn column;
+  final _BotSortColumn activeColumn;
+  final bool ascending;
+  final Alignment alignment;
+  final ValueChanged<_BotSortColumn> onSort;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = column == activeColumn;
+    final color = active ? AppColors.ink : AppColors.inkFaint;
+    return Align(
+      alignment: alignment,
+      child: Tooltip(
+        message: 'Sort by ${label.toLowerCase()}',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(3),
+            onTap: () => onSort(column),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label, style: editorialKicker(size: 10, color: color)),
+                  if (active) ...[
+                    const SizedBox(width: 5),
+                    Icon(
+                      ascending ? Icons.arrow_upward : Icons.arrow_downward,
+                      size: 12,
+                      color: color,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _BotTableRow extends StatelessWidget {

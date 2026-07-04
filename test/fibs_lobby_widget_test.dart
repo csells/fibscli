@@ -12,6 +12,7 @@ WhoInfo _bot(
   String client = 'ParlorBot',
   String opponent = '',
   double rating = 1500,
+  int experience = 1000,
 }) => WhoInfo(
   user: user,
   opponent: opponent,
@@ -19,7 +20,7 @@ WhoInfo _bot(
   ready: true,
   away: false,
   rating: rating,
-  experience: 1000,
+  experience: experience,
   lastActive: DateTime(2020),
   lastLogin: DateTime(2020),
   hostname: '',
@@ -38,6 +39,7 @@ Future<(FibsState, FakeTransport)> _pumpLobby(WidgetTester tester) async {
   final fibs = FibsState.withTransport(fake);
   await fibs.login(user: 'me', pass: 'pw');
   fibs.lobby
+    ..upsert(_bot('me', client: '3DFiBs4.0', rating: 1625, experience: 240))
     ..upsert(_bot('BlunderBot_II', rating: 1528))
     ..upsert(_bot('MonteCarlo', client: '', opponent: 'human1', rating: 2040));
 
@@ -49,6 +51,9 @@ Future<(FibsState, FakeTransport)> _pumpLobby(WidgetTester tester) async {
   await tester.pumpAndSettle();
   return (fibs, fake);
 }
+
+double _rowTop(WidgetTester tester, String bot) =>
+    tester.getTopLeft(find.text(bot)).dy;
 
 void main() {
   testWidgets('FIBS lobby renders the editorial directory layout', (
@@ -73,7 +78,9 @@ void main() {
     expect(find.byKey(const ValueKey('watch-MonteCarlo')), findsOneWidget);
     expect(find.byKey(const ValueKey('watch-BlunderBot_II')), findsNothing);
     expect(find.byKey(const ValueKey('invite-MonteCarlo')), findsNothing);
-    expect(find.textContaining('exp'), findsNothing);
+    expect(find.text('FIBS rating 1625 · 240 exp'), findsOneWidget);
+    expect(find.textContaining('visible'), findsNothing);
+    expect(find.textContaining('ready bots'), findsNothing);
   });
 
   testWidgets('FIBS lobby actions preserve invite and watch behavior', (
@@ -87,5 +94,60 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(fake.sent, contains('watch MonteCarlo'));
+  });
+
+  testWidgets('FIBS lobby headings sort the directory rows', (tester) async {
+    await _pumpLobby(tester);
+
+    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_downward), findsNothing);
+    expect(
+      _rowTop(tester, 'BlunderBot_II'),
+      lessThan(_rowTop(tester, 'MonteCarlo')),
+    );
+
+    await tester.tap(find.text('RATING'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
+    expect(
+      _rowTop(tester, 'MonteCarlo'),
+      lessThan(_rowTop(tester, 'BlunderBot_II')),
+    );
+
+    await tester.tap(find.text('RATING'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    expect(
+      _rowTop(tester, 'BlunderBot_II'),
+      lessThan(_rowTop(tester, 'MonteCarlo')),
+    );
+
+    await tester.tap(find.text('STRENGTH'));
+    await tester.pumpAndSettle();
+    expect(
+      _rowTop(tester, 'BlunderBot_II'),
+      lessThan(_rowTop(tester, 'MonteCarlo')),
+    );
+
+    await tester.tap(find.text('STRENGTH'));
+    await tester.pumpAndSettle();
+    expect(
+      _rowTop(tester, 'MonteCarlo'),
+      lessThan(_rowTop(tester, 'BlunderBot_II')),
+    );
+
+    await tester.tap(find.text('TABLE'));
+    await tester.pumpAndSettle();
+    expect(
+      _rowTop(tester, 'BlunderBot_II'),
+      lessThan(_rowTop(tester, 'MonteCarlo')),
+    );
+
+    await tester.tap(find.text('TABLE'));
+    await tester.pumpAndSettle();
+    expect(
+      _rowTop(tester, 'MonteCarlo'),
+      lessThan(_rowTop(tester, 'BlunderBot_II')),
+    );
   });
 }

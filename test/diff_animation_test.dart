@@ -93,4 +93,49 @@ void main() {
     ).layouts.values.single;
     expect(frames.map((f) => f.pipNo).toList(), [24, 18]);
   });
+
+  test('multi-checker board diffs animate one checker at a time', () {
+    final from = List<List<int>>.generate(26, (_) => <int>[]);
+    from[24].add(-1);
+    from[13].add(-2);
+    final to = List<List<int>>.generate(26, (_) => <int>[]);
+    to[18].add(-1);
+    to[8].add(-2);
+
+    final anim = MoveAnimation.between(from, to, dice: [6, 5]);
+    expect(anim.layouts.length, 2);
+    expect(anim.delays.length, 1);
+    expect(anim.delays.values.single, kHopAnimationDuration);
+  });
+
+  test('later checker waits for every hop in an earlier checker path', () {
+    final from = List<List<int>>.generate(26, (_) => <int>[]);
+    from[24].add(-1);
+    from[13].add(-2);
+    final to = List<List<int>>.generate(26, (_) => <int>[]);
+    to[16].add(-1);
+    to[9].add(-2);
+
+    final anim = MoveAnimation.between(from, to, dice: [4, 4, 4, 4]);
+    expect(anim.delays.values, contains(kHopAnimationDuration * 2));
+  });
+
+  test('board diffs preserve stationary stack slots', () {
+    final from = List<List<int>>.generate(26, (_) => <int>[]);
+    from[20].addAll([1, 2, 3]);
+    from[22].addAll([4, 5]);
+    final to = List<List<int>>.generate(26, (_) => <int>[]);
+    to[20].addAll([1, 2]);
+    to[22].addAll([3, 4, 5]);
+
+    final anim = MoveAnimation.between(from, to, dice: [2]);
+    final frames = anim.layouts.values.single;
+    final fromSlots = PieceLayout.getLayouts(from).toList();
+    final toSlots = PieceLayout.getLayouts(to).toList();
+    PieceLayout topSlot(List<PieceLayout> slots, int pip) =>
+        slots.lastWhere((layout) => layout.pipNo == pip);
+
+    expect(frames.first.offset, topSlot(fromSlots, 20).offset);
+    expect(frames.last.offset, topSlot(toSlots, 22).offset);
+  });
 }

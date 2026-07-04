@@ -8,18 +8,29 @@ import 'fake_transport.dart';
 
 // our own game; player1 is the literal "You" (player1Color 1 == O). turn '1'
 // is our turn, '-1' the opponent's. p1dice '0:0' => no dice yet.
-String boardLine({String p1dice = '0:0', String turn = '1'}) =>
+String boardLine({
+  String p1dice = '0:0',
+  String turn = '1',
+  String player1MayDouble = '1',
+}) =>
     'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
-    ':2:0:$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
+    ':2:0:$turn:$p1dice:0:0:1:$player1MayDouble:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
+
+const rollOrDoubleLine = "It's your turn to roll or double.";
 
 Future<FibsState> _inGame(
   FakeTransport fake, {
   String p1dice = '0:0',
   String turn = '1',
+  String player1MayDouble = '1',
+  bool promptRoll = false,
 }) async {
   final fibs = FibsState.withTransport(fake);
   await fibs.login(user: 'joe_grammer', pass: 'x');
-  fake.feed(boardLine(p1dice: p1dice, turn: turn));
+  fake.feed(
+    boardLine(p1dice: p1dice, turn: turn, player1MayDouble: player1MayDouble),
+  );
+  if (promptRoll) fake.feed(rollOrDoubleLine);
   await Future<void>.delayed(Duration.zero);
   return fibs;
 }
@@ -218,9 +229,37 @@ void main() {
     expect(fibs.messages.last.message, contains('log in again'));
   });
 
-  test('after roll, canRoll is false and a second roll throws', () async {
+  test('a no-dice board does not allow roll until FIBS prompts', () async {
     final fake = FakeTransport();
     final fibs = await _inGame(fake); // our turn, no dice
+    expect(fibs.canRoll, isFalse);
+    expect(fibs.canMoveNow, isFalse);
+
+    fake.feed(rollOrDoubleLine);
+    await Future<void>.delayed(Duration.zero);
+    expect(fibs.canRoll, isTrue);
+  });
+
+  test('double is available only when the board permits it', () async {
+    final allowed = FakeTransport();
+    final fibsAllowed = await _inGame(allowed, promptRoll: true);
+    expect(fibsAllowed.canRoll, isTrue);
+    expect(fibsAllowed.canOfferDouble, isTrue);
+
+    final forbidden = FakeTransport();
+    final fibsForbidden = await _inGame(
+      forbidden,
+      player1MayDouble: '0',
+      promptRoll: true,
+    );
+    expect(fibsForbidden.canRoll, isTrue);
+    expect(fibsForbidden.canOfferDouble, isFalse);
+    expect(fibsForbidden.offerDouble, throwsA(isA<FibsStateError>()));
+  });
+
+  test('after roll, canRoll is false and a second roll throws', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake, promptRoll: true); // our turn, no dice
     expect(fibs.canRoll, isTrue);
 
     fibs.roll();
@@ -235,7 +274,7 @@ void main() {
     // FIBS may resend an "our turn, no dice" board while we await YouRoll; it
     // must not reset _rolling, or we'd roll a second time ("already rolled").
     final fake = FakeTransport();
-    final fibs = await _inGame(fake); // our turn, no dice
+    final fibs = await _inGame(fake, promptRoll: true); // our turn, no dice
     fibs.roll();
     expect(fibs.canRoll, isFalse);
 
@@ -247,7 +286,7 @@ void main() {
 
   test('our dice arriving (FIBS_YouRoll) enables exactly one move', () async {
     final fake = FakeTransport();
-    final fibs = await _inGame(fake);
+    final fibs = await _inGame(fake, promptRoll: true);
     fibs.roll();
     fake.feed('You roll 1 and 6');
     await Future<void>.delayed(Duration.zero);
@@ -271,7 +310,7 @@ void main() {
 
   test('submitTurn sends the whole turn at once and commits', () async {
     final fake = FakeTransport();
-    final fibs = await _inGame(fake);
+    final fibs = await _inGame(fake, promptRoll: true);
     fibs.roll();
     fake.feed('You roll 4 and 2');
     await Future<void>.delayed(Duration.zero);
@@ -288,6 +327,30 @@ void main() {
   });
 
   test(
+    'a rejected move is surfaced and makes the turn editable again',
+    () async {
+      final fake = FakeTransport();
+      final fibs = await _inGame(fake, promptRoll: true);
+      fibs.roll();
+      fake.feed('You roll 4 and 2');
+      await Future<void>.delayed(Duration.zero);
+
+      fibs.submitTurn([
+        GammonMove(fromPipNo: 8, toPipNo: 4, hops: const [-4]),
+      ]);
+      expect(fibs.canMoveNow, isFalse);
+
+      fake.feed('** You must give 2 moves.');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(fibs.canMoveNow, isTrue);
+      expect(fibs.lastCommandRejected, isTrue);
+      expect(fibs.messages.last.from, 'FIBS');
+      expect(fibs.messages.last.message, 'You must give 2 moves.');
+    },
+  );
+
+  test(
     'a fresh our-turn board clears stale rolled dice (must roll again)',
     () async {
       // FIBS often reports the opponent's play as text then jumps straight to
@@ -295,7 +358,7 @@ void main() {
       // is authoritative: stale dice from our last turn must be dropped, or
       // we'd try to move ("you have to roll the dice before moving").
       final fake = FakeTransport();
-      final fibs = await _inGame(fake); // our turn, no dice
+      final fibs = await _inGame(fake, promptRoll: true); // our turn, no dice
       fibs.roll();
       fake.feed('You roll 6 and 4');
       await Future<void>.delayed(Duration.zero);
@@ -308,6 +371,10 @@ void main() {
       fake.feed(boardLine(turn: '1'));
       await Future<void>.delayed(Duration.zero);
       expect(fibs.canMoveNow, isFalse); // stale 6,4 dropped -> nothing to move
+      expect(fibs.canRoll, isFalse); // waiting for FIBS to prompt
+
+      fake.feed(rollOrDoubleLine);
+      await Future<void>.delayed(Duration.zero);
       expect(fibs.canRoll, isTrue); // we must roll fresh
     },
   );
@@ -354,7 +421,7 @@ void main() {
     // dice must still show in the status (activeDice) AND in the rendered game
     // state (ReadOnlyBoardView renders gameState.dice).
     final fake = FakeTransport();
-    final fibs = await _inGame(fake); // our turn, no dice
+    final fibs = await _inGame(fake, promptRoll: true); // our turn, no dice
     fibs.roll();
     fake.feed('You roll 4 and 2');
     await Future<void>.delayed(Duration.zero);

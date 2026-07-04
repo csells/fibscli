@@ -21,7 +21,9 @@ class FibsPlayController extends ChangeNotifier {
   // A named initializing formal can't target a private field (_fibs), so we
   // assign in the initializer list instead.
   // ignore: prefer_initializing_formals
-  FibsPlayController({required FibsState fibs}) : _fibs = fibs {
+  FibsPlayController({required FibsState fibs})
+    : _fibs = fibs,
+      _seenCookieCount = fibs.cookieCount {
     _prevBoard = _boardCopy();
     _prevDice = _diceSnapshot();
     _fibs.addListener(_onFibsChanged);
@@ -36,7 +38,9 @@ class FibsPlayController extends ChangeNotifier {
   // The in-progress turn, non-null only while it's our move; null when watching
   // the opponent.
   GammonState? _turn;
+  GammonState? _submittedTurn;
   final _moves = <GammonMove>[]; // the moves made this turn, to submit
+  int _seenCookieCount;
 
   // The last board we saw + the dice in play on it -- i.e. the dice that
   // PRODUCED the move we animate when the next board arrives. We must capture
@@ -49,27 +53,29 @@ class FibsPlayController extends ChangeNotifier {
 
   /// The board to render: our local working turn while it's ours, else the live
   /// (read-only) board.
-  GammonState get displayGame => _turn ?? _fibs.gameState!;
+  GammonState get displayGame => _turn ?? _submittedTurn ?? _fibs.gameState!;
 
   /// Whether the board is interactive (our move, editing a local turn).
-  bool get interactive => _turn != null;
+  bool get interactive => _turn != null && !_autoBearOffBusy;
 
   /// Legal moves to highlight (empty when it isn't our move).
   Map<int, List<GammonMove>> get legalMoves =>
       _turn?.getAllLegalMoves() ?? const {};
 
   /// Whether there's a move this turn to undo.
-  bool get canUndo => _moves.isNotEmpty;
+  bool get canUndo => _moves.isNotEmpty && !_autoBearOffBusy;
 
   /// A pure race on our turn -> offer to auto bear-off (no decision affects the
   /// outcome, so it's tedium reduction, not the bot playing for us).
-  bool get canAutoBearOff => _turn != null && GammonRules.isRace(_turn!.board);
+  bool get canAutoBearOff =>
+      _turn != null && !_autoBearOffBusy && GammonRules.isRace(_turn!.board);
 
   // Once enabled, keep auto-playing our bear-off turns as they come. FIBS deals
   // dice one turn at a time (so, unlike the local game, we can't finish the
   // race in a single action), but we can spare the user a tap on every one of
   // turns until contact resumes or the game ends.
   bool _autoBearOff = false;
+  bool _autoBearOffBusy = false;
 
   /// Our turn, a move started, and no more legal moves -> ready to submit.
   bool get turnComplete => _turn != null && _turn!.getAllLegalMoves().isEmpty;
@@ -80,7 +86,20 @@ class FibsPlayController extends ChangeNotifier {
   /// side-effect-light, so the view calls it from build too (covers entering
   /// the view already on our move, when no notification fires). Never clobbers
   /// an in-progress turn.
-  void syncTurn() {
+  void syncTurn({bool freshBoard = false}) {
+    if (freshBoard) {
+      _submittedTurn = null;
+    } else if (_submittedTurn != null && _fibs.canMoveNow) {
+      _turn = _freshTurn(
+        boardOverride: _fibs.lastCommandRejected ? null : _submittedTurn!.board,
+      );
+      _submittedTurn = null;
+      _moves.clear();
+      return;
+    } else if (_submittedTurn != null) {
+      return;
+    }
+
     if (_fibs.canMoveNow && _turn == null) {
       _turn = _freshTurn();
       _moves.clear();
@@ -91,14 +110,21 @@ class FibsPlayController extends ChangeNotifier {
   }
 
   void _onFibsChanged() {
-    syncTurn();
+    final advanced = _fibs.cookieCount != _seenCookieCount;
+    final lastCookie = _fibs.lastCookie;
+    final freshBoard = advanced && lastCookie == 'FIBS_Board';
+    final opponentRolled = advanced && lastCookie == 'FIBS_PlayerRolls';
+    final commandRejected = advanced && _fibs.lastCommandRejected;
+    _seenCookieCount = _fibs.cookieCount;
+    if (commandRejected) _autoBearOff = false;
+    syncTurn(freshBoard: freshBoard);
 
     // Continue an enabled auto-bear-off onto our next turn (a fresh, un-started
     // race turn). Stop the moment contact resumes -- then it's a real decision
     // again and the user takes over.
-    if (_autoBearOff && _turn != null && _moves.isEmpty) {
+    if (_autoBearOff && !_autoBearOffBusy && _turn != null && _moves.isEmpty) {
       if (GammonRules.isRace(_turn!.board)) {
-        _playAutoBearOffTurn();
+        unawaited(_playAutoBearOffTurn());
       } else {
         _autoBearOff = false;
       }
@@ -106,12 +132,16 @@ class FibsPlayController extends ChangeNotifier {
 
     final cur = _fibs.gameState?.board;
     if (cur != null) {
+      if (_submittedTurn != null && opponentRolled) {
+        _prevDice = _diceSnapshot();
+      }
       // Animate a whole-board change (the opponent's play, or our committed
       // turn coming back) only when we're NOT mid-edit -- our own in-progress
       // moves animate themselves as we make them. Use the PREVIOUS board's dice
       // so a multi-hop move animates through each pip rather than sliding
       // straight.
       if (_turn == null &&
+          _submittedTurn == null &&
           _prevBoard != null &&
           Position.fromBoard(_prevBoard!) != Position.fromBoard(cur) &&
           !animator.isAnimating) {
@@ -121,8 +151,10 @@ class FibsPlayController extends ChangeNotifier {
           ),
         );
       }
-      _prevBoard = _boardCopy();
-      _prevDice = _diceSnapshot();
+      if (_submittedTurn == null) {
+        _prevBoard = _boardCopy();
+        _prevDice = _diceSnapshot();
+      }
     }
     // rebuild the view on every FIBS change (turn state, waiting/roll/double)
     notifyListeners();
@@ -132,6 +164,7 @@ class FibsPlayController extends ChangeNotifier {
   /// hops, record the move to submit later, and animate it on the shared board.
   /// Returns whether the move was legal/applied.
   bool applyLocalMove(int fromPip, int toPip) {
+    if (animator.isAnimating) return false;
     final turn = _turn;
     if (turn == null) return false;
     final hops = GammonRules.preferredHops(
@@ -142,12 +175,7 @@ class FibsPlayController extends ChangeNotifier {
     );
     if (hops == null) return false;
     final move = GammonMove(fromPipNo: fromPip, toPipNo: toPip, hops: hops);
-    _moves.add(move);
-
-    final initial = [for (final c in turn.board) List<int>.of(c)];
-    final deltas = turn.applyMove(move: move);
-    notifyListeners(); // legal moves / dice changed
-    unawaited(animator.play(MoveAnimation.forMove(initial, deltas)));
+    unawaited(_applyMoveAnimated(move));
     return true;
   }
 
@@ -156,27 +184,62 @@ class FibsPlayController extends ChangeNotifier {
   /// sensible in a pure race ([canAutoBearOff]).
   void autoBearOff() {
     _autoBearOff = true;
-    _playAutoBearOffTurn();
+    unawaited(_playAutoBearOffTurn());
   }
 
-  // Play the current turn greedily (via the engine's shared bear-off policy)
-  // and submit it.
-  void _playAutoBearOffTurn() {
+  Future<bool> _applyMoveAnimated(GammonMove move) async {
     final turn = _turn;
-    if (turn == null) return;
+    if (turn == null) return false;
+
+    final initial = [for (final c in turn.board) List<int>.of(c)];
+    final deltas = turn.applyMove(move: move);
+    if (deltas.isEmpty) return false;
+    _moves.add(move);
+    notifyListeners(); // legal moves / dice changed
+    await animator.play(MoveAnimation.forMove(initial, deltas));
+    return true;
+  }
+
+  // Play the current turn greedily (via the engine's shared bear-off policy),
+  // showing each checker move before submitting the completed turn to FIBS.
+  Future<void> _playAutoBearOffTurn() async {
+    if (_turn == null || _autoBearOffBusy) return;
+
+    _autoBearOffBusy = true;
+    notifyListeners();
+    try {
+      while (_turn != null && _turn!.getAllLegalMoves().isNotEmpty) {
+        final move = _nextAutoBearOffMove();
+        if (move == null) {
+          _autoBearOff = false;
+          return;
+        }
+        final applied = await _applyMoveAnimated(move);
+        if (!applied) {
+          _autoBearOff = false;
+          return;
+        }
+      }
+      submitTurn();
+    } finally {
+      _autoBearOffBusy = false;
+      notifyListeners();
+    }
+  }
+
+  GammonMove? _nextAutoBearOffMove() {
+    final turn = _turn;
+    if (turn == null) return null;
     final dice = turn.dice
         .where((d) => d.available)
         .map((d) => d.roll)
         .toList();
-    for (final move in GammonRules.autoBearOffTurn(
+    final moves = GammonRules.autoBearOffTurn(
       turn.board,
       turn.turnPlayer,
       dice,
-    )) {
-      _moves.add(move);
-      turn.applyMove(move: move);
-    }
-    submitTurn();
+    );
+    return moves.isEmpty ? null : moves.first;
   }
 
   /// Submit the whole turn -- only once there are no more legal moves to make
@@ -184,13 +247,23 @@ class FibsPlayController extends ChangeNotifier {
   void submitTurn() {
     final turn = _turn;
     if (turn == null || turn.getAllLegalMoves().isNotEmpty) return;
+    final moves = List<GammonMove>.of(_moves);
     // the post-submit board echoes our move, so don't let it re-animate
     _prevBoard = [for (final c in turn.board) List<int>.of(c)];
     _prevDice = const [];
-    _fibs.submitTurn(List<GammonMove>.of(_moves));
+    _submittedTurn = turn;
     _turn = null;
     _moves.clear();
-    notifyListeners();
+    try {
+      _fibs.submitTurn(moves);
+    } on Object {
+      _submittedTurn = null;
+      _turn = turn;
+      _moves.addAll(moves);
+      rethrow;
+    } finally {
+      notifyListeners();
+    }
   }
 
   /// Undo the LAST move made this turn (call again to keep walking back).
@@ -210,10 +283,10 @@ class FibsPlayController extends ChangeNotifier {
   }
 
   // A fresh working copy of the current (viewer) board to build our turn on.
-  GammonState _freshTurn() {
+  GammonState _freshTurn({List<List<int>>? boardOverride}) {
     final gs = _fibs.gameState!;
     return GammonState.from(
-      board: gs.board,
+      board: boardOverride ?? gs.board,
       dice: [for (final d in gs.dice) DieState(d.roll)],
       turnPlayer: gs.turnPlayer,
       moveNo: 2, // a normal FIBS roll: both dice are ours, not the opening

@@ -10,11 +10,9 @@ import 'tinystate.dart';
 /// [BoardView], and shows whatever the [animator] is tweening.
 ///
 /// What differs between the two modes is NOT the board -- it's what a move
-/// *does*: locally [onMove] applies it to the game and animates the deltas;
-/// over FIBS [onMove] sends the move to the server and the animation plays
-/// reactively when the next board arrives. Both feed the same [animator], so a
-/// move animates identically either way. Everything mode-specific (the AI loop,
-/// the cube dialogs, the FIBS roll/double controls, the app bar) lives in the
+/// *does*: the host applies or submits the move and feeds [animator]. Local and
+/// FIBS play use the same renderer/animator path. Everything mode-specific (the
+/// AI loop, cube dialogs, FIBS roll/double controls, the app bar) lives in the
 /// host screen, not here.
 class GameBoard extends StatefulWidget {
   const GameBoard({
@@ -116,20 +114,24 @@ class _GameBoardState extends State<GameBoard> {
   @override
   Widget build(BuildContext context) => ChangeNotifierBuilder<BoardAnimator>(
     notifier: _animator,
-    builder: (context, animator, child) => BoardView(
-      game: widget.game,
-      legalMoves: widget.interactive ? widget.legalMoves : const {},
-      selectedPip: _selected,
-      reversed: widget.reversed,
-      ignoring: !widget.interactive,
-      onTapPip: _tapPip,
-      onTapOff: _tapOff,
-      onTapCube: widget.onTapCube,
-      onTapDice: widget.onTapDice,
-      onTapBoard: () => setState(() => _selected = null),
-      pieceAnimations: animator.layouts,
-      pieceDelays: animator.delays,
-      onPieceAnimationEnd: animator.endPiece,
-    ),
+    builder: (context, animator, child) {
+      final animating = animator.isAnimating;
+      final interactive = widget.interactive && !animating;
+      return BoardView(
+        game: widget.game,
+        legalMoves: interactive ? widget.legalMoves : const {},
+        selectedPip: animating ? null : _selected,
+        reversed: widget.reversed,
+        ignoring: !interactive,
+        onTapPip: interactive ? _tapPip : null,
+        onTapOff: interactive ? _tapOff : null,
+        onTapCube: interactive ? widget.onTapCube : null,
+        onTapDice: interactive ? widget.onTapDice : null,
+        onTapBoard: interactive ? () => setState(() => _selected = null) : null,
+        pieceAnimations: animator.layouts,
+        pieceDelays: animator.delays,
+        onPieceAnimationEnd: animator.endPiece,
+      );
+    },
   );
 }

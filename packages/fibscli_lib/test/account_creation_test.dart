@@ -58,4 +58,29 @@ void main() {
       throwsA(isA<FibsAccountCreationException>()),
     );
   });
+
+  test(
+    'login completes with timeout when the socket closes during handshake',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      late final StreamSubscription<HttpRequest> requests;
+
+      requests = server.listen((request) async {
+        final ws = await WebSocketTransformer.upgrade(request);
+        await ws.close();
+      });
+
+      final conn = FibsConnection('127.0.0.1', server.port);
+      addTearDown(() async {
+        await conn.close();
+        await requests.cancel();
+        await server.close(force: true);
+      });
+
+      await expectLater(
+        conn.login('joe', 'hunter2'),
+        completion(FibsCookie.FIBS_Timeout),
+      );
+    },
+  );
 }

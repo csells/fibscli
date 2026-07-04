@@ -19,10 +19,13 @@ const kHopAnimationDuration = Duration(milliseconds: 250);
 bool _isPlayerOne(int pieceID) =>
     GammonRules.playerFor(pieceID) == GammonPlayer.one;
 
+enum PieceHighlight { none, movable, selected }
+
 // Two editorial checkers: player one is a solid ink disc, player two a hollow
 // ivory disc ringed in ink -- the flat "solid vs. outline" pairing from the
 // design. A concentric inner ring gives each a little turned-edge definition,
-// and a selected/movable checker takes a vermillion ring.
+// and movable checkers take a vermillion ring. Selected checkers add a center
+// dot without changing the ring.
 class PieceView extends StatelessWidget {
   PieceView({required this.layout, super.key})
     : _solid = _isPlayerOne(layout.pieceID);
@@ -36,6 +39,9 @@ class PieceView extends StatelessWidget {
   // light one.
   Color get _innerRing =>
       _solid ? const Color(0x3AFFFFFF) : const Color(0x4716130F);
+  bool get _selected => layout.highlightKind == PieceHighlight.selected;
+  Color get _borderColor => layout.highlight ? AppColors.accent : AppColors.ink;
+  double get _borderWidth => layout.highlight ? 2.5 : (_solid ? 1 : 2);
 
   @override
   Widget build(BuildContext context) {
@@ -49,39 +55,53 @@ class PieceView extends StatelessWidget {
         ),
       );
     }
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _fill,
-        border: Border.all(
-          color: layout.highlight ? AppColors.accent : AppColors.ink,
-          width: layout.highlight ? 2.5 : (_solid ? 1 : 2),
-        ),
-      ),
-      child: Center(
-        child: FractionallySizedBox(
-          widthFactor: .78,
-          heightFactor: .78,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: _innerRing),
-            ),
-            child: Center(
-              child: Text(
-                layout.label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _textColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+    return Stack(
+      clipBehavior: Clip.none,
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _fill,
+            border: Border.all(color: _borderColor, width: _borderWidth),
+          ),
+          child: Center(
+            child: FractionallySizedBox(
+              widthFactor: .78,
+              heightFactor: .78,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _innerRing),
+                ),
+                child: Center(
+                  child: Text(
+                    layout.label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _textColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
+        if (_selected)
+          const Center(
+            child: DecoratedBox(
+              key: ValueKey('piece-selected-marker'),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xD9E1341E),
+              ),
+              child: SizedBox.square(dimension: 5),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -176,18 +196,19 @@ class MoveAnimation {
     final usedFrom = <PieceLayout>{};
     final usedTo = <PieceLayout>{};
     final layouts = <int?, List<PieceLayout>>{};
+    final delays = <int?, Duration>{};
 
     // Owner-aware: engine pips 0 and 25 are each shared between one player's
     // bar and the other player's off, so a pip alone doesn't identify a checker
     // -- match the mover's colour too, or a bear-off could pick the opponent's
     // same-pip bar checker (which must stay put).
-    PieceLayout? take(
+    PieceLayout? takeTop(
       List<PieceLayout> pool,
       Set<PieceLayout> used,
       int pip,
       GammonPlayer player,
     ) {
-      for (final l in pool) {
+      for (final l in pool.reversed) {
         if (l.pipNo == pip &&
             GammonRules.playerFor(l.pieceID) == player &&
             !used.contains(l)) {
@@ -206,9 +227,10 @@ class MoveAnimation {
     final ordered = movements.toList()
       ..sort((a, b) => travel(b).compareTo(travel(a)));
 
+    var elapsed = Duration.zero;
     for (final move in ordered) {
-      final dest = take(toLayouts, usedTo, move.toPip, move.player);
-      final src = take(fromLayouts, usedFrom, move.fromPip, move.player);
+      final dest = takeTop(toLayouts, usedTo, move.toPip, move.player);
+      final src = takeTop(fromLayouts, usedFrom, move.fromPip, move.player);
       // A board diff should always pair a source and destination slot. If it
       // ever doesn't, fail loudly in debug/tests instead of silently snapping
       // the checker to place with no animation (which is invisible in a replay
@@ -250,8 +272,10 @@ class MoveAnimation {
         dest,
       ];
       layouts[dest.pieceID] = frames;
+      if (elapsed > Duration.zero) delays[dest.pieceID] = elapsed;
+      elapsed += kHopAnimationDuration * (frames.length - 1);
     }
-    return MoveAnimation(layouts, const {});
+    return MoveAnimation(layouts, delays);
   }
 
   final Map<int?, List<PieceLayout>> layouts;
@@ -264,9 +288,12 @@ class PieceLayout {
     required this.pieceID,
     required this.offset,
     required this.label,
-    this.highlight = false,
+    bool highlight = false,
+    PieceHighlight? highlightKind,
     this.edge = false,
-  });
+  }) : highlightKind =
+           highlightKind ??
+           (highlight ? PieceHighlight.selected : PieceHighlight.none);
   static const _pieceSize = Size(28, 28);
   static const _offset = Offset(36, 28);
   static const _edgeSize = Size(32, 11);
@@ -295,11 +322,12 @@ class PieceLayout {
   final int pieceID;
   final Offset offset;
   final String label;
-  final bool highlight;
+  final PieceHighlight highlightKind;
   final bool edge;
 
   Size get size => edge ? _edgeSize : _pieceSize;
   Rect get rect => offset & size;
+  bool get highlight => highlightKind != PieceHighlight.none;
 
   // The on-screen offset of the FIRST checker (stack base) on point [pipNo],
   // 1..24 -- the same geometry getLayouts assigns at stack height 0. Used to
@@ -313,13 +341,18 @@ class PieceLayout {
     return Offset(_topRightX + dx, _topRowY);
   }
 
-  PieceLayout get animated =>
-      PieceLayout(pieceID: pieceID, offset: offset, label: '', pipNo: pipNo);
+  PieceLayout get animated => PieceLayout(
+    pieceID: pieceID,
+    offset: offset,
+    label: '',
+    pipNo: pipNo,
+    highlightKind: highlightKind,
+  );
 
   @override
   String toString() =>
       'layout(id=$pieceID, pipNo=$pipNo, label=$label, rect=$rect, '
-      'highlight=$highlight)';
+      'highlightKind=$highlightKind)';
 
   // Order layouts so that currently-animating (moving) pieces are drawn last,
   // i.e. on top of stationary pieces, instead of in pip order (issue #6).
@@ -337,12 +370,12 @@ class PieceLayout {
 
   static Iterable<PieceLayout> getLayouts(
     List<List<int>> board, [
-    List<int?>? pipNosToHighlight,
+    Map<int, PieceHighlight>? pipHighlights,
   ]) sync* {
     assert(board.length == 26);
     assert(_pieceSize.width == _pieceSize.height);
 
-    pipNosToHighlight ??= [];
+    pipHighlights ??= const {};
 
     // typed view over the raw board so this reads in domain terms (checkersAt/
     // countAt/isVacantAt) instead of bare indices -- zero-cost (see GammonBoard)
@@ -352,7 +385,7 @@ class PieceLayout {
     for (var j = 0; j != 4; j++) {
       for (var i = 0; i != 6; ++i) {
         final pipNo = j * 6 + i + 1;
-        final highlightedPiecePip = pipNosToHighlight.contains(pipNo);
+        final highlightKind = pipHighlights[pipNo] ?? PieceHighlight.none;
         if (b.isVacantAt(pipNo)) continue;
         final pip = b.checkersAt(pipNo);
         assert(pip.every((p) => _isPlayerOne(p) == _isPlayerOne(pip[0])));
@@ -364,7 +397,7 @@ class PieceLayout {
               ? pieceCount.toString()
               : '';
           final dy = _offset.dy * min(4, h);
-          final highlight = highlightedPiecePip && h == pieceCount - 1;
+          final topChecker = h == pieceCount - 1;
           final pieceID = pip[h];
 
           // Base slot geometry lives in exactly one place (baseSlotOffset);
@@ -376,7 +409,7 @@ class PieceLayout {
             pieceID: pieceID,
             offset: baseSlotOffset(pipNo) + Offset(0, dyDir * dy),
             label: label,
-            highlight: highlight,
+            highlightKind: topChecker ? highlightKind : PieceHighlight.none,
           );
         }
       }
@@ -385,7 +418,7 @@ class PieceLayout {
     // draw the pieces on the bar
     for (final player in GammonPlayer.values) {
       final barPipNo = GammonRules.barPipNoFor(player);
-      final highlightedPiecePip = pipNosToHighlight.contains(barPipNo);
+      final highlightKind = pipHighlights[barPipNo] ?? PieceHighlight.none;
       final pieces = b
           .checkersAt(barPipNo)
           .where((p) => GammonRules.playerFor(p) == player)
@@ -399,13 +432,12 @@ class PieceLayout {
         final top = _isPlayerOne(pieceID)
             ? _barBottomBaselineY + _offset.dy * min(i, 2)
             : _barTopBaselineY - _offset.dy * min(i, 2);
-        final highlight = highlightedPiecePip && i == 0;
         yield PieceLayout(
           pipNo: barPipNo,
           pieceID: pieceID,
           offset: Offset(_barX, top),
           label: label,
-          highlight: highlight,
+          highlightKind: i == 0 ? highlightKind : PieceHighlight.none,
         );
       }
     }

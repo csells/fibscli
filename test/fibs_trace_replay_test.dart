@@ -32,6 +32,8 @@ Map<String, String>? _boardCrumbs(String line) {
     'player1Dice': m['player1Dice']!.replaceAll(' ', ''),
     'player2Dice': m['player2Dice']!.replaceAll(' ', ''),
     'doublingCube': m['doublingCube']!,
+    'player1MayDouble': m['player1MayDouble']!,
+    'player2MayDouble': m['player2MayDouble']!,
     'player1Home': m['player1Home']!,
     'player2Home': m['player2Home']!,
     'player1Bar': m['player1Bar']!,

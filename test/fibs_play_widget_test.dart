@@ -2,6 +2,7 @@ import 'package:fibscli/board_view.dart';
 import 'package:fibscli/fibs_page.dart';
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/game_board.dart';
+import 'package:fibscli/pieces.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,12 +16,15 @@ String boardLine({
   String player2 = 'wildbg',
   String turn = '1',
   String p1dice = '6:3',
+  String player1MayDouble = '1',
 }) => [
   'board:$player1:$player2:1:0:0:0',
   '-2:0:0:0:0:5:0:3:0:0:0:-5:5',
   '0:0:0:-3:0:-5:0:0:0:0:2:0',
-  '$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0',
+  '$turn:$p1dice:0:0:1:$player1MayDouble:1:0:1:-1:0:25:0:0:0:0:2:0:0:0',
 ].join(':');
+
+const rollOrDoubleLine = "It's your turn to roll or double.";
 
 // a finished game where we (player1 "You" = X) have borne off all 15.
 String gameOverLine() => [
@@ -32,10 +36,51 @@ String gameOverLine() => [
   '15', '0', '0', '0', '0', '0', '0', '0', // xOff = 15 (we win)
 ].join(':');
 
+String lateBearOffRaceLine() {
+  final points = List.filled(26, 0);
+  points[1] = -2;
+  points[19] = 3;
+  points[20] = 3;
+  points[21] = 3;
+  points[22] = 2;
+  points[23] = 2;
+  points[24] = 2;
+  return [
+    'board',
+    'You',
+    'bot',
+    '1',
+    '0',
+    '0',
+    points.join(':'),
+    '-1',
+    '5:5',
+    '0:0',
+    '1',
+    '1',
+    '1',
+    '0',
+    '-1',
+    '-1',
+    '0',
+    '25',
+    '13',
+    '0',
+    '0',
+    '0',
+    '2',
+    '0',
+    '0',
+    '0',
+  ].join(':');
+}
+
 Future<FibsState> _startGame(
   WidgetTester tester,
   FakeTransport fake, {
   String dice = '6:3',
+  String player1MayDouble = '1',
+  bool promptRoll = false,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final fibs = FibsState.withTransport(fake);
@@ -45,7 +90,8 @@ Future<FibsState> _startGame(
       home: FibsPage(fibs: fibs, creds: await fakeCreds()),
     ),
   );
-  fake.feed(boardLine(p1dice: dice));
+  fake.feed(boardLine(p1dice: dice, player1MayDouble: player1MayDouble));
+  if (promptRoll) fake.feed(rollOrDoubleLine);
   await tester.pumpAndSettle();
   return fibs;
 }
@@ -66,14 +112,52 @@ void main() {
     tester,
   ) async {
     final fake = FakeTransport();
-    final fibs = await _startGame(tester, fake, dice: '0:0');
+    final fibs = await _startGame(tester, fake, dice: '0:0', promptRoll: true);
 
     expect(fibs.canRoll, isTrue);
     expect(find.text('Roll'), findsOneWidget);
+    expect(find.text('Double'), findsOneWidget);
 
     await tester.tap(find.text('Roll'));
     await tester.pump();
     expect(fake.sent, contains('roll'));
+  });
+
+  testWidgets('roll controls wait for the FIBS roll-or-double prompt', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    final fibs = await _startGame(tester, fake, dice: '0:0');
+
+    expect(fibs.canRoll, isFalse);
+    expect(find.text('Roll'), findsNothing);
+    expect(find.text('Double'), findsNothing);
+    expect(find.textContaining('Waiting for opponent'), findsOneWidget);
+
+    fake.feed(rollOrDoubleLine);
+    await tester.pumpAndSettle();
+
+    expect(fibs.canRoll, isTrue);
+    expect(find.text('Roll'), findsOneWidget);
+    expect(find.text('Double'), findsOneWidget);
+  });
+
+  testWidgets('double is hidden when FIBS says this side may not double', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    final fibs = await _startGame(
+      tester,
+      fake,
+      dice: '0:0',
+      player1MayDouble: '0',
+      promptRoll: true,
+    );
+
+    expect(fibs.canRoll, isTrue);
+    expect(fibs.canOfferDouble, isFalse);
+    expect(find.text('Roll'), findsOneWidget);
+    expect(find.text('Double'), findsNothing);
   });
 
   testWidgets('a double offer shows Take/Pass and Take sends accept', (
@@ -210,11 +294,50 @@ void main() {
     // the fast-forward shows in a pure race; tapping it submits the bear-off
     expect(find.byTooltip('auto bear-off'), findsOneWidget);
     await tester.tap(find.byTooltip('auto bear-off'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+
+    BoardView board() => tester.widget<BoardView>(find.byType(BoardView));
+    expect(board().pieceAnimations, isNotEmpty);
+    expect(board().ignoring, isTrue);
+    for (var i = 0; i != 10; i += 1) {
+      if (fake.sent.any((c) => c.startsWith('move '))) break;
+      final boardView = board();
+      final onEnd = boardView.onPieceAnimationEnd!;
+      boardView.pieceAnimations.keys.toList().forEach(onEnd);
+      await tester.pump();
+    }
 
     final moves = fake.sent.where((c) => c.startsWith('move '));
     expect(moves, isNotEmpty);
     expect(moves.last, contains('off'), reason: 'it bore checkers off');
+  });
+
+  testWidgets('auto bear-off doubles keep advancing real animations', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'me', pass: 'x');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+      ),
+    );
+    fake.feed(lateBearOffRaceLine());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('auto bear-off'));
+    await tester.pump();
+    for (var i = 0; i != 8; i += 1) {
+      if (fake.sent.any((c) => c.startsWith('move '))) break;
+      await tester.pump(kHopAnimationDuration);
+    }
+
+    expect(
+      fake.sent.where((c) => c.startsWith('move ')).last,
+      'move 1-off 1-off',
+    );
+    expect(fibs.canMoveNow, isFalse);
   });
 
   testWidgets('entering the view already on our move shows legal moves', (
@@ -228,6 +351,23 @@ void main() {
     final board = tester.widget<BoardView>(find.byType(BoardView));
     expect(board.ignoring, isFalse, reason: 'interactive on our move');
     expect(board.legalMoves, isNotEmpty, reason: 'legal moves are shown');
+  });
+
+  testWidgets('a local FIBS tap starts a checker animation', (tester) async {
+    final fake = FakeTransport();
+    final fibs = await _startGame(tester, fake);
+
+    final legal = fibs.gameState!.getAllLegalMoves();
+    final from = legal.keys.first;
+    final to = legal[from]!.first.toPipNo;
+    BoardView board() => tester.widget<BoardView>(find.byType(BoardView));
+    board().onTapPip!(from);
+    await tester.pump();
+    board().onTapPip!(to);
+    await tester.pump();
+
+    expect(board().pieceAnimations, isNotEmpty);
+    expect(board().ignoring, isTrue);
   });
 
   testWidgets('a tap moves the piece LOCALLY -- nothing sent until submit', (

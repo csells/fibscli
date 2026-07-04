@@ -4,9 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 // our own game; player1 is the literal "You" (player1Color 1 == O). turn '1'
 // is our turn, '-1' the opponent's. p1dice '0:0' => no dice yet.
-String _boardLine({String p1dice = '0:0', String turn = '1'}) =>
+String _boardLine({
+  String p1dice = '0:0',
+  String turn = '1',
+  String player1MayDouble = '1',
+}) =>
     'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
-    ':2:0:$turn:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
+    ':2:0:$turn:$p1dice:0:0:1:$player1MayDouble:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
 
 // run a single raw FIBS line through the cookie monster (RUN state) so we get a
 // real CookieMessage with parsed crumbs, exactly like the live stream.
@@ -32,11 +36,28 @@ void main() {
       expect(s.isMyTurn, isTrue); // turn '1' == our turn
     });
 
-    test('our turn with no dice => canRoll, not canMoveNow', () {
+    test('our turn with no dice waits for the roll-or-double prompt', () {
       final s = _loggedIn.reduce(_cookie(_boardLine()));
-      expect(s.canRoll, isTrue);
+      expect(s.canRoll, isFalse);
       expect(s.canMoveNow, isFalse);
       expect(s.effectiveDice, isEmpty);
+    });
+
+    test('roll-or-double prompt enables roll and legal double', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine()))
+          .reduce(_cookie("It's your turn to roll or double."));
+      expect(s.canRoll, isTrue);
+      expect(s.canOfferDouble, isTrue);
+      expect(s.canMoveNow, isFalse);
+    });
+
+    test('roll-or-double prompt does not allow forbidden doubles', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(player1MayDouble: '0')))
+          .reduce(_cookie("It's your turn to roll or double."));
+      expect(s.canRoll, isTrue);
+      expect(s.canOfferDouble, isFalse);
     });
 
     test('YouRoll captures our dice and enables a move', () {
@@ -55,6 +76,46 @@ void main() {
       expect(s.effectiveDice, [3, 3, 3, 3]);
     });
 
+    test('PlayerRolls captures opponent dice for display', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(turn: '-1')))
+          .reduce(_cookie('wildbg rolls 6 and 5'));
+      expect(s.opponentDice, [6, 5]);
+      expect(s.effectiveDice, [6, 5]);
+      expect(s.canMoveNow, isFalse);
+      expect(s.gameState!.dice.map((d) => d.roll).toList(), [6, 5]);
+    });
+
+    test('PlayerRolls reconciles a stale board still showing our turn', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(turn: '1')))
+          .reduce(_cookie('You roll 4 and 2'))
+          .committed()
+          .reduce(_cookie('wildbg rolls 6 and 5'));
+      expect(s.isMyTurn, isFalse);
+      expect(s.myDice, isEmpty);
+      expect(s.opponentDice, [6, 5]);
+      expect(s.effectiveDice, [6, 5]);
+      expect(s.committedTurn, isFalse);
+    });
+
+    test('PlayerRolls doubles produce four dice', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(turn: '-1')))
+          .reduce(_cookie('wildbg rolls 4 and 4'));
+      expect(s.effectiveDice, [4, 4, 4, 4]);
+    });
+
+    test('roll-or-double prompt reconciles a stale opponent-turn board', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(turn: '1')))
+          .reduce(_cookie('wildbg rolls 4 and 4'))
+          .reduce(_cookie("It's your turn to roll or double."));
+      expect(s.isMyTurn, isTrue);
+      expect(s.effectiveDice, isEmpty);
+      expect(s.canRoll, isTrue);
+    });
+
     test('YouRoll reconciles the turn when the board shows the opponent', () {
       // the last board still says it's the opponent's turn (turn '-1'), but a
       // YouRoll proves it's ours -- the session must flip the turn to us so the
@@ -66,6 +127,18 @@ void main() {
       expect(s.canMoveNow, isTrue);
     });
 
+    test('YouRoll clears a submitted turn when FIBS sends no board', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(turn: '1')))
+          .reduce(_cookie('You roll 4 and 2'))
+          .committed()
+          .reduce(_cookie('You roll 5 and 2'));
+      expect(s.isMyTurn, isTrue);
+      expect(s.effectiveDice, [5, 2]);
+      expect(s.committedTurn, isFalse);
+      expect(s.canMoveNow, isTrue);
+    });
+
     test('a fresh board clears stale rolled dice (must roll again)', () {
       // after rolling, a brand-new "our turn, no dice" board is authoritative:
       // the captured dice must be dropped or we'd try to move without rolling.
@@ -74,8 +147,25 @@ void main() {
           .reduce(_cookie('You roll 6 and 4'))
           .reduce(_cookie(_boardLine())); // fresh no-dice board
       expect(s.myDice, isEmpty);
-      expect(s.canRoll, isTrue);
+      expect(s.canRoll, isFalse);
       expect(s.canMoveNow, isFalse);
+    });
+
+    test('a fresh board clears stale opponent dice', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(turn: '-1')))
+          .reduce(_cookie('wildbg rolls 6 and 4'))
+          .reduce(_cookie(_boardLine()));
+      expect(s.opponentDice, isEmpty);
+      expect(s.effectiveDice, isEmpty);
+    });
+
+    test('a fresh board keeps an already-open roll prompt', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine()))
+          .reduce(_cookie("It's your turn to roll or double."))
+          .reduce(_cookie(_boardLine()));
+      expect(s.canRoll, isTrue);
     });
 
     test('AcceptRejectDouble sets doubleOffered; a board clears it', () {

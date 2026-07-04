@@ -75,6 +75,23 @@ void main() {
     unawaited(player.run());
 
     fake.feed(boardLine(p1dice: '0:0'));
+    fake.feed("It's your turn to roll or double.");
+    await pumpEventQueue();
+
+    expect(fake.sent, contains('roll'));
+    player.stop('test');
+  });
+
+  test('rolls when the roll prompt arrives after the board', () async {
+    final fake = FakeTransport();
+    final player = await _player(fake);
+    unawaited(player.run());
+
+    fake.feed(boardLine(p1dice: '0:0'));
+    await pumpEventQueue();
+    expect(fake.sent, isNot(contains('roll')));
+
+    fake.feed("It's your turn to roll or double.");
     await pumpEventQueue();
 
     expect(fake.sent, contains('roll'));

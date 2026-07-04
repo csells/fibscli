@@ -91,6 +91,16 @@ void main() {
       );
     });
 
+    test('board-frame doubles expand to four playable dice', () {
+      final cm = parse(fibsBoardLine(opening, turn: -1, xDice: [2, 2]));
+      final board = FibsBoard.fromCrumbs(cm.crumbs!);
+      final game = board.toGammonState();
+
+      expect(board.player1Dice, [2, 2]);
+      expect(board.activeDice, [2, 2, 2, 2]);
+      expect(game.dice.map((d) => d.roll), [2, 2, 2, 2]);
+    });
+
     test('colorFor maps each player name to its color (player1=X here)', () {
       final board = FibsBoard.fromCrumbs(parse(fibsBoardLine(opening)).crumbs!);
       // helper builds xplayer=player1 (color -1 = X), oplayer=player2 (O)

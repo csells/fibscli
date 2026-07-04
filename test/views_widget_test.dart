@@ -1,6 +1,7 @@
 import 'package:fibscli/dice.dart';
 import 'package:fibscli/model.dart';
 import 'package:fibscli/pieces.dart';
+import 'package:fibscli/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -65,6 +66,10 @@ void main() {
   });
 
   group('PieceView', () {
+    BoxDecoration outerDecoration(WidgetTester tester) =>
+        tester.widget<DecoratedBox>(find.byType(DecoratedBox).first).decoration
+            as BoxDecoration;
+
     testWidgets('renders a stack-count label for tall stacks', (tester) async {
       final layout = PieceLayout(
         pipNo: 6,
@@ -75,6 +80,86 @@ void main() {
       await tester.pumpWidget(_host(PieceView(layout: layout)));
       expect(find.text('7'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('renders movable and selected highlights with one red ring', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          PieceView(
+            layout: PieceLayout(
+              pipNo: 6,
+              pieceID: -1,
+              offset: Offset.zero,
+              label: '',
+              highlightKind: PieceHighlight.movable,
+            ),
+          ),
+        ),
+      );
+      final movable = outerDecoration(tester);
+      expect((movable.border! as Border).top.color, AppColors.accent);
+      expect((movable.border! as Border).top.width, 2.5);
+      expect(movable.boxShadow, isNull);
+      expect(find.byKey(const ValueKey('piece-selected-marker')), findsNothing);
+
+      await tester.pumpWidget(
+        _host(
+          PieceView(
+            layout: PieceLayout(
+              pipNo: 6,
+              pieceID: -1,
+              offset: Offset.zero,
+              label: '',
+              highlightKind: PieceHighlight.selected,
+            ),
+          ),
+        ),
+      );
+      final selected = outerDecoration(tester);
+      expect((selected.border! as Border).top.color, AppColors.accent);
+      expect((selected.border! as Border).top.width, 2.5);
+      expect(selected.boxShadow, isNull);
+      expect(
+        find.byKey(const ValueKey('piece-selected-marker')),
+        findsOneWidget,
+      );
+      final marker = tester.widget<DecoratedBox>(
+        find.byKey(const ValueKey('piece-selected-marker')),
+      );
+      final markerDecoration = marker.decoration as BoxDecoration;
+      expect(markerDecoration.color, const Color(0xD9E1341E));
+      expect(markerDecoration.border, isNull);
+      expect((marker.child! as SizedBox).width, 5);
+      expect((marker.child! as SizedBox).height, 5);
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('piece-selected-marker')),
+          matching: find.byType(Center),
+        ),
+        findsWidgets,
+      );
+
+      await tester.pumpWidget(
+        _host(
+          PieceView(
+            layout: PieceLayout(
+              pipNo: 6,
+              pieceID: 1,
+              offset: Offset.zero,
+              label: '',
+              highlightKind: PieceHighlight.selected,
+            ),
+          ),
+        ),
+      );
+      final whiteSelected = outerDecoration(tester);
+      expect((whiteSelected.border! as Border).top.color, AppColors.accent);
+      expect(
+        find.byKey(const ValueKey('piece-selected-marker')),
+        findsOneWidget,
+      );
     });
   });
 }

@@ -141,6 +141,9 @@ class FibsBotPlayer {
       if (!_betweenMatches) _matchOver = false;
       _resetStall();
       _scheduleAct();
+    } else if (c == FibsCookie.FIBS_RollOrDouble) {
+      _resetStall();
+      _scheduleAct();
     } else if (c == FibsCookie.FIBS_YouRoll) {
       _resetStall();
       _scheduleAct();

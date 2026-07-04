@@ -28,11 +28,26 @@ class _AnimatedPieceState extends State<AnimatedPiece>
     with TickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<PieceLayout> _animation;
+  var _run = 0;
 
   @override
   void initState() {
     super.initState();
+    _startAnimation();
+  }
 
+  @override
+  void didUpdateWidget(covariant AnimatedPiece oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.layouts, widget.layouts) ||
+        oldWidget.delay != widget.delay) {
+      _controller.dispose();
+      _startAnimation();
+    }
+  }
+
+  void _startAnimation() {
+    final run = ++_run;
     final hops = widget.layouts.length - 1;
 
     // Fixed duration per hop (not distance-proportional), so a 1-pip nudge and
@@ -48,13 +63,18 @@ class _AnimatedPieceState extends State<AnimatedPiece>
 
     // a hittee waits for the hitter to arrive before sliding to the bar
     // (issue #5); during the delay it stays at its first layout
-    void start() {
-      if (!mounted) return;
-      unawaited(_controller.forward().then((_) => widget.onEnd()));
+    Future<void> start() async {
+      if (!mounted || run != _run) return;
+      try {
+        await _controller.forward().orCancel;
+        if (mounted && run == _run) widget.onEnd();
+      } on TickerCanceled {
+        // A new animation path replaced this one before it finished.
+      }
     }
 
     if (widget.delay == Duration.zero) {
-      start();
+      unawaited(start());
     } else {
       unawaited(Future<void>.delayed(widget.delay, start));
     }
@@ -79,6 +99,7 @@ class _AnimatedPieceState extends State<AnimatedPiece>
 
   @override
   void dispose() {
+    _run += 1;
     _controller.dispose();
     super.dispose();
   }
@@ -94,7 +115,7 @@ class _AnimatedPieceState extends State<AnimatedPiece>
 
 class PieceLayoutTween extends Tween<PieceLayout> {
   PieceLayoutTween({required PieceLayout begin, required PieceLayout end})
-    : assert(begin.highlight == end.highlight),
+    : assert(begin.highlightKind == end.highlightKind),
       assert(begin.pieceID == end.pieceID),
       super(begin: begin, end: end);
 
@@ -105,7 +126,7 @@ class PieceLayoutTween extends Tween<PieceLayout> {
     // begin/end offsets are non-null, so the interpolation is too
     offset: Offset.lerp(begin!.offset, end!.offset, t)!,
     label: '', // unused during animation
-    highlight: begin!.highlight,
+    highlightKind: begin!.highlightKind,
     edge: begin!.edge,
   );
 }

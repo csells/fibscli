@@ -1,6 +1,10 @@
+import 'package:fibscli/board_animator.dart';
 import 'package:fibscli/board_view.dart';
 import 'package:fibscli/game_board.dart';
 import 'package:fibscli/model.dart';
+import 'package:fibscli/pieces.dart';
+import 'package:fibscli/pips.dart';
+import 'package:fibscli/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,16 +15,38 @@ import 'package:flutter_test/flutter_test.dart';
 BoardView _board(WidgetTester tester) =>
     tester.widget<BoardView>(find.byType(BoardView));
 
+Color _offTrayBorderColor(WidgetTester tester, GammonPlayer player) {
+  final box = tester.widget<DecoratedBox>(
+    find.byKey(ValueKey('off-tray-${player.name}')),
+  );
+  final decoration = box.decoration as BoxDecoration;
+  final border = decoration.border! as Border;
+  return border.top.color;
+}
+
+PieceHighlight _topPieceHighlight(WidgetTester tester, int pipNo) => tester
+    .widgetList<PieceView>(find.byType(PieceView))
+    .where((piece) => piece.layout.pipNo == pipNo)
+    .map((piece) => piece.layout.highlightKind)
+    .reduce((best, next) => next.index > best.index ? next : best);
+
+bool _pipHighlight(WidgetTester tester, int pipNo) => tester
+    .widgetList<PipTriangle>(find.byType(PipTriangle))
+    .singleWhere((pip) => pip.pip == pipNo)
+    .highlight;
+
 Future<void> _pump(
   WidgetTester tester, {
   required Map<int, List<GammonMove>> legalMoves,
   required bool interactive,
   required bool Function(int, int) onMove,
+  BoardAnimator? animator,
 }) => tester.pumpWidget(
   MaterialApp(
     home: Scaffold(
       body: GameBoard(
         game: GammonState(),
+        animator: animator,
         legalMoves: legalMoves,
         interactive: interactive,
         onMove: onMove,
@@ -110,6 +136,87 @@ void main() {
     expect(_board(tester).selectedPip, isNull);
   });
 
+  testWidgets('a selected checker narrows highlights to its legal moves', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      legalMoves: {
+        24: [
+          GammonMove(fromPipNo: 24, toPipNo: 23, hops: const [-1]),
+        ],
+        13: [
+          GammonMove(fromPipNo: 13, toPipNo: 11, hops: const [-2]),
+        ],
+      },
+      interactive: true,
+      onMove: (from, to) => false,
+    );
+
+    expect(_topPieceHighlight(tester, 24), PieceHighlight.movable);
+    expect(_topPieceHighlight(tester, 13), PieceHighlight.movable);
+    expect(_pipHighlight(tester, 23), isFalse);
+    expect(_pipHighlight(tester, 11), isFalse);
+
+    _board(tester).onTapPip!(24);
+    await tester.pump();
+
+    expect(_topPieceHighlight(tester, 24), PieceHighlight.selected);
+    expect(_topPieceHighlight(tester, 13), PieceHighlight.none);
+    expect(_pipHighlight(tester, 23), isTrue);
+    expect(_pipHighlight(tester, 11), isFalse);
+  });
+
+  testWidgets('the off tray shows a secondary cue when any move bears off', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      legalMoves: {
+        1: [
+          GammonMove(fromPipNo: 1, toPipNo: 0, hops: const [-1]),
+        ],
+        2: [
+          GammonMove(fromPipNo: 2, toPipNo: 1, hops: const [-1]),
+        ],
+      },
+      interactive: true,
+      onMove: (from, to) => false,
+    );
+
+    expect(_offTrayBorderColor(tester, GammonPlayer.one), AppColors.inkSoft);
+    expect(_offTrayBorderColor(tester, GammonPlayer.two), AppColors.ink);
+  });
+
+  testWidgets('a selected checker controls whether the off tray highlights', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      legalMoves: {
+        1: [
+          GammonMove(fromPipNo: 1, toPipNo: 0, hops: const [-1]),
+        ],
+        2: [
+          GammonMove(fromPipNo: 2, toPipNo: 1, hops: const [-1]),
+        ],
+      },
+      interactive: true,
+      onMove: (from, to) => false,
+    );
+    final tapPip = _board(tester).onTapPip!;
+
+    tapPip(2);
+    await tester.pump();
+    expect(_board(tester).selectedPip, 2);
+    expect(_offTrayBorderColor(tester, GammonPlayer.one), AppColors.ink);
+
+    tapPip(1);
+    await tester.pump();
+    expect(_board(tester).selectedPip, 1);
+    expect(_offTrayBorderColor(tester, GammonPlayer.one), AppColors.accent);
+  });
+
   testWidgets('a read-only board is non-interactive and shows no legals', (
     tester,
   ) async {
@@ -121,5 +228,53 @@ void main() {
     final board = _board(tester);
     expect(board.ignoring, isTrue);
     expect(board.legalMoves, isEmpty);
+  });
+
+  testWidgets('an animating board is temporarily non-interactive', (
+    tester,
+  ) async {
+    final animator = BoardAnimator();
+    addTearDown(animator.dispose);
+    var moves = 0;
+    await _pump(
+      tester,
+      animator: animator,
+      legalMoves: {
+        24: [
+          GammonMove(fromPipNo: 24, toPipNo: 23, hops: const [-1]),
+        ],
+      },
+      interactive: true,
+      onMove: (from, to) {
+        moves += 1;
+        return true;
+      },
+    );
+
+    final running = animator.play(
+      MoveAnimation({
+        -1: [
+          PieceLayout(pipNo: 24, pieceID: -1, offset: Offset.zero, label: ''),
+          PieceLayout(
+            pipNo: 23,
+            pieceID: -1,
+            offset: const Offset(10, 0),
+            label: '',
+          ),
+        ],
+      }, const {}),
+    );
+    await tester.pump();
+
+    final board = _board(tester);
+    expect(board.ignoring, isTrue);
+    expect(board.legalMoves, isEmpty);
+    expect(board.onTapPip, isNull);
+    expect(board.onTapOff, isNull);
+    expect(board.onTapDice, isNull);
+    expect(moves, 0);
+
+    animator.endPiece(-1);
+    await running;
   });
 }

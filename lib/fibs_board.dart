@@ -21,6 +21,8 @@ class FibsBoard {
     required this.player1Dice,
     required this.player2Dice,
     required this.cube,
+    required this.player1MayDouble,
+    required this.player2MayDouble,
     required this.player1Off,
     required this.player2Off,
     required this.player1Bar,
@@ -41,6 +43,8 @@ class FibsBoard {
       player1Dice: dice('player1Dice'),
       player2Dice: dice('player2Dice'),
       cube: int.parse(crumbs['doublingCube']!),
+      player1MayDouble: crumbs['player1MayDouble'] == '1',
+      player2MayDouble: crumbs['player2MayDouble'] == '1',
       player1Off: int.parse(crumbs['player1Home']!),
       player2Off: int.parse(crumbs['player2Home']!),
       player1Bar: int.parse(crumbs['player1Bar']!),
@@ -68,6 +72,8 @@ class FibsBoard {
   final List<int> player1Dice;
   final List<int> player2Dice;
   final int cube;
+  final bool player1MayDouble;
+  final bool player2MayDouble;
   // off/bar counts are keyed to player1/player2, NOT to color, so they must be
   // routed to X or O using player1Color.
   final int player1Off;
@@ -90,6 +96,8 @@ class FibsBoard {
     player1Dice: player1Dice,
     player2Dice: player2Dice,
     cube: cube,
+    player1MayDouble: player1MayDouble,
+    player2MayDouble: player2MayDouble,
     player1Off: player1Off,
     player2Off: player2Off,
     player1Bar: player1Bar,
@@ -118,6 +126,11 @@ class FibsBoard {
     }
     return null; // we're only watching, not playing
   }
+
+  bool mayDoubleFor(GammonPlayer player) =>
+      player == (player1Color == -1 ? GammonPlayer.one : GammonPlayer.two)
+      ? player1MayDouble
+      : player2MayDouble;
 
   bool get _player1IsX => player1Color == -1;
 
@@ -150,11 +163,14 @@ class FibsBoard {
     return null;
   }
 
-  // the dice of whoever is on roll (the player whose color == turnColor),
-  // empty until someone has rolled
+  // The app-facing dice of whoever is on roll. FIBS board frames carry two die
+  // fields; the shared engine expects doubles expanded to four playable dice.
   List<int> get activeDice {
     final dice = turnColor == player1Color ? player1Dice : player2Dice;
-    return dice.any((d) => d == 0) ? const [] : dice;
+    if (dice.any((d) => d == 0)) return const [];
+    final d1 = dice[0];
+    final d2 = dice[1];
+    return d1 == d2 ? [d1, d1, d1, d1] : dice;
   }
 
   // The checker layout as a typed, immutable [Position], normalized to the

@@ -198,11 +198,15 @@ class _Controls extends StatelessWidget {
           icon: const Icon(Icons.casino, size: 18),
           label: const Text('Roll'),
         ),
-        OutlinedButton(
-          onPressed: fibs.offerDouble,
-          child: const Text('Double'),
-        ),
       ]);
+      if (fibs.canOfferDouble) {
+        children.add(
+          OutlinedButton(
+            onPressed: fibs.offerDouble,
+            child: const Text('Double'),
+          ),
+        );
+      }
     } else if (fibs.canMoveNow) {
       children.add(
         Text(

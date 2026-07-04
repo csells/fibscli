@@ -10,6 +10,8 @@ import 'pip_count.dart';
 import 'pips.dart';
 import 'theme.dart';
 
+enum _OffHighlight { none, movable, destination }
+
 /// THE single backgammon board renderer — used by the local game, FIBS play,
 /// and FIBS watch, so they always look and highlight identically.
 ///
@@ -77,8 +79,16 @@ class BoardView extends StatelessWidget {
   /// Called when a piece's animation finishes.
   final void Function(int? pieceId)? onPieceAnimationEnd;
 
-  List<int?> get _pipNosToHighlight =>
-      selectedPip != null ? [selectedPip] : legalMoves.keys.toList();
+  Map<int, PieceHighlight> get _pieceHighlights {
+    final selected = selectedPip;
+    if (selected != null && legalMoves[selected] != null) {
+      return {selected: PieceHighlight.selected};
+    }
+    final highlights = <int, PieceHighlight>{
+      for (final pipNo in legalMoves.keys) pipNo: PieceHighlight.movable,
+    };
+    return highlights;
+  }
 
   bool _highlightPip(int pipNo) {
     final moves = selectedPip == null ? null : legalMoves[selectedPip];
@@ -86,11 +96,31 @@ class BoardView extends StatelessWidget {
         moves.hasHops(fromPipNo: selectedPip, toPipNo: pipNo);
   }
 
-  bool _highlightOff(GammonPlayer player) {
+  _OffHighlight _highlightOff(GammonPlayer player) {
     final offPipNo = GammonRules.offPipNoFor(player);
-    final moves = selectedPip == null ? null : legalMoves[selectedPip];
-    return moves != null && moves.any((m) => m.toPipNo == offPipNo);
+    if (selectedPip != null) {
+      final moves = legalMoves[selectedPip];
+      return moves != null && moves.any((m) => m.toPipNo == offPipNo)
+          ? _OffHighlight.destination
+          : _OffHighlight.none;
+    }
+    final anyBearOff = legalMoves.values.any(
+      (moves) => moves.any((m) => m.toPipNo == offPipNo),
+    );
+    return anyBearOff ? _OffHighlight.movable : _OffHighlight.none;
   }
+
+  Color _offBorderColor(GammonPlayer player) => switch (_highlightOff(player)) {
+    _OffHighlight.destination => AppColors.accent,
+    _OffHighlight.movable => AppColors.inkSoft,
+    _OffHighlight.none => AppColors.ink,
+  };
+
+  double _offBorderWidth(GammonPlayer player) =>
+      switch (_highlightOff(player)) {
+        _OffHighlight.destination => 2.5,
+        _OffHighlight.movable || _OffHighlight.none => 2,
+      };
 
   // the cube sits at the center bar, shifted toward its owner's side
   static Rect _cubeRect(GammonPlayer? owner) {
@@ -169,13 +199,12 @@ class BoardView extends StatelessWidget {
                 child: GestureDetector(
                   onTap: onTapOff == null ? null : () => onTapOff!(player),
                   child: DecoratedBox(
+                    key: ValueKey('off-tray-${player.name}'),
                     decoration: BoxDecoration(
                       color: AppColors.bone,
                       border: Border.all(
-                        color: _highlightOff(player)
-                            ? AppColors.accent
-                            : AppColors.ink,
-                        width: 2,
+                        color: _offBorderColor(player),
+                        width: _offBorderWidth(player),
                       ),
                     ),
                   ),
@@ -194,7 +223,7 @@ class BoardView extends StatelessWidget {
             // pieces; moving pieces are drawn last so they appear on top of
             // stationary pieces (issue #6)
             for (final layout in PieceLayout.drawOrder(
-              PieceLayout.getLayouts(game.board, _pipNosToHighlight),
+              PieceLayout.getLayouts(game.board, _pieceHighlights),
               pieceAnimations.keys.toSet(),
             ))
               pieceAnimations.containsKey(layout.pieceID)

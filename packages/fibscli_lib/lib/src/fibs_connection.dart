@@ -68,6 +68,20 @@ class FibsConnection {
   Completer<FibsCookie>? _loginCompleter;
   _LoginState? _loginState;
 
+  void _completeLogin(FibsCookie cookie) {
+    final completer = _loginCompleter;
+    if (completer == null || completer.isCompleted) return;
+    completer.complete(cookie);
+    _loginCompleter = null;
+  }
+
+  void _emitCookies(List<CookieMessage> cookies) {
+    for (final cookie in cookies) {
+      if (_streamController.isClosed) return;
+      _streamController.add(cookie);
+    }
+  }
+
   /// Whether the WebSocket connection is currently open.
   bool get connected => _channel != null;
 
@@ -125,13 +139,13 @@ class FibsConnection {
 
     _channel!.stream.listen(
       (dynamic frame) {
-        // native delivers binary frames as bytes; the web may deliver a String
-        // or a ByteBuffer, so decode whatever the platform hands us
+        // Different WebSocket implementations deliver text, byte lists, or
+        // typed buffers; normalize before parsing.
         final message = _decodeFrame(frame);
         final cms = _receive(message);
         // broadcast every parsed cookie to external subscribers, then drive the
         // login handshake off the same batch
-        cms.forEach(_streamController.add);
+        _emitCookies(cms);
 
         switch (_loginState) {
           case _LoginState.prelogin:
@@ -152,8 +166,7 @@ class FibsConnection {
             if (cookie == null) return; // no outcome yet; wait for next batch
 
             // complete the login
-            _loginCompleter!.complete(cookie);
-            _loginCompleter = null;
+            _completeLogin(cookie);
             _loginState = _LoginState.postlogin;
 
           case _LoginState.postlogin:
@@ -162,11 +175,17 @@ class FibsConnection {
         }
       },
       onDone: () {
+        if (_loginState != null && _loginState != _LoginState.postlogin) {
+          _completeLogin(FibsCookie.FIBS_Timeout);
+        }
         // fire-and-forget teardown; close() captures-and-nulls up front so a
         // concurrent onError close can't double-close
         unawaited(close());
       },
       onError: (error) {
+        if (_loginState != null && _loginState != _LoginState.postlogin) {
+          _completeLogin(FibsCookie.FIBS_Timeout);
+        }
         unawaited(close());
       },
       cancelOnError: false,

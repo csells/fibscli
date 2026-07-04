@@ -21,6 +21,13 @@ export 'fibs_lobby.dart' show FibsLobby, WhoInfo;
 
 final _log = Logger('fibs');
 
+const _commandRejectedCookies = {
+  FibsCookie.FIBS_BadMove,
+  FibsCookie.FIBS_CantMoveFirstMove,
+  FibsCookie.FIBS_MustComeIn,
+  FibsCookie.FIBS_MustMove,
+};
+
 // Thrown when a play command is issued in a state FIBS isn't ready for. We
 // surface these loudly rather than silently dropping the command -- a dropped
 // command hides the real bug (sending at the wrong time) and is impossible to
@@ -59,7 +66,9 @@ class FibsState extends ChangeNotifier {
     bool? secure,
     String? path,
     AppAnalytics? analytics,
+    Duration? loginTimeout,
   }) : analytics = analytics ?? AppAnalytics.disabled(),
+       _loginTimeout = loginTimeout ?? _defaultLoginTimeout,
        _makeTransport = (() => FibsConnectionTransport(
          FibsConnection(
            proxy ?? _envProxyHost,
@@ -70,15 +79,25 @@ class FibsState extends ChangeNotifier {
        ));
 
   // Inject a transport (e.g. a fake) to drive the state without a live server.
-  FibsState.withTransport(FibsTransport transport, {AppAnalytics? analytics})
-    : analytics = analytics ?? AppAnalytics.disabled(),
-      _makeTransport = (() => transport);
+  FibsState.withTransport(
+    FibsTransport transport, {
+    AppAnalytics? analytics,
+    Duration? loginTimeout,
+  }) : analytics = analytics ?? AppAnalytics.disabled(),
+       _loginTimeout = loginTimeout ?? _defaultLoginTimeout,
+       _makeTransport = (() => transport);
 
   // Inject a transport FACTORY -- a fresh transport per login() -- so tests can
   // exercise reconnect / re-login with production-like (single-subscription,
   // real-close) transport semantics, which a single reused fake would hide.
-  FibsState.withTransportFactory(this._makeTransport, {AppAnalytics? analytics})
-    : analytics = analytics ?? AppAnalytics.disabled();
+  FibsState.withTransportFactory(
+    this._makeTransport, {
+    AppAnalytics? analytics,
+    Duration? loginTimeout,
+  }) : analytics = analytics ?? AppAnalytics.disabled(),
+       _loginTimeout = loginTimeout ?? _defaultLoginTimeout;
+
+  static const _defaultLoginTimeout = Duration(seconds: 15);
 
   // ignore: do_not_use_environment -- compile-time proxy config seam
   static const _envProxyHost = String.fromEnvironment(
@@ -106,6 +125,7 @@ class FibsState extends ChangeNotifier {
   NotifierList<WhoInfo> get whoInfos => lobby.entries;
   final messages = NotifierList<FibsMessage>();
   final AppAnalytics analytics;
+  final Duration _loginTimeout;
   // A connection isn't reusable once closed (its stream controller is closed
   // for good), so we build a FRESH transport per login instead of reusing one
   // for the app's lifetime. Null before the first login / after teardown.
@@ -138,6 +158,7 @@ class FibsState extends ChangeNotifier {
   bool _reconnectUsed = false;
   bool _lobbyReadyTracked = false;
   bool _doublePromptToggleSent = false;
+  bool _moreboardsToggleSent = false;
   var _cookieCount = 0;
   FibsCookie? _lastCookie;
   var _whoInfoCookieCount = 0;
@@ -157,6 +178,16 @@ class FibsState extends ChangeNotifier {
   String? get user => _session.user;
   bool get connected => _conn?.connected ?? false;
 
+  WhoInfo? get currentUserInfo {
+    final current = user;
+    if (current == null) return null;
+    final currentLower = current.toLowerCase();
+    for (final who in whoInfos) {
+      if (who.user.toLowerCase() == currentLower) return who;
+    }
+    return null;
+  }
+
   // --- play state (only meaningful when we are a player, not just watching) --
 
   GammonPlayer? get myColor => _session.myColor;
@@ -169,6 +200,7 @@ class FibsState extends ChangeNotifier {
 
   bool get canMoveNow => _session.canMoveNow;
   bool get canRoll => _session.canRoll;
+  bool get canOfferDouble => _session.canOfferDouble;
 
   // The current game has finished (FIBS announced a result, or 15 borne off).
   bool get isGameOver => _session.isGameOver;
@@ -177,6 +209,8 @@ class FibsState extends ChangeNotifier {
   String? get lastCookie => _lastCookie?.name;
   int get whoInfoCookieCount => _whoInfoCookieCount;
   bool get whoListComplete => _whoListComplete;
+  bool get lastCommandRejected =>
+      _lastCookie != null && _commandRejectedCookies.contains(_lastCookie);
 
   // Whether WE won the finished game (false = the opponent won). Null while a
   // game is in progress. Prefers FIBS's announced result, falling back to the
@@ -205,10 +239,10 @@ class FibsState extends ChangeNotifier {
     // (who-list emails, chat text). Full content goes only to the opt-in,
     // local trace via cookieObserver (e.g. the live e2e), never the app log.
     _log.finer(cm.cookie.name);
-    cookieObserver?.call(cm);
     // Dispatch by cookie; any other gameplay/lobby chatter is ignored (no
     // handler) rather than crashing the stream.
     _handlers[cm.cookie]?.call(cm);
+    cookieObserver?.call(cm);
   }
 
   // Cookie -> handler. Lobby and chat are growing collections with their own
@@ -225,6 +259,8 @@ class FibsState extends ChangeNotifier {
     FibsCookie.CLIP_SHOUTS: _onChatMessage,
     FibsCookie.CLIP_WHISPERS: _onChatMessage,
     FibsCookie.FIBS_YouRoll: _applyCookie,
+    FibsCookie.FIBS_PlayerRolls: _applyCookie,
+    FibsCookie.FIBS_RollOrDouble: _applyCookie,
     FibsCookie.FIBS_Board: _applyCookie,
     // game/match results: FIBS announces the winner as a text message, so these
     // are what actually ends the game in the UI (a 15-off board never arrives).
@@ -255,6 +291,13 @@ class FibsState extends ChangeNotifier {
     FibsCookie.FIBS_JoinNextGame: _applyAndAutoJoin,
     FibsCookie.FIBS_ResumeMatchAck0: _applyCookie,
     FibsCookie.FIBS_ResumeMatchAck5: _applyCookie,
+    FibsCookie.FIBS_BadMove: _onCommandRejected,
+    FibsCookie.FIBS_CantMoveFirstMove: _onCommandRejected,
+    FibsCookie.FIBS_MustComeIn: _onCommandRejected,
+    FibsCookie.FIBS_MustMove: _onCommandRejected,
+    FibsCookie.FIBS_NotYourTurnToMove: _onSystemMessage,
+    FibsCookie.FIBS_NotYourTurnToRoll: _onSystemMessage,
+    FibsCookie.FIBS_UnknownCommand: _onSystemMessage,
   };
 
   // fold an inbound game/turn cookie into the session and republish
@@ -297,6 +340,14 @@ class FibsState extends ChangeNotifier {
     } else if (doublePrompt == '0' && !_doublePromptToggleSent) {
       _doublePromptToggleSent = true;
       _conn?.send('toggle double');
+    }
+
+    final moreboards = cm.crumbOrNull('moreboards');
+    if (moreboards == '1') {
+      _moreboardsToggleSent = false;
+    } else if (moreboards == '0' && !_moreboardsToggleSent) {
+      _moreboardsToggleSent = true;
+      _conn?.send('toggle moreboards');
     }
   }
 
@@ -342,6 +393,23 @@ class FibsState extends ChangeNotifier {
       cm.crumb(FibsCrumbKeys.message),
     ),
   );
+
+  void _onSystemMessage(CookieMessage cm) =>
+      messages.add(FibsMessage(cm.cookie, 'FIBS', _displayMessage(cm)));
+
+  void _onCommandRejected(CookieMessage cm) {
+    _session = _session.commandRejected();
+    _onSystemMessage(cm);
+    notifyListeners();
+  }
+
+  String _displayMessage(CookieMessage cm) {
+    final text =
+        cm.crumbOrNull(FibsCrumbKeys.message) ??
+        cm.crumbOrNull('raw') ??
+        cm.raw;
+    return text.replaceFirst(RegExp(r'^\*\*\s*'), '');
+  }
 
   // --- play actions (bots only) ---------------------------------------------
 
@@ -391,6 +459,7 @@ class FibsState extends ChangeNotifier {
     }
     _session = _session.startedRolling(); // canRoll false until our dice arrive
     _conn?.send('roll');
+    notifyListeners();
   }
 
   // Submit a WHOLE turn the player built locally on the shared board (the same
@@ -408,6 +477,7 @@ class FibsState extends ChangeNotifier {
     _session = _session.committed(); // canMoveNow off until the next board
     // an empty turn is a dance: FIBS auto-passes, so there's nothing to send.
     if (moves.isNotEmpty) _conn?.send(fibsTurnCommand(moves));
+    notifyListeners();
   }
 
   // Send a pre-built whole-turn `move ...` [command] and mark the turn
@@ -424,18 +494,21 @@ class FibsState extends ChangeNotifier {
     }
     _session = _session.committed(); // canMoveNow false until the next board
     _conn?.send(command);
+    notifyListeners();
   }
 
   void offerDouble() {
-    if (!canRoll) {
+    if (!canOfferDouble) {
       throw FibsStateError(
         'offerDouble: can only double on our turn before '
-        'rolling (isMyTurn=$isMyTurn dice=$activeDice)',
+        'rolling when FIBS allows it '
+        '(isMyTurn=$isMyTurn dice=$activeDice canRoll=$canRoll)',
       );
     }
     _session = _session
         .committed(); // we've acted this turn; await the response
     _conn?.send('double');
+    notifyListeners();
   }
 
   void acceptDouble() {
@@ -444,6 +517,7 @@ class FibsState extends ChangeNotifier {
     }
     _conn?.send('accept');
     _session = _session.doubleResolved();
+    notifyListeners();
   }
 
   void rejectDouble() {
@@ -452,6 +526,7 @@ class FibsState extends ChangeNotifier {
     }
     _conn?.send('reject');
     _session = _session.doubleResolved();
+    notifyListeners();
   }
 
   void resign() => _conn?.send('resign n'); // resign a normal loss
@@ -532,10 +607,7 @@ class FibsState extends ChangeNotifier {
     );
     final cookie = await conn
         .login(user, pass)
-        .timeout(
-          const Duration(seconds: 3),
-          onTimeout: () => FibsCookie.FIBS_Timeout,
-        );
+        .timeout(_loginTimeout, onTimeout: () => FibsCookie.FIBS_Timeout);
     if (cookie != FibsCookie.CLIP_WELCOME) {
       await _sub?.cancel(); // don't leave the failed session's listener live
       _sub = null;
@@ -556,6 +628,7 @@ class FibsState extends ChangeNotifier {
     _reconnectUsed = false; // a live session re-arms one auto-reconnect
     _lobbyReadyTracked = false;
     _doublePromptToggleSent = false;
+    _moreboardsToggleSent = false;
     analytics.track('app_fibs_login_success', screen: 'fibs_lobby');
     // raw board frames are required for parsing; moreboards is toggled on from
     // CLIP_OWN_INFO below so FIBS sends a board after every roll/move
@@ -696,6 +769,7 @@ class FibsState extends ChangeNotifier {
     _session = const FibsSession();
     _lobbyReadyTracked = false;
     _doublePromptToggleSent = false;
+    _moreboardsToggleSent = false;
     _cookieCount = 0;
     _lastCookie = null;
     _whoInfoCookieCount = 0;

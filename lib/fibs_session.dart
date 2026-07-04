@@ -22,6 +22,8 @@ class FibsSession {
     this.user,
     this.board,
     this.myDice = const [],
+    this.opponentDice = const [],
+    this.rollOrDoublePrompted = false,
     this.rolling = false,
     this.committedTurn = false,
     this.doubleOffered = false,
@@ -41,11 +43,20 @@ class FibsSession {
   // always re-send the board with our dice after a roll, so we track them here.
   final List<int> myDice;
 
+  // the dice the other player rolled, captured from FIBS_PlayerRolls. The next
+  // board frame often arrives after those dice have disappeared from the frame,
+  // so the renderer captures them from this session state before that board.
+  final List<int> opponentDice;
+
+  // FIBS explicitly prompts before it accepts `roll` or `double`. A plain board
+  // frame that says "our turn, no dice" is not enough because FIBS can
+  // immediately auto-roll for us and send FIBS_YouRoll instead.
+  final bool rollOrDoublePrompted;
+
   // transient "command in flight" flags so canRoll/canMoveNow stop being true
-  // the instant we act (FIBS has moreboards off, so it does NOT echo a board
-  // after our own roll/move). _rolling: we sent `roll`, awaiting our dice (a
-  // FIBS_YouRoll clears it). _committedTurn: we sent a whole move, awaiting the
-  // next board.
+  // the instant we act while we wait for FIBS to acknowledge the turn.
+  // _rolling: we sent `roll`, awaiting our dice (a FIBS_YouRoll clears it).
+  // _committedTurn: we sent a whole move, awaiting the next turn signal.
   final bool rolling;
   final bool committedTurn;
 
@@ -71,21 +82,32 @@ class FibsSession {
   bool get isMyTurn =>
       board != null && myColor != null && board!.turnPlayer == myColor;
 
-  // the dice we have to play: the board's dice if present (e.g. the opening),
-  // otherwise the dice we just rolled (FIBS_YouRoll)
+  // the dice currently being played: roll-cookie dice when present, otherwise
+  // the board's dice for fresh board frames such as the opening roll.
   List<int> get effectiveDice {
     if (board == null) return const [];
-    final boardDice = board!.activeDice;
-    if (boardDice.isNotEmpty) return boardDice;
-    return isMyTurn ? myDice : const [];
+    if (board!.turnPlayer == null) return const [];
+    final rolledDice = isMyTurn ? myDice : opponentDice;
+    if (rolledDice.isNotEmpty) return rolledDice;
+    return board!.activeDice;
   }
 
   // it's our turn and we have dice and we haven't already committed this turn
   bool get canMoveNow => isMyTurn && effectiveDice.isNotEmpty && !committedTurn;
 
-  // it's our turn, no dice yet, and we haven't already rolled -> we must roll
+  // it's our turn, FIBS has prompted for roll/double, no dice yet, and we
+  // haven't already rolled -> we may choose roll or double
   bool get canRoll =>
-      isMyTurn && effectiveDice.isEmpty && !rolling && !committedTurn;
+      isMyTurn &&
+      effectiveDice.isEmpty &&
+      rollOrDoublePrompted &&
+      !rolling &&
+      !committedTurn;
+
+  bool get canOfferDouble {
+    final me = myColor;
+    return canRoll && me != null && (board?.mayDoubleFor(me) ?? false);
+  }
 
   // the current game has finished: FIBS announced a result, or the board shows
   // all 15 borne off
@@ -99,7 +121,8 @@ class FibsSession {
   GammonState? get gameState {
     final b = board;
     if (b == null) return null;
-    final dice = myDice.isNotEmpty ? myDice : null;
+    final displayDice = effectiveDice;
+    final dice = displayDice.isNotEmpty ? displayDice : null;
     return myColor == null
         ? b.toGammonState(diceOverride: dice)
         : b.viewerState(me: myColor!, diceOverride: dice);
@@ -110,7 +133,9 @@ class FibsSession {
   // Fold an inbound FIBS cookie into the session. Pure: returns the next
   // session (or [this] unchanged for cookies this state machine ignores).
   FibsSession reduce(CookieMessage cm) => switch (cm.cookie) {
+    FibsCookie.FIBS_RollOrDouble => _afterRollOrDouble(),
     FibsCookie.FIBS_YouRoll => _afterYouRoll(cm),
+    FibsCookie.FIBS_PlayerRolls => _afterPlayerRolls(cm),
     FibsCookie.FIBS_Board => _afterBoard(cm),
     // FIBS announces the game/match result as a text message, not a 15-off
     // board, so these are the authoritative game-over signal. Includes the
@@ -141,10 +166,24 @@ class FibsSession {
     _ => this,
   };
 
+  FibsSession _afterRollOrDouble() {
+    var b = board;
+    final me = myColor;
+    if (me != null && b != null && b.turnPlayer != me) {
+      b = b.copyWith(turnColor: _turnColorFor(me));
+    }
+    return copyWith(
+      board: b,
+      myDice: const [],
+      opponentDice: const [],
+      rollOrDoublePrompted: true,
+      rolling: false,
+      committedTurn: false,
+    );
+  }
+
   FibsSession _afterYouRoll(CookieMessage cm) {
-    final d1 = int.parse(cm.crumb(FibsCrumbKeys.die1));
-    final d2 = int.parse(cm.crumb(FibsCrumbKeys.die2));
-    final dice = d1 == d2 ? [d1, d1, d1, d1] : [d1, d2];
+    final dice = _diceFromRoll(cm);
     // A YouRoll proves it's OUR turn. FIBS sometimes sends it WITHOUT a fresh
     // board (e.g. it auto-rolls for us after the opponent dances), leaving the
     // last board showing the opponent on roll -- which would wrongly play the
@@ -152,9 +191,36 @@ class FibsSession {
     var b = board;
     final me = myColor;
     if (me != null && b != null && b.turnPlayer != me) {
-      b = b.copyWith(turnColor: me == GammonPlayer.one ? -1 : 1);
+      b = b.copyWith(turnColor: _turnColorFor(me));
     }
-    return copyWith(board: b, myDice: dice, rolling: false);
+    return copyWith(
+      board: b,
+      myDice: dice,
+      opponentDice: const [],
+      rollOrDoublePrompted: false,
+      rolling: false,
+      committedTurn: false,
+    );
+  }
+
+  FibsSession _afterPlayerRolls(CookieMessage cm) {
+    final dice = _diceFromRoll(cm);
+    var b = board;
+    final roller = cm.crumbOrNull(FibsCrumbKeys.opponent);
+    final rollerColor = b == null || roller == null
+        ? null
+        : _colorForExactBoardName(b, roller);
+    if (b != null && rollerColor != null && b.turnPlayer != rollerColor) {
+      b = b.copyWith(turnColor: _turnColorFor(rollerColor));
+    }
+    return copyWith(
+      board: b,
+      myDice: const [],
+      opponentDice: dice,
+      rollOrDoublePrompted: false,
+      rolling: false,
+      committedTurn: false,
+    );
   }
 
   FibsSession _afterBoard(CookieMessage cm) {
@@ -167,9 +233,16 @@ class FibsSession {
     // Keep "we rolled, awaiting our dice" only on a same-state refresh (still
     // our turn, still no dice), so we don't roll twice; anything else settles.
     final settled = b.turnPlayer != me || b.activeDice.isNotEmpty;
+    final keepsRollPrompt =
+        rollOrDoublePrompted &&
+        b.turnPlayer == me &&
+        b.activeDice.isEmpty &&
+        !settled;
     return copyWith(
       board: b,
       myDice: const [],
+      opponentDice: const [],
+      rollOrDoublePrompted: keepsRollPrompt,
       doubleOffered: false, // a fresh board supersedes a pending offer
       resumeRequestFrom: null, // we're in a game now
       mustJoin: false,
@@ -188,8 +261,12 @@ class FibsSession {
       : copyWith(savedMatches: {...savedMatches, opponent});
 
   // our own actions, as explicit transitions (the optimistic in-flight flags)
-  FibsSession startedRolling() => copyWith(rolling: true);
-  FibsSession committed() => copyWith(committedTurn: true);
+  FibsSession startedRolling() =>
+      copyWith(rolling: true, rollOrDoublePrompted: false);
+  FibsSession committed() =>
+      copyWith(committedTurn: true, rollOrDoublePrompted: false);
+  FibsSession commandRejected() =>
+      copyWith(committedTurn: false, rolling: false);
   FibsSession joined() => copyWith(mustJoin: false, resumeRequestFrom: null);
   FibsSession doubleResolved() => copyWith(doubleOffered: false);
   FibsSession loggedInAs(String user) => copyWith(user: user);
@@ -198,6 +275,8 @@ class FibsSession {
   FibsSession outOfGame() => copyWith(
     board: null,
     myDice: const [],
+    opponentDice: const [],
+    rollOrDoublePrompted: false,
     rolling: false,
     committedTurn: false,
     gameEnded: false, // leaving clears any announced result
@@ -210,6 +289,8 @@ class FibsSession {
     Object? user = _unset,
     Object? board = _unset,
     List<int>? myDice,
+    List<int>? opponentDice,
+    bool? rollOrDoublePrompted,
     bool? rolling,
     bool? committedTurn,
     bool? doubleOffered,
@@ -222,6 +303,8 @@ class FibsSession {
     user: user == _unset ? this.user : user as String?,
     board: board == _unset ? this.board : board as FibsBoard?,
     myDice: myDice ?? this.myDice,
+    opponentDice: opponentDice ?? this.opponentDice,
+    rollOrDoublePrompted: rollOrDoublePrompted ?? this.rollOrDoublePrompted,
     rolling: rolling ?? this.rolling,
     committedTurn: committedTurn ?? this.committedTurn,
     doubleOffered: doubleOffered ?? this.doubleOffered,
@@ -233,4 +316,24 @@ class FibsSession {
     gameEnded: gameEnded ?? this.gameEnded,
     iWon: iWon == _unset ? this.iWon : iWon as bool?,
   );
+}
+
+List<int> _diceFromRoll(CookieMessage cm) {
+  final d1 = int.parse(cm.crumb(FibsCrumbKeys.die1));
+  final d2 = int.parse(cm.crumb(FibsCrumbKeys.die2));
+  return d1 == d2 ? [d1, d1, d1, d1] : [d1, d2];
+}
+
+int _turnColorFor(GammonPlayer player) => player == GammonPlayer.one ? -1 : 1;
+
+GammonPlayer? _colorForExactBoardName(FibsBoard board, String name) {
+  final player1 = board.player1Color == -1
+      ? GammonPlayer.one
+      : GammonPlayer.two;
+  final player2 = player1 == GammonPlayer.one
+      ? GammonPlayer.two
+      : GammonPlayer.one;
+  if (board.player1Name == name) return player1;
+  if (board.player2Name == name) return player2;
+  return null;
 }
