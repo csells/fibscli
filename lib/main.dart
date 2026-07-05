@@ -149,11 +149,16 @@ Future<AppDeps> bootstrap({
   fibs.onLogout = creds.forget;
   // Auto-reconnect after an unexpected drop by re-logging-in with the
   // remembered credentials; throw when there are none so FibsState falls back
-  // to the login screen. FibsState owns the one-reconnect-per-session guard.
-  fibs.onReconnect = () async {
-    if (!creds.canAutologin) throw StateError('no remembered credentials');
-    await fibs.login(user: creds.user!, pass: creds.password!);
-  };
+  // to the login screen. Live e2e treats a dropped FIBS socket as a stop sign
+  // and deliberately avoids opening a second session.
+  // ignore: do_not_use_environment
+  const fibsE2eProbe = bool.fromEnvironment('fibs_e2e_probe');
+  if (!fibsE2eProbe) {
+    fibs.onReconnect = () async {
+      if (!creds.canAutologin) throw StateError('no remembered credentials');
+      await fibs.login(user: creds.user!, pass: creds.password!);
+    };
+  }
   return AppDeps(fibs: fibs, creds: creds);
 }
 
@@ -202,7 +207,7 @@ class _AppState extends State<App> {
     // tab-close handler. On web, send FIBS a courtesy `bye` when the tab
     // closes — best-effort: a dropped connection ends the session regardless.
     onAppClose(() {
-      if (widget.fibs.loggedIn) widget.fibs.send('bye');
+      if (widget.fibs.loggedIn) widget.fibs.courtesyDisconnect();
     });
     installFibsE2eProbe(widget.fibs);
 

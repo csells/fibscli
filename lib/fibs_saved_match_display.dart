@@ -32,6 +32,35 @@ class SavedMatchDisplay {
   final String? note;
 }
 
+List<SavedMatchInfo> projectSavedMatchInfos({
+  required Iterable<SavedMatchInfo> savedMatches,
+  required Iterable<WhoInfo> whoInfos,
+  required String? currentUser,
+}) {
+  final matchesByOpponent = <String, SavedMatchInfo>{
+    for (final match in savedMatches)
+      FibsResumeCoordinator.key(match.opponent): match,
+  };
+  if (currentUser != null) {
+    final currentLower = currentUser.toLowerCase();
+    for (final who in whoInfos) {
+      if (who.opponent.toLowerCase() != currentLower) continue;
+      final key = FibsResumeCoordinator.key(who.user);
+      final existing = matchesByOpponent[key];
+      matchesByOpponent[key] = SavedMatchInfo(
+        opponent: existing?.opponent ?? who.user,
+        score1: existing?.score1,
+        score2: existing?.score2,
+        matchLength: existing?.matchLength,
+        availability: SavedMatchAvailability.ready,
+      );
+    }
+  }
+  final matches = matchesByOpponent.values.toList(growable: false);
+  matches.sort(_compareSavedMatches);
+  return matches;
+}
+
 SavedMatchDisplay savedMatchDisplayFor({
   required SavedMatchInfo match,
   required String? currentUser,
@@ -166,3 +195,18 @@ bool _whoIsPlayingCurrentUser(WhoInfo? who, String? currentUser) =>
 
 String _savedMatchSubtitle(String status, String? score, [String? action]) =>
     [status, if (score != null) score, if (action != null) action].join(' · ');
+
+int _compareSavedMatches(SavedMatchInfo a, SavedMatchInfo b) {
+  final status = _savedMatchRank(a).compareTo(_savedMatchRank(b));
+  if (status != 0) return status;
+  final folded = a.opponent.toLowerCase().compareTo(b.opponent.toLowerCase());
+  if (folded != 0) return folded;
+  return a.opponent.compareTo(b.opponent);
+}
+
+int _savedMatchRank(SavedMatchInfo match) => switch (match.availability) {
+  SavedMatchAvailability.ready => 0,
+  SavedMatchAvailability.online => 1,
+  SavedMatchAvailability.unknown => 2,
+  SavedMatchAvailability.offline => 3,
+};

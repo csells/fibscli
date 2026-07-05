@@ -291,44 +291,37 @@ void main() {
     expect(routePath(tester), AppRoutes.fibsPlay);
   });
 
-  testWidgets(
-    'FIBS active saved match resumes through the saved-match invite',
-    (tester) async {
-      late FakeTransport fakeTransport;
-      await pumpAt(
-        tester,
-        AppRoutes.fibsBots,
-        configure: (fibs, fake) async {
-          fakeTransport = fake;
-          await fibs.login(user: 'me', pass: 'pw');
-          fake.feed('**wildbg 0 0 - 1');
-          fibs.lobby.upsert(_who('wildbg', opponent: 'me'));
-        },
-      );
+  testWidgets('FIBS active saved match resumes by requesting the board', (
+    tester,
+  ) async {
+    late FakeTransport fakeTransport;
+    await pumpAt(
+      tester,
+      AppRoutes.fibsBots,
+      configure: (fibs, fake) async {
+        fakeTransport = fake;
+        await fibs.login(user: 'me', pass: 'pw');
+        fake.feed('**wildbg 0 0 - 1');
+        fibs.lobby.upsert(_who('wildbg', opponent: 'me'));
+      },
+    );
 
-      final resumeAction = find.byKey(const ValueKey('resume-wildbg'));
-      await tester.ensureVisible(resumeAction);
-      await tester.tap(resumeAction);
-      await tester.pumpAndSettle();
+    final resumeAction = find.byKey(const ValueKey('resume-wildbg'));
+    await tester.ensureVisible(resumeAction);
+    await tester.tap(resumeAction);
+    await tester.pumpAndSettle();
 
-      expect(fakeTransport.sent, contains('invite wildbg'));
-      expect(fakeTransport.sent, isNot(contains('join wildbg')));
-      expect(find.textContaining('Resuming'), findsOneWidget);
+    expect(fakeTransport.sent, contains('board'));
+    expect(fakeTransport.sent, isNot(contains('join wildbg')));
+    expect(fakeTransport.sent, isNot(contains('invite wildbg')));
+    expect(find.textContaining('Resuming'), findsOneWidget);
 
-      fakeTransport.feed(
-        'wildbg has joined you. Your running match was loaded',
-      );
-      await tester.pumpAndSettle();
+    fakeTransport.feed(_boardLine());
+    await tester.pump();
+    await tester.pumpAndSettle();
 
-      expect(fakeTransport.sent, contains('board'));
-
-      fakeTransport.feed(_boardLine());
-      await tester.pump();
-      await tester.pumpAndSettle();
-
-      expect(routePath(tester), AppRoutes.fibsPlay);
-    },
-  );
+    expect(routePath(tester), AppRoutes.fibsPlay);
+  });
 
   testWidgets('FIBS play route is deep-linkable during a game', (tester) async {
     await pumpAt(

@@ -21,26 +21,30 @@ enum FibsResumeBoardAction { admit, ignore, park }
 class FibsResumeBoardDecision {
   const FibsResumeBoardDecision._({
     required this.action,
+    required this.resume,
     this.opponent,
     this.refreshSavedGames = false,
   });
 
-  const FibsResumeBoardDecision.admit()
-    : this._(action: FibsResumeBoardAction.admit);
+  const FibsResumeBoardDecision.admit(FibsResumeCoordinator resume)
+    : this._(action: FibsResumeBoardAction.admit, resume: resume);
 
-  const FibsResumeBoardDecision.ignore()
-    : this._(action: FibsResumeBoardAction.ignore);
+  const FibsResumeBoardDecision.ignore(FibsResumeCoordinator resume)
+    : this._(action: FibsResumeBoardAction.ignore, resume: resume);
 
   const FibsResumeBoardDecision.park({
+    required FibsResumeCoordinator resume,
     required String? opponent,
     required bool refreshSavedGames,
   }) : this._(
          action: FibsResumeBoardAction.park,
+         resume: resume,
          opponent: opponent,
          refreshSavedGames: refreshSavedGames,
        );
 
   final FibsResumeBoardAction action;
+  final FibsResumeCoordinator resume;
   final String? opponent;
   final bool refreshSavedGames;
 }
@@ -51,23 +55,33 @@ enum FibsResumeAckAction { park, requestBoard }
 class FibsResumeAckDecision {
   const FibsResumeAckDecision._({
     required this.action,
+    required this.resume,
     this.opponent,
     this.refreshSavedGames = false,
   });
 
   const FibsResumeAckDecision.park({
+    required FibsResumeCoordinator resume,
     required String? opponent,
     required bool refreshSavedGames,
   }) : this._(
          action: FibsResumeAckAction.park,
+         resume: resume,
          opponent: opponent,
          refreshSavedGames: refreshSavedGames,
        );
 
-  const FibsResumeAckDecision.requestBoard(String? opponent)
-    : this._(action: FibsResumeAckAction.requestBoard, opponent: opponent);
+  const FibsResumeAckDecision.requestBoard({
+    required FibsResumeCoordinator resume,
+    required String? opponent,
+  }) : this._(
+         action: FibsResumeAckAction.requestBoard,
+         resume: resume,
+         opponent: opponent,
+       );
 
   final FibsResumeAckAction action;
+  final FibsResumeCoordinator resume;
   final String? opponent;
   final bool refreshSavedGames;
 }
@@ -95,13 +109,49 @@ class ResumeDelayInfo {
   String get sentence => '$opponent $detail.';
 }
 
-class FibsResumeCoordinator {
-  final _delays = <String, ResumeDelayInfo>{};
-  final _attempts = <String>{};
-  final _parkedKeys = <String>{};
+@immutable
+class FibsResumeParkResult {
+  const FibsResumeParkResult({
+    required this.resume,
+    required this.refreshSavedGames,
+  });
 
-  bool ignoreBoardsUntilUserAction = false;
-  bool captureUnsolicitedLoginBoard = false;
+  final FibsResumeCoordinator resume;
+  final bool refreshSavedGames;
+}
+
+@immutable
+class FibsResumeRejectedResult {
+  const FibsResumeRejectedResult({required this.resume, required this.cleared});
+
+  final FibsResumeCoordinator resume;
+  final bool cleared;
+}
+
+class FibsResumeCoordinator {
+  const FibsResumeCoordinator()
+    : _delays = const {},
+      _attempts = const {},
+      _parkedKeys = const {},
+      ignoreBoardsUntilUserAction = false,
+      captureUnsolicitedLoginBoard = false;
+
+  FibsResumeCoordinator._({
+    required Map<String, ResumeDelayInfo> delays,
+    required Set<String> attempts,
+    required Set<String> parkedKeys,
+    required this.ignoreBoardsUntilUserAction,
+    required this.captureUnsolicitedLoginBoard,
+  }) : _delays = Map.unmodifiable(delays),
+       _attempts = Set.unmodifiable(attempts),
+       _parkedKeys = Set.unmodifiable(parkedKeys);
+
+  final Map<String, ResumeDelayInfo> _delays;
+  final Set<String> _attempts;
+  final Set<String> _parkedKeys;
+
+  final bool ignoreBoardsUntilUserAction;
+  final bool captureUnsolicitedLoginBoard;
 
   static final _delayPattern = RegExp(
     r'^I will not attempt to resume for (?<minutes>[0-9]+) minutes?\.$',
@@ -119,43 +169,38 @@ class FibsResumeCoordinator {
 
   bool get hasPendingAttempt => _attempts.isNotEmpty;
 
-  void reset() {
-    ignoreBoardsUntilUserAction = false;
-    captureUnsolicitedLoginBoard = false;
-    _delays.clear();
-    _attempts.clear();
-    _parkedKeys.clear();
-  }
+  FibsResumeCoordinator reset() => const FibsResumeCoordinator();
 
-  void startLoginDiscovery() {
-    ignoreBoardsUntilUserAction = true;
-    captureUnsolicitedLoginBoard = true;
-    _delays.clear();
-    _attempts.clear();
-    _parkedKeys.clear();
-  }
+  FibsResumeCoordinator startLoginDiscovery() => FibsResumeCoordinator._(
+    delays: const {},
+    attempts: const {},
+    parkedKeys: const {},
+    ignoreBoardsUntilUserAction: true,
+    captureUnsolicitedLoginBoard: true,
+  );
 
-  void allowBoardAdmission() {
-    ignoreBoardsUntilUserAction = false;
-    captureUnsolicitedLoginBoard = false;
-  }
+  FibsResumeCoordinator allowBoardAdmission() => _copyWith(
+    ignoreBoardsUntilUserAction: false,
+    captureUnsolicitedLoginBoard: false,
+  );
 
-  void suppressBoards() {
-    ignoreBoardsUntilUserAction = true;
-    captureUnsolicitedLoginBoard = false;
-  }
+  FibsResumeCoordinator suppressBoards() => _copyWith(
+    ignoreBoardsUntilUserAction: true,
+    captureUnsolicitedLoginBoard: false,
+  );
 
-  void beginAttempt(String opponent) {
-    allowBoardAdmission();
+  FibsResumeCoordinator beginAttempt(String opponent) {
+    final admitted = allowBoardAdmission();
     final opponentKey = key(opponent);
-    _parkedKeys.remove(opponentKey);
-    _delays.remove(opponentKey);
-    _attempts.add(opponentKey);
+    return admitted._copyWith(
+      delays: {...admitted._delays}..remove(opponentKey),
+      attempts: {...admitted._attempts, opponentKey},
+      parkedKeys: {...admitted._parkedKeys}..remove(opponentKey),
+    );
   }
 
-  void markAttemptWaitingForBoard(String opponent) {
-    _attempts.add(key(opponent));
-  }
+  FibsResumeCoordinator markAttemptWaitingForBoard(String opponent) =>
+      _copyWith(attempts: {..._attempts, key(opponent)});
 
   bool shouldJoinPromptFrom(String? opponent) =>
       opponent != null && _attempts.contains(key(opponent));
@@ -171,80 +216,104 @@ class FibsResumeCoordinator {
     required bool hasSessionBoard,
   }) {
     if (!ignoreBoardsUntilUserAction || hasSessionBoard) {
-      return const FibsResumeBoardDecision.admit();
+      return FibsResumeBoardDecision.admit(this);
     }
     if (!captureUnsolicitedLoginBoard) {
-      return const FibsResumeBoardDecision.ignore();
+      return FibsResumeBoardDecision.ignore(this);
     }
+    final parked = markParked(opponent);
     return FibsResumeBoardDecision.park(
+      resume: parked.resume,
       opponent: opponent,
-      refreshSavedGames: markParked(opponent),
+      refreshSavedGames: parked.refreshSavedGames,
     );
   }
 
   FibsResumeAckDecision acceptResumeAcknowledgement(String? opponent) {
-    clearDelayForOpponent(opponent);
-    if (isUnsolicitedResume(opponent)) {
+    final cleared = clearDelayForOpponent(opponent);
+    if (cleared.isUnsolicitedResume(opponent)) {
+      final parked = cleared.markParked(opponent);
       return FibsResumeAckDecision.park(
+        resume: parked.resume,
         opponent: opponent,
-        refreshSavedGames: markParked(opponent),
+        refreshSavedGames: parked.refreshSavedGames,
       );
     }
-    if (opponent != null) markAttemptWaitingForBoard(opponent);
-    return FibsResumeAckDecision.requestBoard(opponent);
+    final next = opponent == null
+        ? cleared
+        : cleared.markAttemptWaitingForBoard(opponent);
+    return FibsResumeAckDecision.requestBoard(resume: next, opponent: opponent);
   }
 
-  bool markParked(String? opponent) {
+  FibsResumeParkResult markParked(String? opponent) {
     final opponentKey = opponent == null || opponent.isEmpty
         ? null
         : key(opponent);
-    captureUnsolicitedLoginBoard = false;
+    final delays = {..._delays};
+    final attempts = {..._attempts};
+    final parkedKeys = {..._parkedKeys};
+    var refreshSavedGames = opponentKey == null;
     if (opponentKey != null) {
-      _delays.remove(opponentKey);
-      _attempts.remove(opponentKey);
+      delays.remove(opponentKey);
+      attempts.remove(opponentKey);
+      refreshSavedGames = parkedKeys.add(opponentKey);
     }
-    return opponentKey == null || _parkedKeys.add(opponentKey);
+    return FibsResumeParkResult(
+      resume: _copyWith(
+        delays: delays,
+        attempts: attempts,
+        parkedKeys: parkedKeys,
+        captureUnsolicitedLoginBoard: false,
+      ),
+      refreshSavedGames: refreshSavedGames,
+    );
   }
 
-  void recordDelay(ResumeDelayInfo delay) {
+  FibsResumeCoordinator recordDelay(ResumeDelayInfo delay) {
     final opponentKey = key(delay.opponent);
-    _delays[opponentKey] = delay;
-    _attempts.remove(opponentKey);
+    return _copyWith(
+      delays: {..._delays, opponentKey: delay},
+      attempts: {..._attempts}..remove(opponentKey),
+    );
   }
 
-  bool clearRejected(FibsCookie cookie) {
+  FibsResumeRejectedResult clearRejected(FibsCookie cookie) {
     final cleared =
         _resumeRejectedCookies.contains(cookie) && _attempts.isNotEmpty;
-    if (cleared) _attempts.clear();
-    return cleared;
+    return FibsResumeRejectedResult(
+      resume: cleared ? _copyWith(attempts: const {}) : this,
+      cleared: cleared,
+    );
   }
 
-  void clearDelayForOpponent(String? opponent) {
-    if (opponent != null) _delays.remove(key(opponent));
+  FibsResumeCoordinator clearDelayForOpponent(String? opponent) {
+    if (opponent == null) return this;
+    final delays = {..._delays}..remove(key(opponent));
+    return _copyWith(delays: delays);
   }
 
-  void clearDelayForCookie(CookieMessage cm) {
+  FibsResumeCoordinator clearDelayForCookie(CookieMessage cm) {
     final opponent = switch (cm.cookie) {
       FibsCookie.FIBS_ResumeMatchAck0 ||
       FibsCookie.FIBS_ResumeMatchAck5 => cm.crumbOrNull(FibsCrumbKeys.opponent),
       FibsCookie.FIBS_ResumeMatchRequest => cm.crumbOrNull(FibsCrumbKeys.name),
       _ => null,
     };
-    clearDelayForOpponent(opponent);
+    return clearDelayForOpponent(opponent);
   }
 
-  void clearAttemptForCookie(CookieMessage cm) {
+  FibsResumeCoordinator clearAttemptForCookie(CookieMessage cm) {
     if (cm.cookie == FibsCookie.FIBS_Board ||
         cm.cookie == FibsCookie.FIBS_NoSavedGames) {
-      _attempts.clear();
-      return;
+      return _copyWith(attempts: const {});
     }
     final opponent = switch (cm.cookie) {
       FibsCookie.FIBS_ResumeMatchAck0 ||
       FibsCookie.FIBS_ResumeMatchAck5 => cm.crumbOrNull(FibsCrumbKeys.opponent),
       _ => null,
     };
-    if (opponent != null) _attempts.remove(key(opponent));
+    if (opponent == null) return this;
+    return _copyWith(attempts: {..._attempts}..remove(key(opponent)));
   }
 
   static ResumeDelayInfo? parseDelay(String opponent, String message) {
@@ -258,4 +327,20 @@ class FibsResumeCoordinator {
       receivedAt: DateTime.now(),
     );
   }
+
+  FibsResumeCoordinator _copyWith({
+    Map<String, ResumeDelayInfo>? delays,
+    Set<String>? attempts,
+    Set<String>? parkedKeys,
+    bool? ignoreBoardsUntilUserAction,
+    bool? captureUnsolicitedLoginBoard,
+  }) => FibsResumeCoordinator._(
+    delays: delays ?? _delays,
+    attempts: attempts ?? _attempts,
+    parkedKeys: parkedKeys ?? _parkedKeys,
+    ignoreBoardsUntilUserAction:
+        ignoreBoardsUntilUserAction ?? this.ignoreBoardsUntilUserAction,
+    captureUnsolicitedLoginBoard:
+        captureUnsolicitedLoginBoard ?? this.captureUnsolicitedLoginBoard,
+  );
 }

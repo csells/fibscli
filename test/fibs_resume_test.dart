@@ -121,7 +121,7 @@ void main() {
     expect(fibs.resumePendingFor('BlunderBot'), isTrue);
   });
 
-  test('resumeSavedMatch still invites when the who-list says the '
+  test('resumeSavedMatch requests the board when the who-list says the '
       'opponent is playing us', () async {
     final fake = FakeTransport();
     final fibs = await _loggedIn(fake);
@@ -129,8 +129,9 @@ void main() {
     fibs.lobby.upsert(_who('BlunderBot', opponent: 'joe_grammer'));
     fibs.resumeSavedMatch('BlunderBot');
 
-    expect(fake.sent, contains('invite BlunderBot'));
+    expect(fake.sent, contains('board'));
     expect(fake.sent, isNot(contains('join BlunderBot')));
+    expect(fake.sent, isNot(contains('invite BlunderBot')));
     expect(fibs.resumePendingFor('BlunderBot'), isTrue);
   });
 

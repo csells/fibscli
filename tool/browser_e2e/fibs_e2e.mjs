@@ -108,9 +108,14 @@ page.on('websocket', (ws) => {
 const waitForProbe = async (label, predicate, timeoutMs = 45000) => {
   const deadline = Date.now() + timeoutMs;
   let last = null;
+  let nextProgressAt = Date.now() + 10000;
   while (Date.now() < deadline) {
     last = await getProbeState();
     if (last && predicate(last)) return last;
+    if (Date.now() >= nextProgressAt) {
+      console.log(`E2E_WAIT ${label}: ${JSON.stringify(last)}`);
+      nextProgressAt += 10000;
+    }
     await sleep(500);
   }
   throw new Error(`${label} probe state not reached: ${JSON.stringify(last)}`);
@@ -158,9 +163,15 @@ const waitForScreenshotChange = async (
 const leaveGameIfOpen = async () => {
   const state = await getProbeState().catch(() => null);
   if (!state?.inGame || pathOf() !== '/fibs/play') return false;
-  await page.mouse.click(225, 815);
+  await page.mouse.click(313, 821);
   await waitForPath('/fibs/bots', 15000).catch(() => {});
   return true;
+};
+
+const clickLogout = async () => {
+  await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+  await sleep(750);
+  await page.mouse.click(1035, 44);
 };
 
 const logoutIfNeeded = async () => {
@@ -171,11 +182,12 @@ const logoutIfNeeded = async () => {
     await page.goto(`${BASE}/fibs/bots`, { waitUntil: 'load' }).catch(() => {});
     await sleep(1000);
   }
-  await page.mouse.click(1040, 42);
+  await clickLogout();
 };
 
 const runSavedMatchResumeCheck = async (initialLobbyState) => {
   const before = await getProbeState();
+  console.log('APP_STATE_RESUME_BEFORE:', JSON.stringify(before));
   if ((before.savedMatchReadyCount ?? 0) === 0) {
     const initialReady = initialLobbyState?.savedMatchReadyCount ?? 0;
     return {
@@ -195,6 +207,7 @@ const runSavedMatchResumeCheck = async (initialLobbyState) => {
     };
   }
 
+  console.log('E2E_RESUME_CLICK: first ready saved match');
   await page.mouse.click(1000, 455);
 
   const gameState = await waitForProbe(
@@ -345,7 +358,7 @@ try {
   const resumeResult = await runSavedMatchResumeCheck(lobbyState);
 
   // good citizen: log out cleanly (Logout is top-right on the bot list)
-  await page.mouse.click(1040, 42);
+  await clickLogout();
   const closeWaitUntil = Date.now() + 10000;
   while (!proxyWebSocketClosed && Date.now() < closeWaitUntil) {
     await sleep(500);

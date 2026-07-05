@@ -1,4 +1,5 @@
 import 'package:fibscli/fibs_play.dart';
+import 'package:fibscli/fibs_protocol.dart';
 import 'package:fibscli/fibs_state.dart';
 import 'package:fibscli/model.dart';
 import 'package:fibscli_lib/fibscli_lib.dart';
@@ -404,6 +405,30 @@ void main() {
       expect(fibs.messages.last.message, 'You must give 2 moves.');
     },
   );
+
+  test('protocol signals are transition-scoped, not sticky', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake, promptRoll: true);
+    fibs.roll();
+    fake.feed('You roll 4 and 2');
+    await Future<void>.delayed(Duration.zero);
+
+    fibs.submitTurn([
+      GammonMove(fromPipNo: 8, toPipNo: 4, hops: const [-4]),
+    ]);
+    fake.feed('** You must give 2 moves.');
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      fibs.lastProtocolSignals,
+      contains(FibsProtocolSignal.commandRejected),
+    );
+
+    fake.feed("** You're not playing.");
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.lastProtocolSignals, isEmpty);
+    expect(fibs.lastCommandRejected, isFalse);
+  });
 
   test(
     'a fresh our-turn board clears stale rolled dice (must roll again)',

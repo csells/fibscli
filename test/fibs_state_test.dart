@@ -95,5 +95,19 @@ void main() {
       expect(state.availableBots.map((w) => w.user), ['BlunderBot']);
       expect(notifications, greaterThan(0));
     });
+
+    test('who-list completion notifies FibsState listeners', () async {
+      final fake = FakeTransport();
+      final state = FibsState.withTransport(fake);
+      await state.login(user: 'joe', pass: 'pw');
+      var notifications = 0;
+      state.addListener(() => notifications += 1);
+
+      fake.feed('6'); // CLIP_WHO_END
+      await Future<void>.delayed(Duration.zero);
+
+      expect(state.whoListComplete, isTrue);
+      expect(notifications, greaterThan(0));
+    });
   });
 }

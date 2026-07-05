@@ -23,6 +23,9 @@ fi
 
 PORT=${PORT:-18088}
 HERE=tool/browser_e2e
+OUT_DIR=${OUT:-$HERE/out}
+mkdir -p "$OUT_DIR"
+OUT_DIR=$(cd "$OUT_DIR" && pwd)
 server_pid=""
 
 cleanup() {
@@ -34,7 +37,7 @@ trap cleanup EXIT
 U=$(grep -i '^fibs_uname[ ]*=' .env | head -1 | sed -E 's/^[^=]*=[ ]*//; s/^["'\'']//; s/["'\'']$//')
 P=$(grep -i '^fibs_pword[ ]*=' .env | head -1 | sed -E 's/^[^=]*=[ ]*//; s/^["'\'']//; s/["'\'']$//')
 [ -n "$U" ] && [ -n "$P" ] || { echo "missing fibs_uname/fibs_pword in .env"; exit 1; }
-echo "building web for user=$U (password hidden)"
+echo "building web with FIBS credentials from .env (values hidden)"
 
 if lsof -nP -iTCP:8080 -sTCP:LISTEN 2>/dev/null | grep -q websocat; then
   echo "websocat is running on :8080; stop it before hosted-proxy e2e" >&2
@@ -65,5 +68,5 @@ if [ ! -d "$HERE/node_modules/playwright" ]; then
 fi
 
 echo "running browser e2e..."
-( cd "$HERE" && BASE_URL="http://localhost:$PORT" OUT=out node fibs_e2e.mjs )
-echo "done — see $HERE/out/"
+( cd "$HERE" && BASE_URL="http://localhost:$PORT" OUT="$OUT_DIR" node fibs_e2e.mjs )
+echo "done — see $OUT_DIR/"

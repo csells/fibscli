@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'board_animator.dart';
 import 'dice.dart';
+import 'fibs_protocol.dart';
 import 'fibs_state.dart';
 import 'model.dart';
 import 'pieces.dart';
@@ -23,7 +24,7 @@ class FibsPlayController extends ChangeNotifier {
   // ignore: prefer_initializing_formals
   FibsPlayController({required FibsState fibs})
     : _fibs = fibs,
-      _seenCookieCount = fibs.cookieCount {
+      _seenProtocolSignalCount = fibs.protocolSignalCount {
     _prevBoard = _boardCopy();
     _prevDice = _diceSnapshot();
     _fibs.addListener(_onFibsChanged);
@@ -40,7 +41,7 @@ class FibsPlayController extends ChangeNotifier {
   GammonState? _turn;
   GammonState? _submittedTurn;
   final _moves = <GammonMove>[]; // the moves made this turn, to submit
-  int _seenCookieCount;
+  int _seenProtocolSignalCount;
 
   // The last board we saw + the dice in play on it -- i.e. the dice that
   // PRODUCED the move we animate when the next board arrives. We must capture
@@ -86,12 +87,12 @@ class FibsPlayController extends ChangeNotifier {
   /// side-effect-light, so the view calls it from build too (covers entering
   /// the view already on our move, when no notification fires). Never clobbers
   /// an in-progress turn.
-  void syncTurn({bool freshBoard = false}) {
+  void syncTurn({bool freshBoard = false, bool commandRejected = false}) {
     if (freshBoard) {
       _submittedTurn = null;
     } else if (_submittedTurn != null && _fibs.canMoveNow) {
       _turn = _freshTurn(
-        boardOverride: _fibs.lastCommandRejected ? null : _submittedTurn!.board,
+        boardOverride: commandRejected ? null : _submittedTurn!.board,
       );
       _submittedTurn = null;
       _moves.clear();
@@ -110,14 +111,17 @@ class FibsPlayController extends ChangeNotifier {
   }
 
   void _onFibsChanged() {
-    final advanced = _fibs.cookieCount != _seenCookieCount;
-    final lastCookie = _fibs.lastCookie;
-    final freshBoard = advanced && lastCookie == 'FIBS_Board';
-    final opponentRolled = advanced && lastCookie == 'FIBS_PlayerRolls';
-    final commandRejected = advanced && _fibs.lastCommandRejected;
-    _seenCookieCount = _fibs.cookieCount;
+    final advanced = _fibs.protocolSignalCount != _seenProtocolSignalCount;
+    final signals = _fibs.lastProtocolSignals;
+    final freshBoard =
+        advanced && signals.contains(FibsProtocolSignal.boardFrame);
+    final opponentRolled =
+        advanced && signals.contains(FibsProtocolSignal.opponentRolled);
+    final commandRejected =
+        advanced && signals.contains(FibsProtocolSignal.commandRejected);
+    _seenProtocolSignalCount = _fibs.protocolSignalCount;
     if (commandRejected) _autoBearOff = false;
-    syncTurn(freshBoard: freshBoard);
+    syncTurn(freshBoard: freshBoard, commandRejected: commandRejected);
 
     // Continue an enabled auto-bear-off onto our next turn (a fresh, un-started
     // race turn). Stop the moment contact resumes -- then it's a real decision

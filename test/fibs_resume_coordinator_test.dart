@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('login discovery parks the first unsolicited board once', () {
-    final resume = FibsResumeCoordinator()..startLoginDiscovery();
+    final resume = const FibsResumeCoordinator().startLoginDiscovery();
 
     final first = resume.decideBoard(
       opponent: 'BlunderBot',
@@ -15,7 +15,7 @@ void main() {
     expect(first.opponent, 'BlunderBot');
     expect(first.refreshSavedGames, isTrue);
 
-    final duplicate = resume.decideBoard(
+    final duplicate = first.resume.decideBoard(
       opponent: 'BlunderBot',
       hasSessionBoard: false,
     );
@@ -24,9 +24,9 @@ void main() {
   });
 
   test('explicit resume admits the next board and tracks the attempt', () {
-    final resume = FibsResumeCoordinator()..startLoginDiscovery();
-
-    resume.beginAttempt('BlunderBot');
+    final resume = const FibsResumeCoordinator()
+        .startLoginDiscovery()
+        .beginAttempt('BlunderBot');
 
     expect(resume.pendingFor('BlunderBot'), isTrue);
     expect(
@@ -38,48 +38,48 @@ void main() {
   test(
     'login-time resume acknowledgement parks instead of requesting board',
     () {
-      final resume = FibsResumeCoordinator()..startLoginDiscovery();
+      final resume = const FibsResumeCoordinator().startLoginDiscovery();
 
       final decision = resume.acceptResumeAcknowledgement('BlunderBot');
 
       expect(decision.action, FibsResumeAckAction.park);
       expect(decision.opponent, 'BlunderBot');
       expect(decision.refreshSavedGames, isTrue);
-      expect(resume.pendingFor('BlunderBot'), isFalse);
+      expect(decision.resume.pendingFor('BlunderBot'), isFalse);
     },
   );
 
   test('pending resume acknowledgement requests a board', () {
-    final resume = FibsResumeCoordinator()..beginAttempt('BlunderBot');
+    final resume = const FibsResumeCoordinator().beginAttempt('BlunderBot');
 
     final decision = resume.acceptResumeAcknowledgement('BlunderBot');
 
     expect(decision.action, FibsResumeAckAction.requestBoard);
     expect(decision.opponent, 'BlunderBot');
-    expect(resume.pendingFor('BlunderBot'), isTrue);
+    expect(decision.resume.pendingFor('BlunderBot'), isTrue);
   });
 
   test('resume delays clear pending attempts until they expire', () {
-    final resume = FibsResumeCoordinator()..beginAttempt('BlunderBot');
+    final resume = const FibsResumeCoordinator().beginAttempt('BlunderBot');
     final delay = ResumeDelayInfo(
       opponent: 'BlunderBot',
       minutes: 5,
       receivedAt: DateTime.now(),
     );
 
-    resume.recordDelay(delay);
+    final delayed = resume.recordDelay(delay);
 
-    expect(resume.pendingFor('BlunderBot'), isFalse);
-    expect(resume.delayFor('BlunderBot'), delay);
+    expect(delayed.pendingFor('BlunderBot'), isFalse);
+    expect(delayed.delayFor('BlunderBot'), delay);
   });
 
   test('rejected resume replies clear pending attempts', () {
-    final resume = FibsResumeCoordinator()..beginAttempt('BlunderBot');
+    final resume = const FibsResumeCoordinator().beginAttempt('BlunderBot');
 
     final cleared = resume.clearRejected(FibsCookie.FIBS_NoSavedMatch);
 
-    expect(cleared, isTrue);
-    expect(resume.pendingFor('BlunderBot'), isFalse);
+    expect(cleared.cleared, isTrue);
+    expect(cleared.resume.pendingFor('BlunderBot'), isFalse);
   });
 
   test('delay messages parse only exact FIBS resume-delay text', () {

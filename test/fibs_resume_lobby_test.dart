@@ -202,8 +202,9 @@ void main() {
     await tester.tap(resumeAction);
     await tester.pumpAndSettle();
 
-    expect(fake.sent, contains('invite MG'));
+    expect(fake.sent, contains('board'));
     expect(fake.sent, isNot(contains('join MG')));
+    expect(fake.sent, isNot(contains('invite MG')));
     expect(find.textContaining('Resuming'), findsOneWidget);
     expect(find.text("Waiting for FIBS to load MG's board"), findsOneWidget);
     expect(find.textContaining('WAITING'), findsWidgets);

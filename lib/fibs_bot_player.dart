@@ -49,11 +49,9 @@ class FibsBotPlayer {
     this.inviteRetry = const Duration(seconds: 8),
     this.whoCooldown = const Duration(seconds: 12),
   }) : _pace = pace ?? _humanPause {
-    // every FIBS cookie: hand to the optional observer (e.g. a trace), then act
-    _fibs.cookieObserver = (cm) {
-      onCookie?.call(cm);
-      _handleCookie(cm);
-    };
+    _cookieObserver = onCookie == null ? null : (cm) => onCookie(cm);
+    _fibs.cookieObserver = _cookieObserver;
+    _fibs.addListener(_handleStateChanged);
   }
 
   final FibsState _fibs;
@@ -67,6 +65,7 @@ class FibsBotPlayer {
   final Duration noGameTimeout;
   final Duration inviteRetry;
   final Duration whoCooldown;
+  void Function(CookieMessage)? _cookieObserver;
 
   int wins = 0;
   int losses = 0;
@@ -81,6 +80,7 @@ class FibsBotPlayer {
   var _burstDone = false; // the login who-list has finished arriving
   var _acting = false; // one paced action in flight (coalesces events)
   var _pendingInvite = false;
+  var _seenMatchResultCount = 0;
   DateTime? _whoAt; // last `who` request, to rate-limit it
 
   static final _rng = Random();
@@ -93,7 +93,8 @@ class FibsBotPlayer {
   /// Drive the session until the target wins are reached or a guard rail trips.
   /// Completes with the result; resigns any in-progress game on the way out.
   Future<BotPlayResult> run() {
-    _fibs.send('who'); // fetch the lobby ourselves; don't race login's who-list
+    _burstDone = _fibs.whoListComplete;
+    _fibs.refreshWhoList();
     _timers.add(Timer(deadline, () => _finish('deadline')));
     // stop sign: if we can't even get a game going, give up rather than sit on
     // a connection hammering `who` (e.g. the server is throttling us)
@@ -112,6 +113,10 @@ class FibsBotPlayer {
 
   void _finish(String why) {
     if (_done.isCompleted) return;
+    _fibs.removeListener(_handleStateChanged);
+    if (identical(_fibs.cookieObserver, _cookieObserver)) {
+      _fibs.cookieObserver = null;
+    }
     _stallTimer?.cancel();
     for (final t in _timers) {
       t.cancel();
@@ -132,40 +137,31 @@ class FibsBotPlayer {
           _fibs.canRoll ||
           _fibs.canMoveNow);
 
-  void _handleCookie(CookieMessage cm) {
-    final c = cm.cookie;
-    if (c == FibsCookie.FIBS_Board) {
-      // A board during normal play means we're in a match. But FIBS also sends
-      // a FINAL board after a win/loss; the betweenMatches guard keeps us from
-      // clearing matchOver on that one and firing a stray command.
+  void _handleStateChanged() {
+    if (_done.isCompleted) return;
+    if (_consumeMatchResult()) return;
+    if (_fibs.whoListComplete) {
+      _burstDone = true; // safe to invite a fresh bot now
+    }
+    if (_inGame) {
+      // A board during normal play means we're in a match. But FIBS can also
+      // send a final board after a win/loss; the between-matches guard keeps us
+      // from clearing matchOver on that one and firing a stray command.
       if (!_betweenMatches) _matchOver = false;
       _resetStall();
-      _scheduleAct();
-    } else if (c == FibsCookie.FIBS_RollOrDouble) {
-      _resetStall();
-      _scheduleAct();
-    } else if (c == FibsCookie.FIBS_YouRoll) {
-      _resetStall();
-      _scheduleAct();
-    } else if (c == FibsCookie.CLIP_WHO_END) {
-      _burstDone = true; // safe to invite a fresh bot now
-      _scheduleAct();
-    } else if (c == FibsCookie.FIBS_AcceptRejectDouble ||
-        c == FibsCookie.FIBS_ResumeMatchRequest ||
-        c == FibsCookie.FIBS_JoinNextGame ||
-        c == FibsCookie.FIBS_SavedMatch ||
-        c == FibsCookie.CLIP_WHO_INFO) {
-      _scheduleAct();
-    } else if (c == FibsCookie.FIBS_YouWinMatch) {
-      _matchOver = true;
-      _winnerIsMe = true;
-      _onMatchOver();
-    } else if (c == FibsCookie.FIBS_PlayerWinsMatch) {
-      _matchOver = true;
-      _winnerIsMe = false;
-      _onMatchOver();
     }
-    // any other cookie: ignored
+    _scheduleAct();
+  }
+
+  bool _consumeMatchResult() {
+    if (_fibs.protocolMatchResultCount == _seenMatchResultCount) return false;
+    _seenMatchResultCount = _fibs.protocolMatchResultCount;
+    final result = _fibs.lastProtocolMatchResult;
+    if (result == null) return false;
+    _matchOver = true;
+    _winnerIsMe = result.didIWin;
+    _onMatchOver();
+    return true;
   }
 
   void _resetStall() {
@@ -258,7 +254,7 @@ class FibsBotPlayer {
     if (resume) {
       _fibs.resumeSavedMatch(opponent);
     } else {
-      _fibs.send('invite $opponent 1');
+      _fibs.inviteBotByName(opponent, matchLength: 1);
     }
     invites++;
     _pendingInvite = true;
@@ -275,7 +271,7 @@ class FibsBotPlayer {
     final now = DateTime.now();
     final age = _whoAt == null ? null : now.difference(_whoAt!);
     if (age == null || age > whoCooldown) {
-      _fibs.send('who'); // who-info events will bring us back here
+      _fibs.refreshWhoList();
       _whoAt = now;
     }
   }
