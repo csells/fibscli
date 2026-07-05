@@ -14,9 +14,14 @@ String boardLine({String turn = '1', String p1dice = '0:0'}) =>
 String whoInfo(String name, {required String client, int rating = 1500}) =>
     '5 $name - - 1 0 $rating.00 1000 0 1234567890 host $client -';
 
-Future<FibsBotPlayer> _player(FakeTransport fake, {int targetWins = 2}) async {
+Future<FibsBotPlayer> _player(
+  FakeTransport fake, {
+  int targetWins = 2,
+  bool acceptBoards = false,
+}) async {
   final fibs = FibsState.withTransport(fake);
   await fibs.login(user: 'me', pass: 'x');
+  if (acceptBoards) fibs.resumeSavedMatch('wildbg');
   return FibsBotPlayer(
     fibs,
     pace: () async {}, // no human delay in tests
@@ -71,7 +76,7 @@ void main() {
 
   test('rolls when it is our turn with no dice', () async {
     final fake = FakeTransport();
-    final player = await _player(fake);
+    final player = await _player(fake, acceptBoards: true);
     unawaited(player.run());
 
     fake.feed(boardLine(p1dice: '0:0'));
@@ -84,7 +89,7 @@ void main() {
 
   test('rolls when the roll prompt arrives after the board', () async {
     final fake = FakeTransport();
-    final player = await _player(fake);
+    final player = await _player(fake, acceptBoards: true);
     unawaited(player.run());
 
     fake.feed(boardLine(p1dice: '0:0'));
@@ -100,7 +105,7 @@ void main() {
 
   test('plays a full-turn move when it is our turn with dice', () async {
     final fake = FakeTransport();
-    final player = await _player(fake);
+    final player = await _player(fake, acceptBoards: true);
     unawaited(player.run());
 
     fake.feed(boardLine(p1dice: '3:1'));

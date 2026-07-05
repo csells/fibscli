@@ -26,16 +26,6 @@ String boardLine({
 
 const rollOrDoubleLine = "It's your turn to roll or double.";
 
-// a finished game where we (player1 "You" = X) have borne off all 15.
-String gameOverLine() => [
-  'board', 'You', 'wildbg', '1', '0', '0',
-  List.filled(26, 0).join(':'),
-  '0', // turnColor 0 = game over
-  '0:0', '0:0', '1', '1', '1', '0',
-  '-1', '-1', '0', '25',
-  '15', '0', '0', '0', '0', '0', '0', '0', // xOff = 15 (we win)
-].join(':');
-
 String lateBearOffRaceLine() {
   final points = List.filled(26, 0);
   points[1] = -2;
@@ -79,18 +69,22 @@ Future<FibsState> _startGame(
   WidgetTester tester,
   FakeTransport fake, {
   String dice = '6:3',
+  String turn = '1',
   String player1MayDouble = '1',
   bool promptRoll = false,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final fibs = FibsState.withTransport(fake);
   await fibs.login(user: 'joe_grammer', pass: 'x');
+  fibs.resumeSavedMatch('wildbg');
   await tester.pumpWidget(
     MaterialApp(
       home: FibsPage(fibs: fibs, creds: await fakeCreds()),
     ),
   );
-  fake.feed(boardLine(p1dice: dice, player1MayDouble: player1MayDouble));
+  fake.feed(
+    boardLine(p1dice: dice, turn: turn, player1MayDouble: player1MayDouble),
+  );
   if (promptRoll) fake.feed(rollOrDoubleLine);
   await tester.pumpAndSettle();
   return fibs;
@@ -123,6 +117,31 @@ void main() {
     expect(fake.sent, contains('roll'));
   });
 
+  testWidgets('roll and double controls sit beside the board center', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake, dice: '0:0', promptRoll: true);
+
+    final board = tester.getRect(find.byType(BoardView));
+    final roll = tester.getRect(find.widgetWithText(FilledButton, 'Roll'));
+    final doubleButton = tester.getRect(
+      find.widgetWithText(OutlinedButton, 'Double'),
+    );
+
+    expect(roll.center.dy, greaterThan(board.top + board.height * 0.35));
+    expect(roll.center.dy, lessThan(board.top + board.height * 0.65));
+    expect(roll.center.dx, greaterThan(board.left));
+    expect(roll.center.dx, lessThan(board.left + board.width * 0.5));
+    expect(
+      doubleButton.center.dy,
+      greaterThan(board.top + board.height * 0.35),
+    );
+    expect(doubleButton.center.dy, lessThan(board.top + board.height * 0.65));
+    expect(doubleButton.center.dx, greaterThan(board.left));
+    expect(doubleButton.center.dx, lessThan(board.left + board.width * 0.5));
+  });
+
   testWidgets('roll controls wait for the FIBS roll-or-double prompt', (
     tester,
   ) async {
@@ -132,7 +151,7 @@ void main() {
     expect(fibs.canRoll, isFalse);
     expect(find.text('Roll'), findsNothing);
     expect(find.text('Double'), findsNothing);
-    expect(find.textContaining('Waiting for opponent'), findsOneWidget);
+    expect(find.textContaining('Waiting for wildbg'), findsOneWidget);
 
     fake.feed(rollOrDoubleLine);
     await tester.pumpAndSettle();
@@ -140,6 +159,59 @@ void main() {
     expect(fibs.canRoll, isTrue);
     expect(find.text('Roll'), findsOneWidget);
     expect(find.text('Double'), findsOneWidget);
+  });
+
+  testWidgets('waiting for an opponent has a visible leave action', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake, dice: '0:0', turn: '-1');
+
+    expect(find.textContaining('Waiting for wildbg'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Leave'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Resign'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Leave'));
+    await tester.pumpAndSettle();
+
+    expect(fake.sent, contains('leave'));
+    expect(fake.sent, isNot(contains('resign n')));
+    expect(find.text('Leave this game?'), findsNothing);
+    expect(find.text('Bots online'), findsOneWidget);
+  });
+
+  testWidgets('waiting status explains a delayed resume attempt', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake, dice: '0:0', turn: '-1');
+
+    fake.feed('12 wildbg I will not attempt to resume for 5 minutes.');
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining(
+        'Waiting for wildbg — will not attempt to resume for 5 minutes.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('waiting for an opponent has a visible resign action', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake, dice: '0:0', turn: '-1');
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Resign'));
+    await tester.pumpAndSettle();
+    expect(find.text('Resign this game?'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Resign'));
+    await tester.pump();
+
+    expect(fake.sent, contains('resign n'));
+    expect(fake.sent, isNot(contains('leave')));
   });
 
   testWidgets('double is hidden when FIBS says this side may not double', (
@@ -213,16 +285,71 @@ void main() {
     final fake = FakeTransport();
     await _startGame(tester, fake); // in the play view
 
-    fake.feed(gameOverLine()); // we bear off all 15 -> game over
+    fake.feed('You win the 1 point match 1-0 .');
     await tester.pumpAndSettle();
 
     // no more "Waiting for opponent…"; the result + escape hatch show instead
     expect(find.text('You win!'), findsOneWidget);
+    expect(find.text('You win the 1 point match 1-0.'), findsOneWidget);
     expect(find.text('Back to lobby'), findsOneWidget);
+    final board = tester.getRect(find.byType(BoardView));
+    final lobby = tester.getRect(
+      find.widgetWithText(FilledButton, 'Back to lobby'),
+    );
+    expect(lobby.center.dy, greaterThan(board.top + board.height * 0.35));
+    expect(lobby.center.dy, lessThan(board.top + board.height * 0.65));
+    expect(lobby.center.dx, greaterThan(board.left));
+    expect(lobby.center.dx, lessThan(board.left + board.width * 0.5));
 
     await tester.tap(find.text('Back to lobby'));
     await tester.pumpAndSettle();
     expect(find.text('Bots online'), findsOneWidget); // back at the lobby
+  });
+
+  testWidgets('Back leaves and saves the FIBS match instead of resigning', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake);
+
+    await tester.tap(find.byTooltip('leave'));
+    await tester.pumpAndSettle();
+
+    expect(fake.sent, contains('leave'));
+    expect(fake.sent, isNot(contains('resign n')));
+    expect(find.text('Leave this game?'), findsNothing);
+    expect(fake.sent.where((cmd) => cmd == 'show savedgames'), hasLength(2));
+    expect(find.text('Bots online'), findsOneWidget);
+    expect(find.text('wildbg'), findsOneWidget);
+    expect(find.textContaining('Saved'), findsOneWidget);
+  });
+
+  testWidgets('Back never offers resign as part of leaving', (tester) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake);
+
+    await tester.tap(find.byTooltip('leave'));
+    await tester.pumpAndSettle();
+
+    expect(fake.sent, contains('leave'));
+    expect(fake.sent, isNot(contains('resign n')));
+    expect(find.text('Leave this game?'), findsNothing);
+    expect(find.text('Resign this game?'), findsNothing);
+  });
+
+  testWidgets('resign is separate and explicit', (tester) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake);
+
+    await tester.tap(find.byTooltip('resign'));
+    await tester.pumpAndSettle();
+    expect(find.text('Resign this game?'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Resign'));
+    await tester.pump();
+
+    expect(fake.sent, contains('resign n'));
+    expect(fake.sent, isNot(contains('leave')));
   });
 
   testWidgets('the lobby has no "Play for me" (cheating on FIBS)', (
@@ -246,6 +373,7 @@ void main() {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake);
     await fibs.login(user: 'me', pass: 'x');
+    fibs.resumeSavedMatch('bot');
     await tester.pumpWidget(
       MaterialApp(
         home: FibsPage(fibs: fibs, creds: await fakeCreds()),
@@ -279,6 +407,7 @@ void main() {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake);
     await fibs.login(user: 'me', pass: 'x');
+    fibs.resumeSavedMatch('bot');
     await tester.pumpWidget(
       MaterialApp(
         home: FibsPage(fibs: fibs, creds: await fakeCreds()),
@@ -318,6 +447,7 @@ void main() {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake);
     await fibs.login(user: 'me', pass: 'x');
+    fibs.resumeSavedMatch('bot');
     await tester.pumpWidget(
       MaterialApp(
         home: FibsPage(fibs: fibs, creds: await fakeCreds()),

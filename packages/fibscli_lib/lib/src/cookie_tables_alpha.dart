@@ -390,7 +390,10 @@ final _alphaBatch = [
       'wrap) +(?<value>YES|NO)',
     ),
   ),
-  _CookieDough(cookie: FibsCookie.FIBS_Turn, re: RegExp('^turn:')),
+  _CookieDough(
+    cookie: FibsCookie.FIBS_Turn,
+    re: RegExp(r'^turn: ?(?<name>[a-zA-Z_<>]+)\.?'),
+  ),
   _CookieDough(
     cookie: FibsCookie.FIBS_SettingsValue,
     re: RegExp('^(?<name>boardstyle): +(?<value>[1-3])'),
@@ -490,7 +493,9 @@ final _alphaBatch = [
   ),
   _CookieDough(
     cookie: FibsCookie.FIBS_SavedMatchPlaying,
-    re: RegExp(r'^ \*[a-zA-Z_<>]+ +[0-9]+ +[0-9]+ +- +'),
+    re: RegExp(
+      r'^ \*(?<player1>[a-zA-Z_<>]+) +(?<score1>[0-9]+) +(?<score2>[0-9]+) +- +(?<something>.*)',
+    ),
   ),
   // NOTE: for FIBS_SavedMatchReady, see the Stars message, because it will
   // appear to be one of those (has asterisk at index 0).

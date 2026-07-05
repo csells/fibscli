@@ -143,8 +143,7 @@ class FibsPlayController extends ChangeNotifier {
       if (_turn == null &&
           _submittedTurn == null &&
           _prevBoard != null &&
-          Position.fromBoard(_prevBoard!) != Position.fromBoard(cur) &&
-          !animator.isAnimating) {
+          Position.fromBoard(_prevBoard!) != Position.fromBoard(cur)) {
         unawaited(
           animator.play(
             MoveAnimation.between(_prevBoard!, cur, dice: _prevDice),

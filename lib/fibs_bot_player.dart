@@ -205,7 +205,7 @@ class FibsBotPlayer {
     if (_fibs.doubleOffered) {
       _fibs.acceptDouble();
     } else if (_fibs.mustJoin || _fibs.resumeRequestFrom != null) {
-      _fibs.joinGame();
+      _fibs.joinGame(_fibs.resumeRequestFrom);
     } else if (_fibs.canRoll) {
       _fibs.roll();
     } else if (_fibs.canMoveNow) {
@@ -227,7 +227,7 @@ class FibsBotPlayer {
     if (_betweenMatches || _pendingInvite || _done.isCompleted) return;
     // an opponent asking us to resume, or "type join" between games
     if (_fibs.resumeRequestFrom != null || _fibs.mustJoin) {
-      _fibs.joinGame();
+      _fibs.joinGame(_fibs.resumeRequestFrom);
       return;
     }
     // finish what we've started: always resume a saved match first

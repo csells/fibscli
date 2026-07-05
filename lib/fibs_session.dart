@@ -5,6 +5,46 @@ import 'fibs_board.dart';
 import 'fibs_crumb_keys.dart';
 import 'model.dart';
 
+enum SavedMatchAvailability { unknown, offline, online, ready }
+
+@immutable
+class SavedMatchInfo {
+  const SavedMatchInfo({
+    required this.opponent,
+    this.score1,
+    this.score2,
+    this.matchLength,
+    this.availability = SavedMatchAvailability.unknown,
+  });
+
+  final String opponent;
+  final int? score1;
+  final int? score2;
+  final int? matchLength;
+  final SavedMatchAvailability availability;
+
+  bool get isReady => availability == SavedMatchAvailability.ready;
+
+  String get availabilityLabel => switch (availability) {
+    SavedMatchAvailability.ready => 'Ready to resume',
+    SavedMatchAvailability.online => 'Online, not ready',
+    SavedMatchAvailability.offline => 'Offline',
+    SavedMatchAvailability.unknown => 'Saved',
+  };
+
+  String? get scoreLabel {
+    final length = matchLength;
+    final left = score1;
+    final right = score2;
+    if (left != null && right != null && length != null) {
+      return '$left-$right to $length';
+    }
+    if (left != null && right != null) return '$left-$right';
+    if (length != null) return '$length-point match';
+    return null;
+  }
+}
+
 // The pure, immutable game/turn state of a FIBS session. Every piece of display
 // state the UI needs -- whose turn it is, the dice to play, whether we can roll
 // or move -- is DERIVED from a small set of authoritative fields, so there is
@@ -32,6 +72,7 @@ class FibsSession {
     this.savedMatches = const {},
     this.gameEnded = false,
     this.iWon,
+    this.resultMessage,
   });
 
   // --- authoritative state (the only real sources of truth) -----------------
@@ -63,7 +104,7 @@ class FibsSession {
   final bool doubleOffered; // the opponent doubled us; we must accept/reject
   final String? resumeRequestFrom; // an opponent asks to resume a saved match
   final bool mustJoin; // FIBS asks us to type 'join' to continue
-  final Set<String> savedMatches; // opponents we have an unfinished match with
+  final Map<String, SavedMatchInfo> savedMatches;
 
   // Set by any game/match-result cookie: FIBS announces the result as a text
   // message (not a 15-off board), so this is the game-over signal.
@@ -73,6 +114,9 @@ class FibsSession {
   // in progress OR ended with an undisambiguated winner (shows a generic
   // "Game over").
   final bool? iWon;
+
+  // The FIBS result line for a finished game/match, when FIBS announced one.
+  final String? resultMessage;
 
   // --- derived display state (single source of truth) -----------------------
 
@@ -136,6 +180,11 @@ class FibsSession {
     FibsCookie.FIBS_RollOrDouble => _afterRollOrDouble(),
     FibsCookie.FIBS_YouRoll => _afterYouRoll(cm),
     FibsCookie.FIBS_PlayerRolls => _afterPlayerRolls(cm),
+    FibsCookie.FIBS_Turn => _afterTurn(cm),
+    FibsCookie.FIBS_PleaseMove ||
+    FibsCookie.FIBS_YourTurnToMove => _afterMovePrompt(),
+    FibsCookie.FIBS_PlayerCantMove ||
+    FibsCookie.FIBS_CantMove => _afterCantMove(cm),
     FibsCookie.FIBS_Board => _afterBoard(cm),
     // FIBS announces the game/match result as a text message, not a 15-off
     // board, so these are the authoritative game-over signal. Includes the
@@ -143,20 +192,42 @@ class FibsSession {
     FibsCookie.FIBS_YouWinGame ||
     FibsCookie.FIBS_YouWinMatch ||
     FibsCookie.FIBS_ResignYouWin ||
-    FibsCookie.FIBS_YouAcceptAndWin => copyWith(gameEnded: true, iWon: true),
+    FibsCookie.FIBS_YouAcceptAndWin => copyWith(
+      gameEnded: true,
+      iWon: true,
+      resultMessage: _resultText(cm),
+    ),
     FibsCookie.FIBS_PlayerWinsGame ||
     FibsCookie.FIBS_PlayerWinsMatch ||
-    FibsCookie.FIBS_AcceptWins => copyWith(gameEnded: true, iWon: false),
+    FibsCookie.FIBS_AcceptWins => copyWith(
+      gameEnded: true,
+      iWon: false,
+      resultMessage: _resultText(cm),
+    ),
     // ended, winner not disambiguated here (a general "X gives up" line)
-    FibsCookie.FIBS_ResignWins => copyWith(gameEnded: true),
+    FibsCookie.FIBS_ResignWins => copyWith(
+      gameEnded: true,
+      resultMessage: _resultText(cm),
+    ),
     FibsCookie.FIBS_AcceptRejectDouble => copyWith(doubleOffered: true),
     FibsCookie.FIBS_SavedMatch => _withSavedMatch(
-      cm.crumbOrNull(FibsCrumbKeys.player1),
+      cm,
+      SavedMatchAvailability.offline,
+    ),
+    FibsCookie.FIBS_SavedMatchPlaying => _withSavedMatch(
+      cm,
+      SavedMatchAvailability.online,
+    ),
+    FibsCookie.FIBS_SavedMatchReady => _withSavedMatch(
+      cm,
+      SavedMatchAvailability.ready,
     ),
     FibsCookie.FIBS_NoSavedGames => copyWith(savedMatches: const {}),
-    FibsCookie.FIBS_ResumeMatchRequest => copyWith(
-      resumeRequestFrom: cm.crumbOrNull(FibsCrumbKeys.name),
-    ),
+    FibsCookie.FIBS_ResumeMatchRequest => withSavedOpponent(
+      cm.crumbOrNull(FibsCrumbKeys.name),
+      availability: SavedMatchAvailability.ready,
+    ).copyWith(resumeRequestFrom: cm.crumbOrNull(FibsCrumbKeys.name)),
+    FibsCookie.FIBS_TypeJoin => _withJoinPrompt(cm),
     FibsCookie.FIBS_JoinNextGame => copyWith(mustJoin: true),
     FibsCookie.FIBS_ResumeMatchAck0 ||
     FibsCookie.FIBS_ResumeMatchAck5 => copyWith(
@@ -223,6 +294,51 @@ class FibsSession {
     );
   }
 
+  FibsSession _afterTurn(CookieMessage cm) {
+    final b = board;
+    if (b == null) return this;
+    final player = cm.crumbOrNull(FibsCrumbKeys.name);
+    final color = player == null
+        ? null
+        : _colorForBoardTurnName(b, player, user);
+    if (color == null) return this;
+    return copyWith(
+      board: b.copyWith(turnColor: _turnColorFor(color)),
+      myDice: const [],
+      opponentDice: const [],
+      rollOrDoublePrompted: false,
+      rolling: false,
+      committedTurn: false,
+    );
+  }
+
+  FibsSession _afterMovePrompt() {
+    var b = board;
+    final me = myColor;
+    if (me != null && b != null && b.turnPlayer != me) {
+      b = b.copyWith(turnColor: _turnColorFor(me));
+    }
+    return copyWith(
+      board: b,
+      rollOrDoublePrompted: false,
+      rolling: false,
+      committedTurn: false,
+    );
+  }
+
+  FibsSession _afterCantMove(CookieMessage cm) {
+    final player =
+        cm.crumbOrNull(FibsCrumbKeys.player) ??
+        cm.crumbOrNull(FibsCrumbKeys.name);
+    if (!_isMe(player)) return this;
+    return copyWith(
+      myDice: const [],
+      rollOrDoublePrompted: false,
+      rolling: false,
+      committedTurn: true,
+    );
+  }
+
   FibsSession _afterBoard(CookieMessage cm) {
     final b = FibsBoard.fromCrumbs(cm.crumbs!);
     // A board is the AUTHORITATIVE dice state: its activeDice are our dice for
@@ -252,13 +368,68 @@ class FibsSession {
       // result; a game-over board keeps whatever result was announced
       gameEnded: b.isGameOver && gameEnded,
       iWon: b.isGameOver ? iWon : null,
+      resultMessage: b.isGameOver ? resultMessage : null,
     );
   }
 
-  FibsSession _withSavedMatch(String? opponent) =>
-      (opponent == null || opponent.isEmpty)
-      ? this
-      : copyWith(savedMatches: {...savedMatches, opponent});
+  FibsSession _withSavedMatch(
+    CookieMessage cm,
+    SavedMatchAvailability availability,
+  ) {
+    final opponent =
+        cm.crumbOrNull(FibsCrumbKeys.player1) ??
+        cm.crumbOrNull(FibsCrumbKeys.opponent) ??
+        cm.crumbOrNull(FibsCrumbKeys.name);
+    if (opponent == null || opponent.isEmpty) return this;
+    final existing = savedMatches[opponent];
+    return copyWith(
+      savedMatches: {
+        ...savedMatches,
+        opponent: SavedMatchInfo(
+          opponent: opponent,
+          score1: _intCrumb(cm, 'score1') ?? existing?.score1,
+          score2: _intCrumb(cm, 'score2') ?? existing?.score2,
+          matchLength:
+              _intCrumb(cm, 'something') ??
+              _intCrumb(cm, 'matchLength') ??
+              existing?.matchLength,
+          availability: availability,
+        ),
+      },
+    );
+  }
+
+  FibsSession withSavedOpponent(
+    String? opponent, {
+    SavedMatchAvailability availability = SavedMatchAvailability.unknown,
+  }) {
+    if (opponent == null || opponent.isEmpty) return this;
+    final existing = savedMatches[opponent];
+    return copyWith(
+      savedMatches: {
+        ...savedMatches,
+        opponent: SavedMatchInfo(
+          opponent: opponent,
+          score1: existing?.score1,
+          score2: existing?.score2,
+          matchLength: existing?.matchLength,
+          availability: availability,
+        ),
+      },
+    );
+  }
+
+  FibsSession _withJoinPrompt(CookieMessage cm) {
+    final opponent = cm.crumbOrNull(FibsCrumbKeys.opponent);
+    if (opponent == null || opponent.isEmpty) return this;
+    if (!savedMatches.containsKey(opponent) && resumeRequestFrom != opponent) {
+      return this;
+    }
+    return withSavedOpponent(
+      opponent,
+      availability: SavedMatchAvailability.ready,
+    ).copyWith(resumeRequestFrom: opponent);
+  }
 
   // our own actions, as explicit transitions (the optimistic in-flight flags)
   FibsSession startedRolling() =>
@@ -271,17 +442,25 @@ class FibsSession {
   FibsSession doubleResolved() => copyWith(doubleOffered: false);
   FibsSession loggedInAs(String user) => copyWith(user: user);
 
+  bool _isMe(String? name) {
+    if (name == null) return false;
+    if (name == 'You') return true;
+    return user != null && name.toLowerCase() == user!.toLowerCase();
+  }
+
   // out of a game: watching, leaving, or switching whom we watch
-  FibsSession outOfGame() => copyWith(
-    board: null,
-    myDice: const [],
-    opponentDice: const [],
-    rollOrDoublePrompted: false,
-    rolling: false,
-    committedTurn: false,
-    gameEnded: false, // leaving clears any announced result
-    iWon: null,
-  );
+  FibsSession outOfGame({String? savedOpponent}) =>
+      withSavedOpponent(savedOpponent).copyWith(
+        board: null,
+        myDice: const [],
+        opponentDice: const [],
+        rollOrDoublePrompted: false,
+        rolling: false,
+        committedTurn: false,
+        gameEnded: false, // leaving clears any announced result
+        iWon: null,
+        resultMessage: null,
+      );
 
   static const _unset = Object();
 
@@ -296,9 +475,10 @@ class FibsSession {
     bool? doubleOffered,
     Object? resumeRequestFrom = _unset,
     bool? mustJoin,
-    Set<String>? savedMatches,
+    Map<String, SavedMatchInfo>? savedMatches,
     bool? gameEnded,
     Object? iWon = _unset,
+    Object? resultMessage = _unset,
   }) => FibsSession(
     user: user == _unset ? this.user : user as String?,
     board: board == _unset ? this.board : board as FibsBoard?,
@@ -315,13 +495,26 @@ class FibsSession {
     savedMatches: savedMatches ?? this.savedMatches,
     gameEnded: gameEnded ?? this.gameEnded,
     iWon: iWon == _unset ? this.iWon : iWon as bool?,
+    resultMessage: resultMessage == _unset
+        ? this.resultMessage
+        : resultMessage as String?,
   );
+}
+
+String _resultText(CookieMessage cm) {
+  final compact = cm.raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+  return compact.replaceAllMapped(RegExp(r'\s+([.!?,])'), (m) => m[1]!);
 }
 
 List<int> _diceFromRoll(CookieMessage cm) {
   final d1 = int.parse(cm.crumb(FibsCrumbKeys.die1));
   final d2 = int.parse(cm.crumb(FibsCrumbKeys.die2));
   return d1 == d2 ? [d1, d1, d1, d1] : [d1, d2];
+}
+
+int? _intCrumb(CookieMessage cm, String key) {
+  final value = cm.crumbOrNull(key);
+  return value == null ? null : int.tryParse(value);
 }
 
 int _turnColorFor(GammonPlayer player) => player == GammonPlayer.one ? -1 : 1;
@@ -335,5 +528,28 @@ GammonPlayer? _colorForExactBoardName(FibsBoard board, String name) {
       : GammonPlayer.one;
   if (board.player1Name == name) return player1;
   if (board.player2Name == name) return player2;
+  return null;
+}
+
+GammonPlayer? _colorForBoardTurnName(
+  FibsBoard board,
+  String name,
+  String? user,
+) {
+  final folded = name.toLowerCase();
+  final player1 = board.player1Color == -1
+      ? GammonPlayer.one
+      : GammonPlayer.two;
+  final player2 = player1 == GammonPlayer.one
+      ? GammonPlayer.two
+      : GammonPlayer.one;
+  if (name == 'You') {
+    return user == null ? player1 : board.colorFor(user);
+  }
+  if (user != null && folded == user.toLowerCase()) {
+    return board.colorFor(user);
+  }
+  if (board.player1Name.toLowerCase() == folded) return player1;
+  if (board.player2Name.toLowerCase() == folded) return player2;
   return null;
 }

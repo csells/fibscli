@@ -16,8 +16,10 @@ abstract final class FibsCrumbKeys {
   static const hostName = 'hostName';
   static const client = 'client';
   static const email = 'email';
+  static const from = 'from';
   static const message = 'message';
   static const player1 = 'player1';
+  static const player = 'player';
   static const die1 = 'die1';
   static const die2 = 'die2';
 }

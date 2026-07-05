@@ -18,6 +18,11 @@ import 'tinystate.dart';
 // WhoInfo/FibsLobby moved to fibs_lobby.dart; re-export so importers of
 // fibs_state (the UI, tests) still see WhoInfo unchanged.
 export 'fibs_lobby.dart' show FibsLobby, WhoInfo;
+export 'fibs_session.dart' show SavedMatchAvailability, SavedMatchInfo;
+
+part 'fibs_resume_state.dart';
+part 'fibs_saved_match_display.dart';
+part 'fibs_state_actions.dart';
 
 final _log = Logger('fibs');
 
@@ -159,6 +164,7 @@ class FibsState extends ChangeNotifier {
   bool _lobbyReadyTracked = false;
   bool _doublePromptToggleSent = false;
   bool _moreboardsToggleSent = false;
+  final _resume = _FibsResumeState();
   var _cookieCount = 0;
   FibsCookie? _lastCookie;
   var _whoInfoCookieCount = 0;
@@ -170,13 +176,81 @@ class FibsState extends ChangeNotifier {
   FibsBoard? get board => _session.board;
 
   bool get doubleOffered => _session.doubleOffered;
+  List<SavedMatchInfo> get savedMatchInfos {
+    final matchesByOpponent = <String, SavedMatchInfo>{
+      for (final match in _session.savedMatches.values)
+        _FibsResumeState.key(match.opponent): match,
+    };
+    final currentUser = user;
+    if (currentUser != null) {
+      final currentLower = currentUser.toLowerCase();
+      for (final who in whoInfos) {
+        if (who.opponent.toLowerCase() != currentLower) continue;
+        final key = _FibsResumeState.key(who.user);
+        final existing = matchesByOpponent[key];
+        matchesByOpponent[key] = SavedMatchInfo(
+          opponent: existing?.opponent ?? who.user,
+          score1: existing?.score1,
+          score2: existing?.score2,
+          matchLength: existing?.matchLength,
+          availability: SavedMatchAvailability.ready,
+        );
+      }
+    }
+    final matches = matchesByOpponent.values.toList(growable: false);
+    matches.sort(_compareSavedMatches);
+    return matches;
+  }
+
   List<String> get savedMatches =>
-      _session.savedMatches.toList(growable: false);
+      savedMatchInfos.map((match) => match.opponent).toList(growable: false);
   String? get resumeRequestFrom => _session.resumeRequestFrom;
   bool get mustJoin => _session.mustJoin;
 
+  List<SavedMatchDisplay> get savedMatchDisplays => [
+    for (final match in savedMatchInfos)
+      _savedMatchDisplayFor(
+        match: match,
+        currentUser: user,
+        resumePending: resumePendingFor(match.opponent),
+        resumeRequested:
+            resumeRequestFrom?.toLowerCase() == match.opponent.toLowerCase(),
+        resumeDelay: resumeDelayFor(match.opponent),
+        who: _whoFor(match.opponent),
+      ),
+  ];
+
+  ResumeDelayInfo? resumeDelayFor(String opponent) =>
+      _resume.delayFor(opponent);
+
+  bool resumePendingFor(String opponent) => _resume.pendingFor(opponent);
+
+  WhoInfo? _whoFor(String opponent) {
+    final lower = opponent.toLowerCase();
+    for (final who in whoInfos) {
+      if (who.user.toLowerCase() == lower) return who;
+    }
+    return null;
+  }
+
+  static int _compareSavedMatches(SavedMatchInfo a, SavedMatchInfo b) {
+    final status = _savedMatchRank(a).compareTo(_savedMatchRank(b));
+    if (status != 0) return status;
+    final folded = a.opponent.toLowerCase().compareTo(b.opponent.toLowerCase());
+    if (folded != 0) return folded;
+    return a.opponent.compareTo(b.opponent);
+  }
+
+  static int _savedMatchRank(SavedMatchInfo match) =>
+      switch (match.availability) {
+        SavedMatchAvailability.ready => 0,
+        SavedMatchAvailability.online => 1,
+        SavedMatchAvailability.unknown => 2,
+        SavedMatchAvailability.offline => 3,
+      };
+
   String? get user => _session.user;
-  bool get connected => _conn?.connected ?? false;
+  bool get connected => user != null && (_conn?.connected ?? false);
 
   WhoInfo? get currentUserInfo {
     final current = user;
@@ -204,6 +278,7 @@ class FibsState extends ChangeNotifier {
 
   // The current game has finished (FIBS announced a result, or 15 borne off).
   bool get isGameOver => _session.isGameOver;
+  String? get gameResultMessage => _session.resultMessage;
 
   int get cookieCount => _cookieCount;
   String? get lastCookie => _lastCookie?.name;
@@ -260,8 +335,14 @@ class FibsState extends ChangeNotifier {
     FibsCookie.CLIP_WHISPERS: _onChatMessage,
     FibsCookie.FIBS_YouRoll: _applyCookie,
     FibsCookie.FIBS_PlayerRolls: _applyCookie,
+    FibsCookie.FIBS_Turn: _onTurnText,
+    FibsCookie.FIBS_PleaseMove: _onMovePrompt,
+    FibsCookie.FIBS_YourTurnToMove: _onMovePrompt,
+    FibsCookie.FIBS_PlayerMoves: _onBoardRefreshText,
+    FibsCookie.FIBS_PlayerCantMove: _onCantMoveText,
+    FibsCookie.FIBS_CantMove: _onCantMoveText,
     FibsCookie.FIBS_RollOrDouble: _applyCookie,
-    FibsCookie.FIBS_Board: _applyCookie,
+    FibsCookie.FIBS_Board: _onBoard,
     // game/match results: FIBS announces the winner as a text message, so these
     // are what actually ends the game in the UI (a 15-off board never arrives).
     // Includes resignation outcomes.
@@ -283,20 +364,34 @@ class FibsState extends ChangeNotifier {
     ),
     FibsCookie.FIBS_AcceptRejectDouble: _applyCookie,
     FibsCookie.FIBS_SavedMatch: _applyCookie,
+    FibsCookie.FIBS_SavedMatchPlaying: _applyCookie,
+    FibsCookie.FIBS_SavedMatchReady: _applyCookie,
     FibsCookie.FIBS_NoSavedGames: _applyCookie,
-    // an opponent asking to resume, or FIBS prompting "type join" between/into
-    // games, both need a `join` to actually load the board -- auto-join so an
-    // outstanding game ALWAYS drops us back in, no tap required.
-    FibsCookie.FIBS_ResumeMatchRequest: _applyAndAutoJoin,
+    FibsCookie.FIBS_ResumeMatchRequest: _onResumeMatchRequest,
+    FibsCookie.FIBS_TypeJoin: _onTypeJoin,
+    // Between games inside the same live match, FIBS asks for a bare `join`.
+    // Continue the match automatically; this is not a saved-match resume.
     FibsCookie.FIBS_JoinNextGame: _applyAndAutoJoin,
-    FibsCookie.FIBS_ResumeMatchAck0: _applyCookie,
-    FibsCookie.FIBS_ResumeMatchAck5: _applyCookie,
+    FibsCookie.FIBS_ResumeMatchAck0: _onResumeMatchAccepted,
+    FibsCookie.FIBS_ResumeMatchAck5: _onResumeMatchAccepted,
+    FibsCookie.FIBS_OpponentLogsOut: _onGameSavedByOpponent,
+    FibsCookie.FIBS_OpponentLeftGame: _onGameSavedByOpponent,
     FibsCookie.FIBS_BadMove: _onCommandRejected,
     FibsCookie.FIBS_CantMoveFirstMove: _onCommandRejected,
     FibsCookie.FIBS_MustComeIn: _onCommandRejected,
     FibsCookie.FIBS_MustMove: _onCommandRejected,
+    FibsCookie.FIBS_NoSavedMatch: _onSystemMessage,
+    FibsCookie.FIBS_WARNINGSavedMatch: (_) {},
+    FibsCookie.FIBS_NoOne: _onSystemMessage,
+    FibsCookie.FIBS_NoUser: _onSystemMessage,
+    FibsCookie.FIBS_PlayerRefusingGames: _onSystemMessage,
+    FibsCookie.FIBS_AlreadyPlaying: _onAlreadyPlaying,
+    FibsCookie.FIBS_DidntInvite: _onSystemMessage,
+    FibsCookie.FIBS_DontKnowUser: _onSystemMessage,
     FibsCookie.FIBS_NotYourTurnToMove: _onSystemMessage,
     FibsCookie.FIBS_NotYourTurnToRoll: _onSystemMessage,
+    FibsCookie.FIBS_NotPlaying: _onSystemMessage,
+    FibsCookie.FIBS_NotWatchingPlaying: _onSystemMessage,
     FibsCookie.FIBS_UnknownCommand: _onSystemMessage,
   };
 
@@ -304,21 +399,133 @@ class FibsState extends ChangeNotifier {
   void _applyCookie(CookieMessage cm) {
     final wasInGame = _session.board != null;
     final wasGameOver = _session.isGameOver;
+    _resume.clearDelayForCookie(cm);
+    _resume.clearAttemptForCookie(cm);
     _session = _session.reduce(cm);
     _trackSessionTransition(wasInGame: wasInGame, wasGameOver: wasGameOver);
     notifyListeners();
   }
 
-  // Reduce a resume/join prompt and immediately send `join` so the saved game
-  // loads on its own. FIBS sometimes reloads the match and sends a board
-  // directly; otherwise it waits for a `join`, which this sends automatically.
+  void _onBoard(CookieMessage cm) {
+    if (_resume.ignoreBoardsUntilUserAction && _session.board == null) {
+      if (_resume.captureUnsolicitedLoginBoard) {
+        final board = FibsBoard.fromCrumbs(cm.crumbs!);
+        _parkSavedMatchInLobby(board.opponentNameFor(_session.user));
+      }
+      return;
+    }
+    _applyCookie(cm);
+  }
+
+  // Reduce a next-game prompt and immediately send `join` so an active match
+  // continues. Saved-match resume prompts are handled separately so login does
+  // not auto-enter an unfinished game.
   void _applyAndAutoJoin(CookieMessage cm) {
     final wasInGame = _session.board != null;
     final wasGameOver = _session.isGameOver;
     _session = _session.reduce(cm);
     _trackSessionTransition(wasInGame: wasInGame, wasGameOver: wasGameOver);
-    if (_session.mustJoin || _session.resumeRequestFrom != null) {
+    if (_session.mustJoin) {
       joinGame(); // sends `join` and clears the prompt
+    }
+    notifyListeners();
+  }
+
+  void _onResumeMatchAccepted(CookieMessage cm) {
+    final wasInGame = _session.board != null;
+    final wasGameOver = _session.isGameOver;
+    final opponent = cm.crumbOrNull(FibsCrumbKeys.opponent);
+    if (_isUnsolicitedResume(opponent)) {
+      _parkSavedMatchInLobby(opponent);
+      return;
+    }
+    final saved = opponent == null ? null : _session.savedMatches[opponent];
+    _resume.clearDelayForCookie(cm);
+    _session = _session.reduce(cm);
+    if (_session.board == null && opponent != null) {
+      _resume.markAttemptWaitingForBoard(opponent);
+      _session = _session.copyWith(
+        savedMatches: {
+          ..._session.savedMatches,
+          opponent:
+              saved ??
+              SavedMatchInfo(
+                opponent: opponent,
+                availability: SavedMatchAvailability.ready,
+              ),
+        },
+      );
+    }
+    _trackSessionTransition(wasInGame: wasInGame, wasGameOver: wasGameOver);
+    notifyListeners();
+    _conn?.send('board');
+  }
+
+  void _onResumeMatchRequest(CookieMessage cm) {
+    final wasInGame = _session.board != null;
+    final wasGameOver = _session.isGameOver;
+    _resume.clearDelayForCookie(cm);
+    final opponent = cm.crumbOrNull(FibsCrumbKeys.name);
+    final joining = _resume.shouldJoinPromptFrom(opponent);
+    _session = _session.reduce(cm);
+    if (joining) {
+      _conn?.send('join $opponent');
+      _session = _session.joined();
+    }
+    _trackSessionTransition(wasInGame: wasInGame, wasGameOver: wasGameOver);
+    notifyListeners();
+  }
+
+  void _onTypeJoin(CookieMessage cm) {
+    final wasInGame = _session.board != null;
+    final wasGameOver = _session.isGameOver;
+    final opponent = cm.crumbOrNull(FibsCrumbKeys.opponent);
+    final joining = _resume.shouldJoinPromptFrom(opponent);
+    _session = _session.reduce(cm);
+    if (joining) {
+      _conn?.send('join $opponent');
+      _session = _session.joined();
+    }
+    _trackSessionTransition(wasInGame: wasInGame, wasGameOver: wasGameOver);
+    notifyListeners();
+  }
+
+  void _onAlreadyPlaying(CookieMessage cm) => _onSystemMessage(cm);
+
+  void _publish() => notifyListeners();
+
+  void _onTurnText(CookieMessage cm) {
+    _applyCookie(cm);
+    if (_session.board != null &&
+        !canRoll &&
+        !canMoveNow &&
+        !_session.isGameOver) {
+      _conn?.send('board');
+    }
+  }
+
+  void _onMovePrompt(CookieMessage cm) {
+    _applyCookie(cm);
+    if (!canMoveNow) _conn?.send('board');
+  }
+
+  void _onBoardRefreshText(CookieMessage cm) {
+    if (_session.board != null) _conn?.send('board');
+  }
+
+  void _onCantMoveText(CookieMessage cm) {
+    _applyCookie(cm);
+    if (_session.board != null) _conn?.send('board');
+  }
+
+  bool _isUnsolicitedResume(String? opponent) =>
+      _resume.isUnsolicitedResume(opponent);
+
+  void _parkSavedMatchInLobby(String? opponent) {
+    _session = _session.outOfGame(savedOpponent: opponent);
+    if (_resume.markParked(opponent)) {
+      _conn?.send('leave');
+      _conn?.send('show savedgames');
     }
     notifyListeners();
   }
@@ -358,8 +565,8 @@ class FibsState extends ChangeNotifier {
       'app_fibs_lobby_ready',
       screen: 'fibs_lobby',
       whoInfoCount: whoInfos.length,
-      availableBotCount: availableBots.length,
-      watchableBotCount: watchableBots.length,
+      availableBotCount: lobby.availableBots.length,
+      watchableBotCount: lobby.watchableBots.length,
       savedMatchCount: savedMatches.length,
       messageCount: messages.length,
     );
@@ -386,19 +593,39 @@ class FibsState extends ChangeNotifier {
     }
   }
 
-  void _onChatMessage(CookieMessage cm) => messages.add(
-    FibsMessage(
-      cm.cookie,
-      cm.crumb(FibsCrumbKeys.name),
-      cm.crumb(FibsCrumbKeys.message),
-    ),
-  );
+  void _onChatMessage(CookieMessage cm) {
+    final from =
+        cm.crumbOrNull(FibsCrumbKeys.name) ??
+        cm.crumbOrNull(FibsCrumbKeys.from) ??
+        'FIBS';
+    final message = cm.crumb(FibsCrumbKeys.message);
+    final resumeDelay = _FibsResumeState.parseDelay(from, message);
+    if (resumeDelay != null) {
+      _resume.recordDelay(resumeDelay);
+    }
+    messages.add(FibsMessage(cm.cookie, from, message));
+    if (resumeDelay != null) notifyListeners();
+  }
 
-  void _onSystemMessage(CookieMessage cm) =>
-      messages.add(FibsMessage(cm.cookie, 'FIBS', _displayMessage(cm)));
+  void _onSystemMessage(CookieMessage cm) {
+    final cleared = _resume.clearRejected(cm.cookie);
+    messages.add(FibsMessage(cm.cookie, 'FIBS', _displayMessage(cm)));
+    if (cleared) notifyListeners();
+  }
 
   void _onCommandRejected(CookieMessage cm) {
     _session = _session.commandRejected();
+    _onSystemMessage(cm);
+    notifyListeners();
+  }
+
+  void _onGameSavedByOpponent(CookieMessage cm) {
+    final opponent =
+        cm.crumbOrNull(FibsCrumbKeys.opponent) ??
+        _session.board?.opponentNameFor(_session.user);
+    _resume.suppressBoards();
+    _session = _session.outOfGame(savedOpponent: opponent);
+    _conn?.send('show savedgames');
     _onSystemMessage(cm);
     notifyListeners();
   }
@@ -411,166 +638,7 @@ class FibsState extends ChangeNotifier {
     return text.replaceFirst(RegExp(r'^\*\*\s*'), '');
   }
 
-  // --- play actions (bots only) ---------------------------------------------
-
-  // invite a bot to a match (precision-first: only bots). Default to a short
-  // 3-point match so the doubling cube matters but games finish quickly.
-  void invite(WhoInfo bot, {int matchLength = 3}) {
-    assert(isBot(bot), 'bots only');
-    analytics.track(
-      'app_fibs_invite',
-      screen: 'fibs_lobby',
-      mode: 'match_$matchLength',
-      whoInfoCount: whoInfos.length,
-      availableBotCount: availableBots.length,
-      watchableBotCount: watchableBots.length,
-      savedMatchCount: savedMatches.length,
-    );
-    _conn?.send('invite ${bot.user} $matchLength');
-  }
-
-  // resume an unfinished match with [opponent]: inviting a player we have a
-  // saved match with makes FIBS reload it instead of starting a new game. Good
-  // citizenship (and connection-drop recovery) -- always finish saved matches.
-  void resumeSavedMatch(String opponent) {
-    analytics.track(
-      'app_fibs_resume_saved_match',
-      screen: 'fibs_lobby',
-      savedMatchCount: savedMatches.length,
-    );
-    _conn?.send('invite $opponent');
-  }
-
-  // continue a resumed/next game when FIBS asks us to type 'join' (also accepts
-  // an opponent's resume request tracked in [resumeRequestFrom])
-  void joinGame() {
-    _conn?.send('join');
-    _session = _session.joined();
-  }
-
-  // Roll the dice. Throws if it isn't our turn to roll (so a mis-timed call is
-  // a loud bug, not a silently dropped command).
-  void roll() {
-    if (!canRoll) {
-      throw FibsStateError(
-        'roll: not our turn to roll '
-        '(isMyTurn=$isMyTurn dice=$activeDice)',
-      );
-    }
-    _session = _session.startedRolling(); // canRoll false until our dice arrive
-    _conn?.send('roll');
-    notifyListeners();
-  }
-
-  // Submit a WHOLE turn the player built locally on the shared board (the same
-  // mechanic as the local game: make your moves, undo freely, then tap the dice
-  // to commit). FIBS wants the complete turn in one command, so we send it all
-  // at once -- a partial turn is what triggers "** You must give N moves". The
-  // moves are in viewer pips (player one); an empty list is a dance (pass).
-  void submitTurn(List<GammonMove> moves) {
-    if (!canMoveNow) {
-      throw FibsStateError(
-        'submitTurn: not our turn to move '
-        '(isMyTurn=$isMyTurn dice=$activeDice)',
-      );
-    }
-    _session = _session.committed(); // canMoveNow off until the next board
-    // an empty turn is a dance: FIBS auto-passes, so there's nothing to send.
-    if (moves.isNotEmpty) _conn?.send(fibsTurnCommand(moves));
-    notifyListeners();
-  }
-
-  // Send a pre-built whole-turn `move ...` [command] and mark the turn
-  // committed (canMoveNow off until the next board). This is pure transport:
-  // the POLICY of WHICH turn to play (pubeval / an AI engine) lives in the
-  // caller -- e.g. FibsBotPlayer -- so this connection/state machine stays free
-  // of move selection. Throws if it isn't our turn to move.
-  void commitTurnCommand(String command) {
-    if (!canMoveNow) {
-      throw FibsStateError(
-        'commitTurnCommand: not our turn to move '
-        '(isMyTurn=$isMyTurn dice=$activeDice)',
-      );
-    }
-    _session = _session.committed(); // canMoveNow false until the next board
-    _conn?.send(command);
-    notifyListeners();
-  }
-
-  void offerDouble() {
-    if (!canOfferDouble) {
-      throw FibsStateError(
-        'offerDouble: can only double on our turn before '
-        'rolling when FIBS allows it '
-        '(isMyTurn=$isMyTurn dice=$activeDice canRoll=$canRoll)',
-      );
-    }
-    _session = _session
-        .committed(); // we've acted this turn; await the response
-    _conn?.send('double');
-    notifyListeners();
-  }
-
-  void acceptDouble() {
-    if (!doubleOffered) {
-      throw FibsStateError('acceptDouble: no double has been offered');
-    }
-    _conn?.send('accept');
-    _session = _session.doubleResolved();
-    notifyListeners();
-  }
-
-  void rejectDouble() {
-    if (!doubleOffered) {
-      throw FibsStateError('rejectDouble: no double has been offered');
-    }
-    _conn?.send('reject');
-    _session = _session.doubleResolved();
-    notifyListeners();
-  }
-
-  void resign() => _conn?.send('resign n'); // resign a normal loss
-
-  void leaveGame() {
-    analytics.track('app_fibs_leave_game', screen: 'fibs_play');
-    _conn?.send('leave');
-    _session = _session.outOfGame();
-    notifyListeners();
-  }
-
-  // Dismiss a finished game and return to the lobby. The game is already over
-  // server-side, so there's nothing to `leave` -- just clear the local board.
-  void returnToLobby() {
-    _session = _session.outOfGame();
-    notifyListeners();
-  }
-
-  // free bot invite targets / watchable in-game bots (delegated to the lobby)
-  List<WhoInfo> get availableBots => lobby.availableBots;
-  List<WhoInfo> get watchableBots => lobby.watchableBots;
-
-  void watch(WhoInfo who) {
-    assert(isBot(who), 'bots only');
-    analytics.track(
-      'app_fibs_watch',
-      screen: 'fibs_lobby',
-      whoInfoCount: whoInfos.length,
-      availableBotCount: availableBots.length,
-      watchableBotCount: watchableBots.length,
-    );
-    _session = _session.outOfGame();
-    _conn?.send('watch ${who.user}');
-    notifyListeners();
-  }
-
-  void stopWatching() {
-    analytics.track('app_fibs_stop_watching', screen: 'fibs_watch');
-    _conn?.send('unwatch');
-    _session = _session.outOfGame();
-    notifyListeners();
-  }
-
-  bool get loggedIn => _conn?.connected ?? false;
+  bool get loggedIn => connected;
 
   // One-shot autologin guard: the login view attempts a remembered-credentials
   // autologin at most once per session. Without this, a connection that drops
@@ -625,6 +693,7 @@ class FibsState extends ChangeNotifier {
     }
 
     _session = _session.loggedInAs(user);
+    _resume.startLoginDiscovery();
     _reconnectUsed = false; // a live session re-arms one auto-reconnect
     _lobbyReadyTracked = false;
     _doublePromptToggleSent = false;
@@ -639,10 +708,7 @@ class FibsState extends ChangeNotifier {
     // the who-list".
     _conn?.send('who');
     // Ask FIBS for our unfinished saved matches. FIBS does NOT volunteer the
-    // listing on login -- you have to request it -- and its lines (handled as
-    // FIBS_SavedMatch) populate savedMatches so the lobby can offer "Resume a
-    // saved match". (FIBS never re-invites you itself; resuming re-invites the
-    // opponent, which makes FIBS reload the saved game.)
+    // listing on login, so the lobby requests it before offering resume.
     _conn?.send('show savedgames');
     notifyListeners();
   }
@@ -674,7 +740,7 @@ class FibsState extends ChangeNotifier {
 
   Future<void> logout() async {
     final conn = _conn;
-    if (loggedIn) conn?.send('bye');
+    if (conn?.connected ?? false) conn?.send('bye');
     // an explicit logout means "don't auto-reconnect": let the app forget the
     // remembered password so the next launch shows the login screen instead of
     // signing back in. (Closing the tab is a different thing -- it keeps
@@ -684,26 +750,42 @@ class FibsState extends ChangeNotifier {
     // libsecret, web-crypto hiccup) must NOT abort teardown and orphan the
     // socket -- tearing the connection down is the more important half.
     _expectClose = true; // a deliberate close: the ensuing onDone stays silent
+    final whoInfoCount = whoInfos.length;
+    final availableBotCount = lobby.availableBots.length;
+    final watchableBotCount = lobby.watchableBots.length;
+    final savedMatchCount = savedMatches.length;
+    final messageCount = messages.length;
+    if (identical(_conn, conn)) _conn = null;
+    final sub = _sub;
+    _sub = null;
+    _autoLoginTried = true; // stay logged out until the user acts or relaunches
+    _reset();
     try {
       await onLogout?.call();
     } on Object catch (ex, st) {
       _log.warning('logout hook failed; tearing down anyway', ex, st);
     }
-    await _sub?.cancel();
-    _sub = null;
-    await conn
-        ?.close(); // actually tear the connection down (no lingering socket)
+    try {
+      final cancel = sub?.cancel();
+      if (cancel != null) await cancel.timeout(const Duration(seconds: 2));
+    } on Object catch (ex, st) {
+      _log.warning('logout subscription cancel did not complete', ex, st);
+    }
+    try {
+      final close = conn?.close();
+      if (close != null) await close.timeout(const Duration(seconds: 2));
+    } on Object catch (ex, st) {
+      _log.warning('logout transport close did not complete', ex, st);
+    }
     analytics.track(
       'app_fibs_logout',
       screen: 'fibs_login',
-      whoInfoCount: whoInfos.length,
-      availableBotCount: availableBots.length,
-      watchableBotCount: watchableBots.length,
-      savedMatchCount: savedMatches.length,
-      messageCount: messages.length,
+      whoInfoCount: whoInfoCount,
+      availableBotCount: availableBotCount,
+      watchableBotCount: watchableBotCount,
+      savedMatchCount: savedMatchCount,
+      messageCount: messageCount,
     );
-    _autoLoginTried = true; // stay logged out until the user acts or relaunches
-    _reset();
   }
 
   // The connection closed. If WE didn't ask for it (logout), stay silent;
@@ -728,8 +810,8 @@ class FibsState extends ChangeNotifier {
         screen: _session.board == null ? 'fibs_lobby' : 'fibs_play',
         result: what.startsWith('FIBS') ? 'error' : 'closed',
         whoInfoCount: whoInfos.length,
-        availableBotCount: availableBots.length,
-        watchableBotCount: watchableBots.length,
+        availableBotCount: lobby.availableBots.length,
+        watchableBotCount: lobby.watchableBots.length,
         savedMatchCount: savedMatches.length,
         messageCount: messages.length,
       );
@@ -770,6 +852,7 @@ class FibsState extends ChangeNotifier {
     _lobbyReadyTracked = false;
     _doublePromptToggleSent = false;
     _moreboardsToggleSent = false;
+    _resume.reset();
     _cookieCount = 0;
     _lastCookie = null;
     _whoInfoCookieCount = 0;

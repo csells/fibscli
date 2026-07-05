@@ -522,6 +522,14 @@ void main() {
     expect(0, int.parse(cm.crumbs!['redoubles']!));
   });
 
+  test('FIBS_Turn', () {
+    final monster = createLoggedInCookieMonster();
+    const s = 'turn: GammonBot_XVIII.';
+    final cm = monster.eatCookie(s);
+    expect(FibsCookie.FIBS_Turn, cm.cookie);
+    expect('GammonBot_XVIII', cm.crumbs!['name']);
+  });
+
   test('FIBS_SettingsValue_Set', () {
     final monster = createLoggedInCookieMonster();
     CookieMessage cm;

@@ -46,6 +46,7 @@ Allowed probe fields are sanitized booleans/counts/type names:
 - `loggedIn`, `connected`, `autoLoginTried`, `hasUser`
 - `whoCount`, `botCount`, `availableBotCount`, `watchableBotCount`
 - `savedMatchCount`, `messageCount`
+- `savedMatchReadyCount`, `savedMatchBusyCount`, `savedMatchWaitingCount`
 - `inGame`, `playing`, `watching`
 - `doubleOffered`, `isMyTurn`, `canRoll`, `canMoveNow`
 - `activeDice`, `isGameOver`, `didIWin`

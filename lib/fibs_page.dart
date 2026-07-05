@@ -15,6 +15,8 @@ import 'tinystate.dart';
 
 part 'fibs_login_view.dart';
 part 'fibs_bot_list_view.dart';
+part 'fibs_lobby_saved_matches.dart';
+part 'fibs_lobby_bot_directory.dart';
 part 'fibs_watch_view.dart';
 part 'fibs_play_view.dart';
 

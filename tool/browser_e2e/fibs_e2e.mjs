@@ -2,7 +2,8 @@
 // Chromium — no extension needed). Single clean pass, ONE FIBS login:
 //
 //   / -> /local -> /computer -> click FIBS from / -> app autologins (creds
-//   baked in via --dart-define) -> /fibs/bots renders -> logout -> /fibs/login
+//   baked in via --dart-define) -> /fibs/bots renders -> optionally resume one
+//   saved match -> leave -> logout -> /fibs/login
 //
 // FIBS etiquette (AGENTS.md): one login per run, log out cleanly. Iterate on
 // selectors/coordinates offline; a live run should be a single pass.
@@ -51,6 +52,7 @@ let proxyTextBuffer = '';
 let whoInfoLines = 0;
 let whoEndSeen = false;
 let knownBotLineSeen = false;
+let loggedOutCleanly = false;
 const knownBotNames = new Set([
   'MonteCarlo',
   'BlunderBot',
@@ -153,6 +155,77 @@ const waitForScreenshotChange = async (
   throw new Error(`${label} screenshot did not change from baseline`);
 };
 
+const leaveGameIfOpen = async () => {
+  const state = await getProbeState().catch(() => null);
+  if (!state?.inGame || pathOf() !== '/fibs/play') return false;
+  await page.mouse.click(225, 815);
+  await waitForPath('/fibs/bots', 15000).catch(() => {});
+  return true;
+};
+
+const logoutIfNeeded = async () => {
+  const state = await getProbeState().catch(() => null);
+  if (!state?.loggedIn) return;
+  await leaveGameIfOpen();
+  if (pathOf() !== '/fibs/bots') {
+    await page.goto(`${BASE}/fibs/bots`, { waitUntil: 'load' }).catch(() => {});
+    await sleep(1000);
+  }
+  await page.mouse.click(1040, 42);
+};
+
+const runSavedMatchResumeCheck = async (initialLobbyState) => {
+  const before = await getProbeState();
+  if ((before.savedMatchReadyCount ?? 0) === 0) {
+    const initialReady = initialLobbyState?.savedMatchReadyCount ?? 0;
+    return {
+      attempted: false,
+      reason:
+        initialReady > 0
+          ? 'resumable saved match disappeared before resume click'
+          : 'no resumable saved match',
+      initialSavedMatchCount: initialLobbyState?.savedMatchCount,
+      initialReady,
+      initialBusy: initialLobbyState?.savedMatchBusyCount,
+      initialWaiting: initialLobbyState?.savedMatchWaitingCount,
+      savedMatchCount: before.savedMatchCount,
+      ready: before.savedMatchReadyCount,
+      busy: before.savedMatchBusyCount,
+      waiting: before.savedMatchWaitingCount,
+    };
+  }
+
+  await page.mouse.click(1000, 455);
+
+  const gameState = await waitForProbe(
+    'saved-match resume board',
+    (state) => pathOf() === '/fibs/play' && state.inGame === true,
+    60000,
+  );
+  await page.screenshot({ path: shotPath('05-resumed-game') });
+
+  let afterOpponent = gameState;
+  if (!gameState.isMyTurn && !gameState.isGameOver) {
+    afterOpponent = await waitForProbe(
+      'opponent response after saved-match resume',
+      (state) =>
+        pathOf() === '/fibs/play' &&
+        state.inGame === true &&
+        (state.isMyTurn === true || state.isGameOver === true),
+      60000,
+    );
+  }
+
+  await leaveGameIfOpen();
+  await waitForPath('/fibs/bots', 15000);
+  return {
+    attempted: true,
+    beforeCookieCount: before.cookieCount,
+    afterCookieCount: gameState.cookieCount,
+    afterOpponentCookieCount: afterOpponent.cookieCount,
+  };
+};
+
 try {
   await page.goto(`${BASE}/`, { waitUntil: 'load' });
   await page
@@ -164,7 +237,7 @@ try {
   const localGamePath = shotPath('02-local-game');
   const aiGamePath = shotPath('03-ai-game');
   const botListPath = shotPath('04-botlist');
-  const loggedOutPath = shotPath('05-loggedout');
+  const loggedOutPath = shotPath('06-loggedout');
   const landingHash = await screenshotHash(landingPath);
   const initialState = await waitForProbe(
     'initial logged-out',
@@ -269,6 +342,8 @@ try {
     throw new Error('FIBS screen screenshot did not change from landing page');
   }
 
+  const resumeResult = await runSavedMatchResumeCheck(lobbyState);
+
   // good citizen: log out cleanly (Logout is top-right on the bot list)
   await page.mouse.click(1040, 42);
   const closeWaitUntil = Date.now() + 10000;
@@ -293,6 +368,7 @@ try {
   if (!proxyWebSocketClosed) {
     throw new Error('FIBS proxy WebSocket did not close after logout');
   }
+  loggedOutCleanly = true;
   if (sha256(botListPath) === sha256(loggedOutPath)) {
     throw new Error('Logout screenshot did not change from bot list');
   }
@@ -311,11 +387,15 @@ try {
   console.log('AI_GAME_SCREEN:', JSON.stringify({ changed: true }));
   console.log('APP_STATE_INITIAL:', JSON.stringify(initialState));
   console.log('APP_STATE_LOBBY:', JSON.stringify(lobbyState));
+  console.log('APP_STATE_RESUME:', JSON.stringify(resumeResult));
   console.log('APP_STATE_FINAL:', JSON.stringify(finalState));
   console.log(`PROXY_CLOSED_AFTER_LOGOUT: ${proxyWebSocketClosed}`);
   console.log('PAGE_ERRORS:', JSON.stringify(errors));
   console.log(`screenshots + video in ${OUT}/`);
 } finally {
+  if (!loggedOutCleanly) {
+    await logoutIfNeeded().catch(() => {});
+  }
   await ctx.close(); // flush video
   await browser.close();
 }

@@ -10,7 +10,12 @@ String boardLine({String p1dice = '6:3'}) =>
     'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
     ':2:0:1:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
 
-String watchedBoardLine(List<int> points, {int turn = -1}) {
+String watchedBoardLine(
+  List<int> points, {
+  int turn = -1,
+  int xOff = 0,
+  int oOff = 0,
+}) {
   assert(points.length == 26);
   return [
     'board',
@@ -31,8 +36,8 @@ String watchedBoardLine(List<int> points, {int turn = -1}) {
     '-1',
     '0',
     '25',
-    '0',
-    '0',
+    '$xOff',
+    '$oOff',
     '0',
     '0',
     '0',
@@ -91,6 +96,7 @@ List<int> countsFromBoard(List<List<int>> board) => [
 Future<FibsState> _inGame(FakeTransport fake) async {
   final fibs = FibsState.withTransport(fake);
   await fibs.login(user: 'joe_grammer', pass: 'x');
+  fibs.resumeSavedMatch('wildbg');
   fake.feed(boardLine());
   await Future<void>.delayed(Duration.zero);
   return fibs;
@@ -173,6 +179,7 @@ void main() {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake);
     await fibs.login(user: 'joe_grammer', pass: 'x');
+    fibs.resumeSavedMatch('xplayer');
 
     final before = List<int>.filled(26, 0)
       ..[24] = -1
@@ -206,6 +213,7 @@ void main() {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake);
     await fibs.login(user: 'joe_grammer', pass: 'x');
+    fibs.resumeSavedMatch('wildbg');
 
     final points = List<int>.filled(26, 0)
       ..[24] = -4
@@ -242,12 +250,62 @@ void main() {
     expect(paths, contains('$from,${from + 4},${from + 8}'));
   });
 
+  test('queued incoming board animates a final opponent bear-off', () async {
+    final fake = FakeTransport();
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'joe_grammer', pass: 'x');
+    fibs.resumeSavedMatch('xplayer');
+
+    final before = List<int>.filled(26, 0)..[24] = 2;
+    final afterFirst = List<int>.filled(26, 0)
+      ..[24] = 1
+      ..[23] = 1;
+    final afterBearOff = List<int>.filled(26, 0)..[23] = 1;
+
+    fake.feed(watchedBoardLine(before));
+    await Future<void>.delayed(Duration.zero);
+
+    final controller = FibsPlayController(fibs: fibs);
+    addTearDown(controller.dispose);
+
+    fake.feed(watchedBoardLine(afterFirst));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.animator.isAnimating, isTrue);
+    final firstPaths = controller.animator.layouts.values
+        .map((frames) => frames.map((frame) => frame.pipNo).toList().join(','))
+        .toList();
+    expect(firstPaths, contains('24,23'));
+
+    fake.feed(watchedBoardLine(afterBearOff, turn: 0, oOff: 1));
+    await Future<void>.delayed(Duration.zero);
+
+    controller.animator.layouts.keys.toList().forEach(
+      controller.animator.endPiece,
+    );
+    for (var i = 0; i < 10 && !controller.animator.isAnimating; i += 1) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(controller.animator.isAnimating, isTrue);
+    final queuedPaths = controller.animator.layouts.values
+        .map((frames) => frames.map((frame) => frame.pipNo).toList().join(','))
+        .toList();
+    expect(queuedPaths, contains('24,25'));
+
+    controller.animator.layouts.keys.toList().forEach(
+      controller.animator.endPiece,
+    );
+    await Future<void>.delayed(Duration.zero);
+  });
+
   test(
     'post-submit YouRoll without a board starts the next local turn',
     () async {
       final fake = FakeTransport();
       final fibs = FibsState.withTransport(fake);
       await fibs.login(user: 'joe_grammer', pass: 'x');
+      fibs.resumeSavedMatch('wildbg');
 
       final points = List<int>.filled(26, 0)
         ..[24] = -4
@@ -279,6 +337,7 @@ void main() {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake);
     await fibs.login(user: 'joe_grammer', pass: 'x');
+    fibs.resumeSavedMatch('wildbg');
 
     final points = List<int>.filled(26, 0)
       ..[6] = -4

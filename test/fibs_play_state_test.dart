@@ -27,6 +27,7 @@ Future<FibsState> _inGame(
 }) async {
   final fibs = FibsState.withTransport(fake);
   await fibs.login(user: 'joe_grammer', pass: 'x');
+  fibs.resumeSavedMatch('wildbg');
   fake.feed(
     boardLine(p1dice: p1dice, turn: turn, player1MayDouble: player1MayDouble),
   );
@@ -129,6 +130,7 @@ void main() {
 
     expect(fibs.isGameOver, isTrue);
     expect(fibs.didIWin, isTrue);
+    expect(fibs.gameResultMessage, 'You win the 1 point match 1-0.');
   });
 
   test('losing the match ends the game as a loss', () async {
@@ -139,6 +141,7 @@ void main() {
 
     expect(fibs.isGameOver, isTrue);
     expect(fibs.didIWin, isFalse);
+    expect(fibs.gameResultMessage, 'MonteCarlo wins the 1 point match 1-0.');
   });
 
   test('a watched game finishing drops back to the lobby', () async {
@@ -162,6 +165,20 @@ void main() {
     fake.feed(boardLine(turn: '1')); // the next game's in-progress board
     await Future<void>.delayed(Duration.zero);
     expect(fibs.isGameOver, isFalse); // result cleared -> back to play
+    expect(fibs.gameResultMessage, isNull);
+  });
+
+  test('turn text reconciles the board and requests a fresh board', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake, turn: '-1');
+
+    fake.feed('turn: joe_grammer.');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.isMyTurn, isTrue);
+    expect(fibs.canMoveNow, isFalse);
+    expect(fibs.canRoll, isFalse);
+    expect(fake.sent.last, 'board');
   });
 
   test('an "already logged in" warning surfaces a notice', () async {
@@ -238,6 +255,44 @@ void main() {
     fake.feed(rollOrDoubleLine);
     await Future<void>.delayed(Duration.zero);
     expect(fibs.canRoll, isTrue);
+  });
+
+  test('a move prompt without known dice requests a fresh board', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake, turn: '-1');
+    expect(fibs.canMoveNow, isFalse);
+
+    fake.feed("It's your turn to move.");
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.isMyTurn, isTrue);
+    expect(fibs.canMoveNow, isFalse);
+    expect(fake.sent.where((cmd) => cmd == 'board'), hasLength(1));
+  });
+
+  test('opponent move text requests a fresh board', () async {
+    final fake = FakeTransport();
+    await _inGame(fake, turn: '-1');
+
+    fake.feed('wildbg moves 19-23 19-23 .');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fake.sent.where((cmd) => cmd == 'board'), hasLength(1));
+  });
+
+  test('a local dance disables the turn and requests a fresh board', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake, promptRoll: true);
+    fibs.roll();
+    fake.feed('You roll 6 and 4');
+    await Future<void>.delayed(Duration.zero);
+    expect(fibs.canMoveNow, isTrue);
+
+    fake.feed("You can't move.");
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.canMoveNow, isFalse);
+    expect(fake.sent.where((cmd) => cmd == 'board'), hasLength(1));
   });
 
   test('double is available only when the board permits it', () async {

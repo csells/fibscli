@@ -21,6 +21,7 @@ void main() {
       final fake = FakeTransport();
       final fibs = FibsState.withTransport(fake);
       await fibs.login(user: 'joe_grammer', pass: 'x');
+      fibs.resumeSavedMatch('MonteCarlo');
 
       // --- game 1: in progress, then we win ---
       fake.feed(boardLine());

@@ -6,11 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 // is our turn, '-1' the opponent's. p1dice '0:0' => no dice yet.
 String _boardLine({
   String p1dice = '0:0',
+  String p2dice = '0:0',
   String turn = '1',
   String player1MayDouble = '1',
 }) =>
     'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
-    ':2:0:$turn:$p1dice:0:0:1:$player1MayDouble:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
+    ':2:0:$turn:$p1dice:$p2dice:1:$player1MayDouble:1:0:1:-1:0:25'
+    ':0:0:0:0:2:0:0:0';
 
 // run a single raw FIBS line through the cookie monster (RUN state) so we get a
 // real CookieMessage with parsed crumbs, exactly like the live stream.
@@ -106,6 +108,23 @@ void main() {
       expect(s.effectiveDice, [4, 4, 4, 4]);
     });
 
+    test('turn text reconciles a stale board', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(turn: '-1')))
+          .reduce(_cookie('turn: joe.'));
+      expect(s.isMyTurn, isTrue);
+      expect(s.effectiveDice, isEmpty);
+      expect(s.canRoll, isFalse);
+      expect(s.canMoveNow, isFalse);
+    });
+
+    test('turn text can point back to the opponent', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(turn: '1')))
+          .reduce(_cookie('turn: wildbg.'));
+      expect(s.isMyTurn, isFalse);
+    });
+
     test('roll-or-double prompt reconciles a stale opponent-turn board', () {
       final s = _loggedIn
           .reduce(_cookie(_boardLine(turn: '1')))
@@ -137,6 +156,34 @@ void main() {
       expect(s.effectiveDice, [5, 2]);
       expect(s.committedTurn, isFalse);
       expect(s.canMoveNow, isTrue);
+    });
+
+    test('a move prompt reconciles a stale board and enables known dice', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(p1dice: '5:3', turn: '-1')))
+          .reduce(_cookie('Please move 2 pieces.'));
+      expect(s.isMyTurn, isTrue);
+      expect(s.effectiveDice, [5, 3]);
+      expect(s.canMoveNow, isTrue);
+    });
+
+    test('a move prompt with no known dice still needs a board refresh', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine(turn: '-1')))
+          .reduce(_cookie("It's your turn to move."));
+      expect(s.isMyTurn, isTrue);
+      expect(s.effectiveDice, isEmpty);
+      expect(s.canMoveNow, isFalse);
+    });
+
+    test('a local dance disables moving while awaiting the next board', () {
+      final s = _loggedIn
+          .reduce(_cookie(_boardLine()))
+          .reduce(_cookie('You roll 6 and 4'))
+          .reduce(_cookie("You can't move."));
+      expect(s.myDice, isEmpty);
+      expect(s.canMoveNow, isFalse);
+      expect(s.committedTurn, isTrue);
     });
 
     test('a fresh board clears stale rolled dice (must roll again)', () {
@@ -183,14 +230,18 @@ void main() {
         final withTwo = _loggedIn
             .reduce(_synthetic(FibsCookie.FIBS_SavedMatch, {'player1': 'botA'}))
             .reduce(
-              _synthetic(FibsCookie.FIBS_SavedMatch, {'player1': 'botB'}),
+              _synthetic(FibsCookie.FIBS_SavedMatchReady, {'player1': 'botB'}),
             );
-        expect(withTwo.savedMatches, {'botA', 'botB'});
+        expect(withTwo.savedMatches.keys, {'botA', 'botB'});
+        expect(
+          withTwo.savedMatches['botB']?.availability,
+          SavedMatchAvailability.ready,
+        );
 
         final resumed = withTwo.reduce(
           _synthetic(FibsCookie.FIBS_ResumeMatchAck0, {'opponent': 'botA'}),
         );
-        expect(resumed.savedMatches, {'botB'});
+        expect(resumed.savedMatches.keys, {'botB'});
 
         final none = resumed.reduce(
           _synthetic(FibsCookie.FIBS_NoSavedGames, {'raw': 'x'}),
@@ -215,6 +266,18 @@ void main() {
         expect(inGame.mustJoin, isFalse);
       },
     );
+
+    test('a named join prompt marks a saved match ready to accept', () {
+      final pending = _loggedIn
+          .reduce(_synthetic(FibsCookie.FIBS_SavedMatch, {'player1': 'bot'}))
+          .reduce(_cookie("Type 'join bot' to accept."));
+
+      expect(pending.resumeRequestFrom, 'bot');
+      expect(
+        pending.savedMatches['bot']?.availability,
+        SavedMatchAvailability.ready,
+      );
+    });
 
     test('an unhandled cookie leaves the session unchanged', () {
       final s = _loggedIn.reduce(_cookie(_boardLine()));

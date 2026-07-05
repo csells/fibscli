@@ -116,6 +116,7 @@ String fivePointRaceLine({required String xDice}) {
 Future<FibsState> _inRace(FakeTransport fake, {String xDice = '3:1'}) async {
   final fibs = FibsState.withTransport(fake);
   await fibs.login(user: 'joe_grammer', pass: 'x');
+  fibs.resumeSavedMatch('bot');
   fake.feed(raceLine(xDice: xDice));
   await Future<void>.delayed(Duration.zero);
   return fibs;
@@ -190,6 +191,7 @@ void main() {
       final fake = FakeTransport();
       final fibs = FibsState.withTransport(fake);
       await fibs.login(user: 'joe_grammer', pass: 'x');
+      fibs.resumeSavedMatch('bot');
       fake.feed(lateRaceLine(xDice: '5:5'));
       await Future<void>.delayed(Duration.zero);
 
@@ -211,6 +213,7 @@ void main() {
       final fake = FakeTransport();
       final fibs = FibsState.withTransport(fake);
       await fibs.login(user: 'joe_grammer', pass: 'x');
+      fibs.resumeSavedMatch('bot');
       fake.feed(lateRaceLine(xDice: '5:5'));
       await Future<void>.delayed(Duration.zero);
 
@@ -241,6 +244,7 @@ void main() {
     final fake = FakeTransport();
     final fibs = FibsState.withTransport(fake);
     await fibs.login(user: 'joe_grammer', pass: 'x');
+    fibs.resumeSavedMatch('bot');
     fake.feed(fivePointRaceLine(xDice: '5:5'));
     await Future<void>.delayed(Duration.zero);
 

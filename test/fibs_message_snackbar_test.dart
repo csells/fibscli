@@ -34,6 +34,29 @@ void main() {
     expect(find.textContaining('1 point matches'), findsOneWidget);
   });
 
+  testWidgets('a saved-match policy warning is not shown as a SnackBar', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    final fibs = FibsState.withTransport(fake);
+    await fibs.login(user: 'me', pass: 'pw');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FibsPage(fibs: fibs, creds: await fakeCreds()),
+      ),
+    );
+    await tester.pump();
+
+    fake.feed("WARNING: Don't accept if you want to continue a saved match.");
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(fibs.messages, isEmpty);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(find.textContaining('WARNING'), findsNothing);
+  });
+
   // FibsPage is constructor-injected: it listens to the fibs it was GIVEN.
   // Prove it by feeding a reply on the injected instance and seeing it surface
   // (there is no App.fibs global to accidentally listen to anymore).

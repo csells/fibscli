@@ -47,7 +47,7 @@ final _starsBatch = [
   _CookieDough(
     cookie: FibsCookie.FIBS_OpponentLeftGame,
     re: RegExp(
-      r'^\*\* Player [a-zA-Z_<>]+ has left the game. The game was saved\.',
+      r'^\*\* Player (?<opponent>[a-zA-Z_<>]+) has left the game\. The game was saved\.',
     ),
   ),
   _CookieDough(
@@ -192,7 +192,9 @@ final _starsBatch = [
   ),
   _CookieDough(
     cookie: FibsCookie.FIBS_SavedMatchReady,
-    re: RegExp(r'^\*\*[a-zA-Z_<>]+ +[0-9]+ +[0-9]+ +- +[0-9]+'),
+    re: RegExp(
+      r'^\*\*(?<player1>[a-zA-Z_<>]+) +(?<score1>[0-9]+) +(?<score2>[0-9]+) +- +(?<something>[0-9]+)',
+    ),
   ), // double star before a name indicates a saved game with this player
   _CookieDough(
     cookie: FibsCookie.FIBS_NotYourTurnToRoll,

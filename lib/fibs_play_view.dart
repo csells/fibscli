@@ -53,10 +53,15 @@ class _PlayViewState extends State<_PlayView> {
         title: Text('vs $opponent'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back to lobby',
-          onPressed: () => _confirmLeave(context),
+          tooltip: 'leave',
+          onPressed: _leaveGame,
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.outlined_flag),
+            tooltip: 'resign',
+            onPressed: () => _confirmResign(context),
+          ),
           // in a pure race, fast-forward your bear-off (no decisions matter)
           if (controller.canAutoBearOff)
             IconButton(
@@ -82,41 +87,41 @@ class _PlayViewState extends State<_PlayView> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8),
-              // While it's our turn we edit a LOCAL working board and submit on
-              // a dice tap; otherwise we just render the live board.
-              child: GameBoard(
-                game: controller.displayGame,
-                animator: controller.animator,
-                legalMoves: controller.legalMoves,
-                interactive: controller.interactive,
+              child: _BoardStage(
+                fibs: fibs,
+                controller: controller,
                 reversed: _reversed,
-                onMove: controller.applyLocalMove,
-                onTapDice: controller.submitTurn,
               ),
             ),
           ),
-          if (fibs.isGameOver)
-            _GameOverBar(fibs: fibs)
-          else
-            _Controls(fibs: fibs, turnComplete: controller.turnComplete),
+          if (!_hasBoardAction(fibs))
+            _StatusBar(
+              fibs: fibs,
+              opponent: opponent,
+              turnComplete: controller.turnComplete,
+              onLeave: _leaveGame,
+              onResign: () => _confirmResign(context),
+            ),
         ],
       ),
     );
   }
 
-  Future<void> _confirmLeave(BuildContext context) async {
+  void _leaveGame() => _fibs.leaveGame();
+
+  Future<void> _confirmResign(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Leave this game?'),
+        title: const Text('Resign this game?'),
         content: const Text(
-          'Resigning mid-match is poor FIBS etiquette — '
-          'try to finish. Leave anyway?',
+          'This gives the game to your opponent. Use the back arrow if you '
+          'want to leave the match instead.',
         ),
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep playing'),
+            child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
@@ -129,10 +134,104 @@ class _PlayViewState extends State<_PlayView> {
   }
 }
 
-// Shown in place of the controls once the game is over: the result plus a way
-// back to the lobby (the game is already finished server-side).
-class _GameOverBar extends StatelessWidget {
-  const _GameOverBar({required this.fibs});
+class _BoardStage extends StatelessWidget {
+  const _BoardStage({
+    required this.fibs,
+    required this.controller,
+    required this.reversed,
+  });
+
+  static const _boardSize = Size(574, 420);
+  static const _boardAspect = 574 / 420;
+
+  final FibsState fibs;
+  final FibsPlayController controller;
+  final bool reversed;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final size = Size(
+        constraints.maxWidth.isFinite ? constraints.maxWidth : _boardSize.width,
+        constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : _boardSize.height,
+      );
+      final board = _fittedBoardRect(size);
+      final panelWidth = (board.width * 0.32).clamp(176.0, 260.0);
+      final panelLeft = board.left + board.width * 0.055;
+
+      return Stack(
+        children: [
+          // While it's our turn we edit a LOCAL working board and submit on a
+          // dice tap; otherwise we just render the live board.
+          Positioned.fill(
+            child: GameBoard(
+              game: controller.displayGame,
+              animator: controller.animator,
+              legalMoves: controller.legalMoves,
+              interactive: controller.interactive,
+              reversed: reversed,
+              onMove: controller.applyLocalMove,
+              onTapDice: controller.submitTurn,
+            ),
+          ),
+          if (_hasBoardAction(fibs))
+            Positioned(
+              left: panelLeft,
+              top: board.top,
+              width: panelWidth,
+              height: board.height,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _BoardActionPanel(fibs: fibs),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+
+  static Rect _fittedBoardRect(Size size) {
+    var width = size.width;
+    var height = width / _boardAspect;
+    if (height > size.height) {
+      height = size.height;
+      width = height * _boardAspect;
+    }
+    final left = (size.width - width) / 2;
+    final top = (size.height - height) / 2;
+    return Rect.fromLTWH(left, top, width, height);
+  }
+}
+
+bool _hasBoardAction(FibsState fibs) =>
+    fibs.isGameOver || fibs.doubleOffered || fibs.canRoll;
+
+class _BoardActionPanel extends StatelessWidget {
+  const _BoardActionPanel({required this.fibs});
+  final FibsState fibs;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = fibs.isGameOver
+        ? _GameOverContent(fibs: fibs)
+        : _ActionContent(fibs: fibs);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.ivory,
+        border: Border.all(color: AppColors.ink),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: content,
+      ),
+    );
+  }
+}
+
+class _GameOverContent extends StatelessWidget {
+  const _GameOverContent({required this.fibs});
   final FibsState fibs;
 
   @override
@@ -143,36 +242,103 @@ class _GameOverBar extends StatelessWidget {
         : won
         ? 'You win!'
         : 'You lose';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(
-        color: AppColors.ivory,
-        border: Border(top: BorderSide(color: AppColors.ink)),
-      ),
-      child: Wrap(
-        spacing: 16,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: won ?? false ? AppColors.accent : AppColors.ink,
-            ),
+    final result = fibs.gameResultMessage;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            color: won ?? false ? AppColors.accent : AppColors.ink,
           ),
-          FilledButton(
-            onPressed: fibs.returnToLobby,
-            child: const Text('Back to lobby'),
+        ),
+        if (result != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            result,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.inkSoft),
           ),
         ],
-      ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: fibs.returnToLobby,
+          child: const Text('Back to lobby'),
+        ),
+      ],
     );
   }
 }
 
-class _Controls extends StatelessWidget {
-  const _Controls({required this.fibs, this.turnComplete = false});
+class _ActionContent extends StatelessWidget {
+  const _ActionContent({required this.fibs});
   final FibsState fibs;
+
+  @override
+  Widget build(BuildContext context) {
+    if (fibs.doubleOffered) {
+      final status = Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(color: AppColors.ink);
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Opponent doubled!', style: status),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton(
+                onPressed: fibs.acceptDouble,
+                child: const Text('Take'),
+              ),
+              OutlinedButton(
+                onPressed: fibs.rejectDouble,
+                child: const Text('Pass'),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        FilledButton.icon(
+          onPressed: fibs.roll,
+          icon: const Icon(Icons.casino, size: 18),
+          label: const Text('Roll'),
+        ),
+        if (fibs.canOfferDouble)
+          OutlinedButton(
+            onPressed: fibs.offerDouble,
+            child: const Text('Double'),
+          ),
+      ],
+    );
+  }
+}
+
+class _StatusBar extends StatelessWidget {
+  const _StatusBar({
+    required this.fibs,
+    required this.opponent,
+    required this.onLeave,
+    required this.onResign,
+    this.turnComplete = false,
+  });
+
+  final FibsState fibs;
+  final String opponent;
+  final VoidCallback onLeave;
+  final VoidCallback onResign;
   // our turn is fully played -> prompt to tap the dice to submit it
   final bool turnComplete;
 
@@ -181,46 +347,14 @@ class _Controls extends StatelessWidget {
     final status = Theme.of(
       context,
     ).textTheme.titleMedium?.copyWith(color: AppColors.inkSoft);
-    final children = <Widget>[];
-    if (fibs.doubleOffered) {
-      children.addAll([
-        Text(
-          'Opponent doubled!',
-          style: status?.copyWith(color: AppColors.ink),
-        ),
-        FilledButton(onPressed: fibs.acceptDouble, child: const Text('Take')),
-        OutlinedButton(onPressed: fibs.rejectDouble, child: const Text('Pass')),
-      ]);
-    } else if (fibs.canRoll) {
-      children.addAll([
-        FilledButton.icon(
-          onPressed: fibs.roll,
-          icon: const Icon(Icons.casino, size: 18),
-          label: const Text('Roll'),
-        ),
-      ]);
-      if (fibs.canOfferDouble) {
-        children.add(
-          OutlinedButton(
-            onPressed: fibs.offerDouble,
-            child: const Text('Double'),
-          ),
-        );
-      }
-    } else if (fibs.canMoveNow) {
-      children.add(
-        Text(
-          turnComplete
+    final text = fibs.canMoveNow
+        ? turnComplete
               ? 'Tap the dice to submit your move'
               : 'Your move — make your moves, then tap the dice '
-                    '(dice ${fibs.activeDice.join(", ")})',
-          style: status,
-        ),
-      );
-    } else {
-      children.add(Text('Waiting for opponent…', style: status));
-    }
+                    '(dice ${fibs.activeDice.join(", ")})'
+        : _waitingText();
 
+    final waiting = !fibs.canMoveNow;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -232,8 +366,27 @@ class _Controls extends StatelessWidget {
         spacing: 12,
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
-        children: children,
+        children: [
+          Text(text, style: status),
+          if (waiting)
+            OutlinedButton(onPressed: onLeave, child: const Text('Leave')),
+          if (waiting)
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                side: const BorderSide(color: AppColors.accent),
+              ),
+              onPressed: onResign,
+              child: const Text('Resign'),
+            ),
+        ],
       ),
     );
+  }
+
+  String _waitingText() {
+    final delay = fibs.resumeDelayFor(opponent);
+    if (delay != null) return 'Waiting for $opponent — ${delay.detail}.';
+    return 'Waiting for $opponent…';
   }
 }

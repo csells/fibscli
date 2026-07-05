@@ -4,6 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_transport.dart';
 
+class _StickyCloseTransport extends FakeTransport {
+  @override
+  Future<void> close() async {}
+}
+
 // FibsState owns the connection lifecycle. Logout must actually tear the
 // connection down (not just reset local state) and run any injected cleanup,
 // and a mid-session stream error must be handled, not left unhandled.
@@ -20,6 +25,22 @@ void main() {
     expect(fake.connected, isFalse);
     expect(fake.sent, contains('bye')); // courtesy bye still sent
   });
+
+  test(
+    'logout detaches the transport even if close completion is sticky',
+    () async {
+      final fake = _StickyCloseTransport();
+      final fibs = FibsState.withTransport(fake);
+      await fibs.login(user: 'joe', pass: 'pw');
+      expect(fibs.connected, isTrue);
+
+      await fibs.logout();
+
+      expect(fake.connected, isTrue);
+      expect(fibs.connected, isFalse);
+      expect(fibs.loggedIn, isFalse);
+    },
+  );
 
   test('logout runs the injected onLogout hook (no global grab)', () async {
     final fake = FakeTransport();
