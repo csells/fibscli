@@ -322,33 +322,6 @@ void main() {
     expect(transition.commands, isEmpty);
   });
 
-  test('protocol route table owns cookie classification', () {
-    expect(
-      fibsProtocolRouteFor(FibsCookie.FIBS_Board),
-      FibsProtocolCookieRoute.protocol,
-    );
-    expect(
-      fibsProtocolRouteFor(FibsCookie.FIBS_BadMove),
-      FibsProtocolCookieRoute.protocol,
-    );
-    expect(
-      fibsProtocolRouteFor(FibsCookie.FIBS_NoSavedMatch),
-      FibsProtocolCookieRoute.protocol,
-    );
-    expect(
-      fibsProtocolRouteFor(FibsCookie.FIBS_OpponentLeftGame),
-      FibsProtocolCookieRoute.protocol,
-    );
-    expect(
-      fibsProtocolRouteFor(FibsCookie.CLIP_SAYS),
-      FibsProtocolCookieRoute.protocol,
-    );
-    expect(
-      fibsProtocolRouteFor(FibsCookie.CLIP_WHO_INFO),
-      FibsProtocolCookieRoute.ignore,
-    );
-  });
-
   test('protocol transitions expose typed play signals', () {
     final inGame = _admittedGame();
 

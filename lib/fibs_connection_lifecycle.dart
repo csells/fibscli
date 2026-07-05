@@ -23,7 +23,17 @@ class FibsConnectionLifecycle {
 
   bool get connected => _conn?.connected ?? false;
 
-  void send(String command) => _conn?.send(command);
+  void send(String command) => sendAll([command]);
+
+  void sendAll(Iterable<String> commands) {
+    final pending = commands.toList(growable: false);
+    if (pending.isEmpty) return;
+    final conn = _conn;
+    if (conn == null || !conn.connected) {
+      throw StateError('not connected to FIBS');
+    }
+    pending.forEach(conn.send);
+  }
 
   Future<FibsCookie> login({
     required String user,

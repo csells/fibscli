@@ -13,10 +13,106 @@ import 'model.dart';
 export 'fibs_protocol_events.dart'
     show FibsProtocolMatchResult, FibsProtocolMessage;
 export 'fibs_protocol_intents.dart' show FibsProtocolError;
-export 'fibs_protocol_routing.dart'
-    show FibsProtocolCookieRoute, fibsProtocolRouteFor;
 
 enum FibsProtocolSignal { boardFrame, opponentRolled, commandRejected }
+
+const _sessionCookieHandlers = {
+  FibsCookie.FIBS_YouRoll,
+  FibsCookie.FIBS_PlayerRolls,
+  FibsCookie.FIBS_RollOrDouble,
+  FibsCookie.FIBS_YouWinGame,
+  FibsCookie.FIBS_PlayerWinsGame,
+  FibsCookie.FIBS_YouWinMatch,
+  FibsCookie.FIBS_PlayerWinsMatch,
+  FibsCookie.FIBS_ResignYouWin,
+  FibsCookie.FIBS_YouAcceptAndWin,
+  FibsCookie.FIBS_AcceptWins,
+  FibsCookie.FIBS_ResignWins,
+  FibsCookie.FIBS_AcceptRejectDouble,
+  FibsCookie.FIBS_SavedMatch,
+  FibsCookie.FIBS_SavedMatchPlaying,
+  FibsCookie.FIBS_SavedMatchReady,
+  FibsCookie.FIBS_NoSavedGames,
+};
+
+const _movePromptCookieHandlers = {
+  FibsCookie.FIBS_PleaseMove,
+  FibsCookie.FIBS_YourTurnToMove,
+};
+
+const _cantMoveCookieHandlers = {
+  FibsCookie.FIBS_PlayerCantMove,
+  FibsCookie.FIBS_CantMove,
+};
+
+const _resumeAcceptedCookieHandlers = {
+  FibsCookie.FIBS_ResumeMatchAck0,
+  FibsCookie.FIBS_ResumeMatchAck5,
+};
+
+const _commandRejectedCookieHandlers = {
+  FibsCookie.FIBS_BadMove,
+  FibsCookie.FIBS_CantMoveFirstMove,
+  FibsCookie.FIBS_MustComeIn,
+  FibsCookie.FIBS_MustMove,
+};
+
+const _systemMessageCookieHandlers = {
+  FibsCookie.FIBS_NoSavedMatch,
+  FibsCookie.FIBS_NoOne,
+  FibsCookie.FIBS_NoUser,
+  FibsCookie.FIBS_PlayerRefusingGames,
+  FibsCookie.FIBS_AlreadyPlaying,
+  FibsCookie.FIBS_DidntInvite,
+  FibsCookie.FIBS_DontKnowUser,
+  FibsCookie.FIBS_NotYourTurnToMove,
+  FibsCookie.FIBS_NotYourTurnToRoll,
+  FibsCookie.FIBS_NotPlaying,
+  FibsCookie.FIBS_NotWatchingPlaying,
+  FibsCookie.FIBS_UnknownCommand,
+};
+
+const _chatCookieHandlers = {
+  FibsCookie.CLIP_KIBITZES,
+  FibsCookie.CLIP_MESSAGE,
+  FibsCookie.CLIP_SAYS,
+  FibsCookie.CLIP_SHOUTS,
+  FibsCookie.CLIP_WHISPERS,
+};
+
+final Map<
+  FibsCookie,
+  FibsProtocolTransition Function(FibsProtocolState state, CookieMessage cm)
+>
+_protocolCookieHandlers = {
+  FibsCookie.CLIP_OWN_INFO: (state, cm) => state.receiveOwnInfo(cm),
+  for (final cookie in _sessionCookieHandlers)
+    cookie: (state, cm) => state.applyCookie(cm),
+  FibsCookie.FIBS_Turn: (state, cm) => state.receiveTurnText(cm),
+  for (final cookie in _movePromptCookieHandlers)
+    cookie: (state, cm) => state.receiveMovePrompt(cm),
+  FibsCookie.FIBS_PlayerMoves: (state, cm) => state.receiveBoardRefreshText(cm),
+  for (final cookie in _cantMoveCookieHandlers)
+    cookie: (state, cm) => state.receiveCantMoveText(cm),
+  FibsCookie.FIBS_Board: (state, cm) => state.receiveBoard(cm),
+  FibsCookie.FIBS_WatchGameWins: (state, _) => state.watchedGameFinished(),
+  FibsCookie.FIBS_OpponentLogsOut: (state, cm) =>
+      state.receiveGameSavedByOpponent(cm),
+  FibsCookie.FIBS_OpponentLeftGame: (state, cm) =>
+      state.receiveGameSavedByOpponent(cm),
+  FibsCookie.FIBS_ResumeMatchRequest: (state, cm) =>
+      state.receiveResumeMatchRequest(cm),
+  FibsCookie.FIBS_TypeJoin: (state, cm) => state.receiveTypeJoin(cm),
+  FibsCookie.FIBS_JoinNextGame: (state, cm) => state.applyAndAutoJoin(cm),
+  for (final cookie in _resumeAcceptedCookieHandlers)
+    cookie: (state, cm) => state.receiveResumeMatchAccepted(cm),
+  for (final cookie in _commandRejectedCookieHandlers)
+    cookie: (state, cm) => state.commandRejected(cm),
+  for (final cookie in _systemMessageCookieHandlers)
+    cookie: (state, cm) => state.systemMessage(cm),
+  for (final cookie in _chatCookieHandlers)
+    cookie: (state, cm) => state.receiveChatMessage(cm),
+};
 
 @immutable
 class FibsProtocolTransition {
@@ -81,62 +177,12 @@ class FibsProtocolState {
   FibsProtocolTransition applyCookie(CookieMessage cm) =>
       _applyCookie(cm, resume);
 
-  FibsProtocolTransition receive(CookieMessage cm) => switch (cm.cookie) {
-    FibsCookie.CLIP_OWN_INFO => receiveOwnInfo(cm),
-    FibsCookie.FIBS_YouRoll ||
-    FibsCookie.FIBS_PlayerRolls ||
-    FibsCookie.FIBS_RollOrDouble ||
-    FibsCookie.FIBS_YouWinGame ||
-    FibsCookie.FIBS_PlayerWinsGame ||
-    FibsCookie.FIBS_YouWinMatch ||
-    FibsCookie.FIBS_PlayerWinsMatch ||
-    FibsCookie.FIBS_ResignYouWin ||
-    FibsCookie.FIBS_YouAcceptAndWin ||
-    FibsCookie.FIBS_AcceptWins ||
-    FibsCookie.FIBS_ResignWins ||
-    FibsCookie.FIBS_AcceptRejectDouble ||
-    FibsCookie.FIBS_SavedMatch ||
-    FibsCookie.FIBS_SavedMatchPlaying ||
-    FibsCookie.FIBS_SavedMatchReady ||
-    FibsCookie.FIBS_NoSavedGames => applyCookie(cm),
-    FibsCookie.FIBS_Turn => receiveTurnText(cm),
-    FibsCookie.FIBS_PleaseMove ||
-    FibsCookie.FIBS_YourTurnToMove => receiveMovePrompt(cm),
-    FibsCookie.FIBS_PlayerMoves => receiveBoardRefreshText(cm),
-    FibsCookie.FIBS_PlayerCantMove ||
-    FibsCookie.FIBS_CantMove => receiveCantMoveText(cm),
-    FibsCookie.FIBS_Board => receiveBoard(cm),
-    FibsCookie.FIBS_WatchGameWins => watchedGameFinished(),
-    FibsCookie.FIBS_OpponentLogsOut ||
-    FibsCookie.FIBS_OpponentLeftGame => receiveGameSavedByOpponent(cm),
-    FibsCookie.FIBS_ResumeMatchRequest => receiveResumeMatchRequest(cm),
-    FibsCookie.FIBS_TypeJoin => receiveTypeJoin(cm),
-    FibsCookie.FIBS_JoinNextGame => applyAndAutoJoin(cm),
-    FibsCookie.FIBS_ResumeMatchAck0 ||
-    FibsCookie.FIBS_ResumeMatchAck5 => receiveResumeMatchAccepted(cm),
-    FibsCookie.FIBS_BadMove ||
-    FibsCookie.FIBS_CantMoveFirstMove ||
-    FibsCookie.FIBS_MustComeIn ||
-    FibsCookie.FIBS_MustMove => commandRejected(cm),
-    FibsCookie.FIBS_NoSavedMatch ||
-    FibsCookie.FIBS_NoOne ||
-    FibsCookie.FIBS_NoUser ||
-    FibsCookie.FIBS_PlayerRefusingGames ||
-    FibsCookie.FIBS_AlreadyPlaying ||
-    FibsCookie.FIBS_DidntInvite ||
-    FibsCookie.FIBS_DontKnowUser ||
-    FibsCookie.FIBS_NotYourTurnToMove ||
-    FibsCookie.FIBS_NotYourTurnToRoll ||
-    FibsCookie.FIBS_NotPlaying ||
-    FibsCookie.FIBS_NotWatchingPlaying ||
-    FibsCookie.FIBS_UnknownCommand => systemMessage(cm),
-    FibsCookie.CLIP_KIBITZES ||
-    FibsCookie.CLIP_MESSAGE ||
-    FibsCookie.CLIP_SAYS ||
-    FibsCookie.CLIP_SHOUTS ||
-    FibsCookie.CLIP_WHISPERS => receiveChatMessage(cm),
-    _ => FibsProtocolTransition(state: this),
-  };
+  FibsProtocolTransition receive(CookieMessage cm) {
+    final handler = _protocolCookieHandlers[cm.cookie];
+    return handler == null
+        ? FibsProtocolTransition(state: this, trackSessionTransition: false)
+        : handler(this, cm);
+  }
 
   FibsProtocolTransition receiveBoard(CookieMessage cm) {
     final board = session.board == null

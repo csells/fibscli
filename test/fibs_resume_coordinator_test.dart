@@ -3,6 +3,18 @@ import 'package:fibscli_lib/fibscli_lib.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('resume coordinator exposes one finite mode at a time', () {
+    const resume = FibsResumeCoordinator();
+
+    expect(resume.mode, FibsResumeMode.idle);
+    expect(resume.startLoginDiscovery().mode, FibsResumeMode.loginDiscovery);
+    expect(
+      resume.startLoginDiscovery().suppressBoards().mode,
+      FibsResumeMode.suppressingBoards,
+    );
+    expect(resume.beginAttempt('BlunderBot').mode, FibsResumeMode.attempting);
+  });
+
   test('login discovery parks the first unsolicited board once', () {
     final resume = const FibsResumeCoordinator().startLoginDiscovery();
 

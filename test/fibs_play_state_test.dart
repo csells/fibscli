@@ -7,6 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_transport.dart';
 
+class _ThrowingSendTransport extends FakeTransport {
+  @override
+  void send(String s) {
+    if (s == 'roll') throw StateError('socket write failed');
+    super.send(s);
+  }
+}
+
 // our own game; player1 is the literal "You" (player1Color 1 == O). turn '1'
 // is our turn, '-1' the opponent's. p1dice '0:0' => no dice yet.
 String boardLine({
@@ -324,6 +332,16 @@ void main() {
     // immediately so we don't roll again
     expect(fibs.canRoll, isFalse);
     expect(fibs.roll, throwsA(isA<FibsStateError>()));
+  });
+
+  test('failed command send leaves player action state unchanged', () async {
+    final fake = _ThrowingSendTransport();
+    final fibs = await _inGame(fake, promptRoll: true);
+    expect(fibs.canRoll, isTrue);
+
+    expect(fibs.roll, throwsA(isA<FibsStateError>()));
+
+    expect(fibs.canRoll, isTrue);
   });
 
   test('a refresh board after we roll does not let us roll again', () async {

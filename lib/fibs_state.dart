@@ -286,7 +286,7 @@ class FibsState extends ChangeNotifier {
     _log.finer(cm.cookie.name);
     final handler = _handlers[cm.cookie];
     if (handler == null) {
-      _handleProtocolRoutedCookie(cm);
+      _receiveProtocol(cm);
     } else {
       handler(cm);
     }
@@ -294,7 +294,7 @@ class FibsState extends ChangeNotifier {
   }
 
   // Cookie -> handler for lobby and UI-only events. Gameplay, resume, command,
-  // and chat categories are routed through fibsProtocolRouteFor below.
+  // and chat categories are handled by FibsProtocolState.receive.
   late final Map<FibsCookie, void Function(CookieMessage)> _handlers = {
     FibsCookie.CLIP_WHO_INFO: _onWhoInfo,
     FibsCookie.CLIP_WHO_END: (_) => _trackLobbyReady(),
@@ -307,15 +307,6 @@ class FibsState extends ChangeNotifier {
     ),
   };
 
-  void _handleProtocolRoutedCookie(CookieMessage cm) {
-    switch (fibsProtocolRouteFor(cm.cookie)) {
-      case FibsProtocolCookieRoute.ignore:
-        break;
-      case FibsProtocolCookieRoute.protocol:
-        _receiveProtocol(cm);
-    }
-  }
-
   // fold an inbound protocol cookie into the session and republish
   void _receiveProtocol(CookieMessage cm) =>
       _applyProtocolTransition(_protocol.receive(cm));
@@ -326,18 +317,27 @@ class FibsState extends ChangeNotifier {
     bool notify = true,
   }) {
     final previousSession = _session;
+    _sendProtocolCommands(transition.commands);
     _protocol = transition.state;
     _diagnostics = _diagnostics.recordTransition(transition);
     for (final message in transition.messages) {
       messages.add(FibsMessage(message.cookie, message.from, message.text));
     }
-    transition.commands.forEach(_connection.send);
     final shouldTrackSession =
         trackSession ?? transition.trackSessionTransition;
     if (shouldTrackSession) {
       _trackSessionTransition(previousSession);
     }
     if (notify) notifyListeners();
+  }
+
+  void _sendProtocolCommands(List<String> commands) {
+    try {
+      _connection.sendAll(commands);
+    } on Object catch (ex, st) {
+      _log.warning('FIBS command send failed', ex, st);
+      throw FibsStateError('FIBS command failed: $ex');
+    }
   }
 
   void _onWhoInfo(CookieMessage cm) {
