@@ -32,7 +32,7 @@ class FibsConnectionLifecycle {
     if (conn == null || !conn.connected) {
       throw StateError('not connected to FIBS');
     }
-    pending.forEach(conn.send);
+    conn.sendBatch(pending);
   }
 
   Future<FibsCookie> login({

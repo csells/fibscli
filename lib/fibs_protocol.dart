@@ -16,25 +16,6 @@ export 'fibs_protocol_intents.dart' show FibsProtocolError;
 
 enum FibsProtocolSignal { boardFrame, opponentRolled, commandRejected }
 
-const _sessionCookieHandlers = {
-  FibsCookie.FIBS_YouRoll,
-  FibsCookie.FIBS_PlayerRolls,
-  FibsCookie.FIBS_RollOrDouble,
-  FibsCookie.FIBS_YouWinGame,
-  FibsCookie.FIBS_PlayerWinsGame,
-  FibsCookie.FIBS_YouWinMatch,
-  FibsCookie.FIBS_PlayerWinsMatch,
-  FibsCookie.FIBS_ResignYouWin,
-  FibsCookie.FIBS_YouAcceptAndWin,
-  FibsCookie.FIBS_AcceptWins,
-  FibsCookie.FIBS_ResignWins,
-  FibsCookie.FIBS_AcceptRejectDouble,
-  FibsCookie.FIBS_SavedMatch,
-  FibsCookie.FIBS_SavedMatchPlaying,
-  FibsCookie.FIBS_SavedMatchReady,
-  FibsCookie.FIBS_NoSavedGames,
-};
-
 const _movePromptCookieHandlers = {
   FibsCookie.FIBS_PleaseMove,
   FibsCookie.FIBS_YourTurnToMove,
@@ -86,8 +67,6 @@ final Map<
 >
 _protocolCookieHandlers = {
   FibsCookie.CLIP_OWN_INFO: (state, cm) => state.receiveOwnInfo(cm),
-  for (final cookie in _sessionCookieHandlers)
-    cookie: (state, cm) => state.applyCookie(cm),
   FibsCookie.FIBS_Turn: (state, cm) => state.receiveTurnText(cm),
   for (final cookie in _movePromptCookieHandlers)
     cookie: (state, cm) => state.receiveMovePrompt(cm),
@@ -179,9 +158,9 @@ class FibsProtocolState {
 
   FibsProtocolTransition receive(CookieMessage cm) {
     final handler = _protocolCookieHandlers[cm.cookie];
-    return handler == null
-        ? FibsProtocolTransition(state: this, trackSessionTransition: false)
-        : handler(this, cm);
+    if (handler != null) return handler(this, cm);
+    if (FibsSession.reducesCookie(cm.cookie)) return applyCookie(cm);
+    return FibsProtocolTransition(state: this, trackSessionTransition: false);
   }
 
   FibsProtocolTransition receiveBoard(CookieMessage cm) {

@@ -176,66 +176,81 @@ class FibsSession {
 
   // Fold an inbound FIBS cookie into the session. Pure: returns the next
   // session (or [this] unchanged for cookies this state machine ignores).
-  FibsSession reduce(CookieMessage cm) => switch (cm.cookie) {
-    FibsCookie.FIBS_RollOrDouble => _afterRollOrDouble(),
-    FibsCookie.FIBS_YouRoll => _afterYouRoll(cm),
-    FibsCookie.FIBS_PlayerRolls => _afterPlayerRolls(cm),
-    FibsCookie.FIBS_Turn => _afterTurn(cm),
-    FibsCookie.FIBS_PleaseMove ||
-    FibsCookie.FIBS_YourTurnToMove => _afterMovePrompt(),
-    FibsCookie.FIBS_PlayerCantMove ||
-    FibsCookie.FIBS_CantMove => _afterCantMove(cm),
-    FibsCookie.FIBS_Board => _afterBoard(cm),
+  FibsSession reduce(CookieMessage cm) =>
+      _cookieReducers[cm.cookie]?.call(this, cm) ?? this;
+
+  static bool reducesCookie(FibsCookie cookie) =>
+      _cookieReducers.containsKey(cookie);
+
+  static final Map<
+    FibsCookie,
+    FibsSession Function(FibsSession session, CookieMessage cm)
+  >
+  _cookieReducers = {
+    FibsCookie.FIBS_RollOrDouble: (session, _) => session._afterRollOrDouble(),
+    FibsCookie.FIBS_YouRoll: (session, cm) => session._afterYouRoll(cm),
+    FibsCookie.FIBS_PlayerRolls: (session, cm) => session._afterPlayerRolls(cm),
+    FibsCookie.FIBS_Turn: (session, cm) => session._afterTurn(cm),
+    FibsCookie.FIBS_PleaseMove: (session, _) => session._afterMovePrompt(),
+    FibsCookie.FIBS_YourTurnToMove: (session, _) => session._afterMovePrompt(),
+    FibsCookie.FIBS_PlayerCantMove: (session, cm) => session._afterCantMove(cm),
+    FibsCookie.FIBS_CantMove: (session, cm) => session._afterCantMove(cm),
+    FibsCookie.FIBS_Board: (session, cm) => session._afterBoard(cm),
     // FIBS announces the game/match result as a text message, not a 15-off
     // board, so these are the authoritative game-over signal. Includes the
     // resignation outcomes from our perspective.
-    FibsCookie.FIBS_YouWinGame ||
-    FibsCookie.FIBS_YouWinMatch ||
-    FibsCookie.FIBS_ResignYouWin ||
-    FibsCookie.FIBS_YouAcceptAndWin => copyWith(
-      gameEnded: true,
-      iWon: true,
-      resultMessage: _resultText(cm),
-    ),
-    FibsCookie.FIBS_PlayerWinsGame ||
-    FibsCookie.FIBS_PlayerWinsMatch ||
-    FibsCookie.FIBS_AcceptWins => copyWith(
-      gameEnded: true,
-      iWon: false,
-      resultMessage: _resultText(cm),
-    ),
-    // ended, winner not disambiguated here (a general "X gives up" line)
-    FibsCookie.FIBS_ResignWins => copyWith(
-      gameEnded: true,
-      resultMessage: _resultText(cm),
-    ),
-    FibsCookie.FIBS_AcceptRejectDouble => copyWith(doubleOffered: true),
-    FibsCookie.FIBS_SavedMatch => _withSavedMatch(
-      cm,
-      SavedMatchAvailability.offline,
-    ),
-    FibsCookie.FIBS_SavedMatchPlaying => _withSavedMatch(
-      cm,
-      SavedMatchAvailability.online,
-    ),
-    FibsCookie.FIBS_SavedMatchReady => _withSavedMatch(
-      cm,
-      SavedMatchAvailability.ready,
-    ),
-    FibsCookie.FIBS_NoSavedGames => copyWith(savedMatches: const {}),
-    FibsCookie.FIBS_ResumeMatchRequest => withSavedOpponent(
-      cm.crumbOrNull(FibsCrumbKeys.name),
-      availability: SavedMatchAvailability.ready,
-    ).copyWith(resumeRequestFrom: cm.crumbOrNull(FibsCrumbKeys.name)),
-    FibsCookie.FIBS_TypeJoin => _withJoinPrompt(cm),
-    FibsCookie.FIBS_JoinNextGame => copyWith(mustJoin: true),
-    FibsCookie.FIBS_ResumeMatchAck0 ||
-    FibsCookie.FIBS_ResumeMatchAck5 => copyWith(
-      savedMatches: {...savedMatches}
-        ..remove(cm.crumbOrNull(FibsCrumbKeys.opponent)),
-    ),
-    _ => this,
+    FibsCookie.FIBS_YouWinGame: (session, cm) =>
+        session._winResult(cm, iWon: true),
+    FibsCookie.FIBS_YouWinMatch: (session, cm) =>
+        session._winResult(cm, iWon: true),
+    FibsCookie.FIBS_ResignYouWin: (session, cm) =>
+        session._winResult(cm, iWon: true),
+    FibsCookie.FIBS_YouAcceptAndWin: (session, cm) =>
+        session._winResult(cm, iWon: true),
+    FibsCookie.FIBS_PlayerWinsGame: (session, cm) =>
+        session._winResult(cm, iWon: false),
+    FibsCookie.FIBS_PlayerWinsMatch: (session, cm) =>
+        session._winResult(cm, iWon: false),
+    FibsCookie.FIBS_AcceptWins: (session, cm) =>
+        session._winResult(cm, iWon: false),
+    // Ended, winner not disambiguated here (a general "X gives up" line).
+    FibsCookie.FIBS_ResignWins: (session, cm) =>
+        session._winResult(cm, iWon: null),
+    FibsCookie.FIBS_AcceptRejectDouble: (session, _) =>
+        session.copyWith(doubleOffered: true),
+    FibsCookie.FIBS_SavedMatch: (session, cm) =>
+        session._withSavedMatch(cm, SavedMatchAvailability.offline),
+    FibsCookie.FIBS_SavedMatchPlaying: (session, cm) =>
+        session._withSavedMatch(cm, SavedMatchAvailability.online),
+    FibsCookie.FIBS_SavedMatchReady: (session, cm) =>
+        session._withSavedMatch(cm, SavedMatchAvailability.ready),
+    FibsCookie.FIBS_NoSavedGames: (session, _) =>
+        session.copyWith(savedMatches: const {}),
+    FibsCookie.FIBS_ResumeMatchRequest: (session, cm) {
+      final opponent = cm.crumbOrNull(FibsCrumbKeys.name);
+      return session
+          .withSavedOpponent(
+            opponent,
+            availability: SavedMatchAvailability.ready,
+          )
+          .copyWith(resumeRequestFrom: opponent);
+    },
+    FibsCookie.FIBS_TypeJoin: (session, cm) => session._withJoinPrompt(cm),
+    FibsCookie.FIBS_JoinNextGame: (session, _) =>
+        session.copyWith(mustJoin: true),
+    FibsCookie.FIBS_ResumeMatchAck0: (session, cm) =>
+        session._removeSavedMatch(cm),
+    FibsCookie.FIBS_ResumeMatchAck5: (session, cm) =>
+        session._removeSavedMatch(cm),
   };
+
+  FibsSession _winResult(CookieMessage cm, {required bool? iWon}) =>
+      copyWith(gameEnded: true, iWon: iWon, resultMessage: _resultText(cm));
+
+  FibsSession _removeSavedMatch(CookieMessage cm) => copyWith(
+    savedMatches: {...savedMatches}
+      ..remove(cm.crumbOrNull(FibsCrumbKeys.opponent)),
+  );
 
   FibsSession _afterRollOrDouble() {
     var b = board;

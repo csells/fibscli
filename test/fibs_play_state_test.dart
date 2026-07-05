@@ -9,9 +9,10 @@ import 'fake_transport.dart';
 
 class _ThrowingSendTransport extends FakeTransport {
   @override
-  void send(String s) {
-    if (s == 'roll') throw StateError('socket write failed');
-    super.send(s);
+  void sendBatch(Iterable<String> commands) {
+    final pending = commands.toList(growable: false);
+    if (pending.contains('roll')) throw StateError('socket write failed');
+    super.sendBatch(pending);
   }
 }
 

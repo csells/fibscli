@@ -7,6 +7,7 @@ abstract interface class FibsTransport {
   Future<FibsCookie> login(String user, String pass);
   Future<void> createAccount(String user, String pass);
   void send(String s);
+  void sendBatch(Iterable<String> commands);
   Stream<CookieMessage> get stream;
   Future<void> close();
   bool get connected;
@@ -24,6 +25,8 @@ class FibsConnectionTransport implements FibsTransport {
       _conn.createAccount(user, pass);
   @override
   void send(String s) => _conn.send(s);
+  @override
+  void sendBatch(Iterable<String> commands) => _conn.sendBatch(commands);
   @override
   Stream<CookieMessage> get stream => _conn.stream;
   @override

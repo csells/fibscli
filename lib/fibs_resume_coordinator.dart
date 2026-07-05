@@ -130,27 +130,88 @@ class FibsResumeRejectedResult {
 
 enum FibsResumeMode { idle, loginDiscovery, suppressingBoards, attempting }
 
-const _pendingOpponentUnchanged = Object();
+sealed class _FibsResumeFlow {
+  const _FibsResumeFlow();
+
+  FibsResumeMode get mode;
+  String? get pendingOpponentKey => null;
+  bool get hasPendingAttempt => pendingOpponentKey != null;
+  bool get suppressesIncomingBoards => false;
+
+  bool pendingFor(String opponentKey) => pendingOpponentKey == opponentKey;
+
+  _FibsResumeFlow clearAttempt();
+}
+
+final class _ResumeIdle extends _FibsResumeFlow {
+  const _ResumeIdle();
+
+  @override
+  FibsResumeMode get mode => FibsResumeMode.idle;
+
+  @override
+  _FibsResumeFlow clearAttempt() => const _ResumeIdle();
+}
+
+final class _ResumeLoginDiscovery extends _FibsResumeFlow {
+  const _ResumeLoginDiscovery();
+
+  @override
+  FibsResumeMode get mode => FibsResumeMode.loginDiscovery;
+
+  @override
+  bool get suppressesIncomingBoards => true;
+
+  @override
+  _FibsResumeFlow clearAttempt() => const _ResumeLoginDiscovery();
+}
+
+final class _ResumeSuppressingBoards extends _FibsResumeFlow {
+  const _ResumeSuppressingBoards();
+
+  @override
+  FibsResumeMode get mode => FibsResumeMode.suppressingBoards;
+
+  @override
+  bool get suppressesIncomingBoards => true;
+
+  @override
+  _FibsResumeFlow clearAttempt() => const _ResumeSuppressingBoards();
+}
+
+final class _ResumeAttempting extends _FibsResumeFlow {
+  const _ResumeAttempting(this.opponentKey);
+
+  final String opponentKey;
+
+  @override
+  FibsResumeMode get mode => FibsResumeMode.attempting;
+
+  @override
+  String get pendingOpponentKey => opponentKey;
+
+  @override
+  _FibsResumeFlow clearAttempt() => const _ResumeIdle();
+}
 
 class FibsResumeCoordinator {
   const FibsResumeCoordinator()
     : _delays = const {},
       _parkedKeys = const {},
-      _pendingOpponent = null,
-      mode = FibsResumeMode.idle;
+      _flow = const _ResumeIdle();
 
   FibsResumeCoordinator._({
     required Map<String, ResumeDelayInfo> delays,
     required Set<String> parkedKeys,
-    required this._pendingOpponent,
-    required this.mode,
+    required this._flow,
   }) : _delays = Map.unmodifiable(delays),
        _parkedKeys = Set.unmodifiable(parkedKeys);
 
   final Map<String, ResumeDelayInfo> _delays;
   final Set<String> _parkedKeys;
-  final String? _pendingOpponent;
-  final FibsResumeMode mode;
+  final _FibsResumeFlow _flow;
+
+  FibsResumeMode get mode => _flow.mode;
 
   static final _delayPattern = RegExp(
     r'^I will not attempt to resume for (?<minutes>[0-9]+) minutes?\.$',
@@ -164,40 +225,35 @@ class FibsResumeCoordinator {
     return delay;
   }
 
-  bool pendingFor(String opponent) => _pendingOpponent == key(opponent);
+  bool pendingFor(String opponent) => _flow.pendingFor(key(opponent));
 
-  bool get hasPendingAttempt => _pendingOpponent != null;
+  bool get hasPendingAttempt => _flow.hasPendingAttempt;
 
   FibsResumeCoordinator reset() => const FibsResumeCoordinator();
 
   FibsResumeCoordinator startLoginDiscovery() => FibsResumeCoordinator._(
     delays: const {},
     parkedKeys: const {},
-    pendingOpponent: null,
-    mode: FibsResumeMode.loginDiscovery,
+    flow: const _ResumeLoginDiscovery(),
   );
 
   FibsResumeCoordinator allowBoardAdmission() =>
-      _copyWith(mode: FibsResumeMode.idle, pendingOpponent: null);
+      _copyWith(flow: const _ResumeIdle());
 
   FibsResumeCoordinator suppressBoards() =>
-      _copyWith(mode: FibsResumeMode.suppressingBoards, pendingOpponent: null);
+      _copyWith(flow: const _ResumeSuppressingBoards());
 
   FibsResumeCoordinator beginAttempt(String opponent) {
     final opponentKey = key(opponent);
     return _copyWith(
       delays: {..._delays}..remove(opponentKey),
       parkedKeys: {..._parkedKeys}..remove(opponentKey),
-      pendingOpponent: opponentKey,
-      mode: FibsResumeMode.attempting,
+      flow: _ResumeAttempting(opponentKey),
     );
   }
 
   FibsResumeCoordinator markAttemptWaitingForBoard(String opponent) =>
-      _copyWith(
-        pendingOpponent: key(opponent),
-        mode: FibsResumeMode.attempting,
-      );
+      _copyWith(flow: _ResumeAttempting(key(opponent)));
 
   bool shouldJoinPromptFrom(String? opponent) =>
       opponent != null && pendingFor(opponent);
@@ -208,9 +264,7 @@ class FibsResumeCoordinator {
     return !pendingFor(opponent);
   }
 
-  bool get _isSuppressingIncomingBoards =>
-      mode == FibsResumeMode.loginDiscovery ||
-      mode == FibsResumeMode.suppressingBoards;
+  bool get _isSuppressingIncomingBoards => _flow.suppressesIncomingBoards;
 
   FibsResumeBoardDecision decideBoard({
     required String? opponent,
@@ -261,12 +315,7 @@ class FibsResumeCoordinator {
       resume: _copyWith(
         delays: delays,
         parkedKeys: parkedKeys,
-        pendingOpponent: _pendingOpponent == opponentKey
-            ? null
-            : _pendingOpponent,
-        mode: mode == FibsResumeMode.loginDiscovery
-            ? FibsResumeMode.suppressingBoards
-            : mode,
+        flow: _flowAfterParking(opponentKey),
       ),
       refreshSavedGames: refreshSavedGames,
     );
@@ -276,18 +325,13 @@ class FibsResumeCoordinator {
     final opponentKey = key(delay.opponent);
     return _copyWith(
       delays: {..._delays, opponentKey: delay},
-      pendingOpponent: _pendingOpponent == opponentKey
-          ? null
-          : _pendingOpponent,
-      mode: _pendingOpponent == opponentKey && mode == FibsResumeMode.attempting
-          ? FibsResumeMode.idle
-          : mode,
+      flow: _flowAfterDelay(opponentKey),
     );
   }
 
   FibsResumeRejectedResult clearRejected(FibsCookie cookie) {
     final cleared =
-        _resumeRejectedCookies.contains(cookie) && _pendingOpponent != null;
+        _resumeRejectedCookies.contains(cookie) && hasPendingAttempt;
     return FibsResumeRejectedResult(
       resume: cleared ? _clearPendingAttempt() : this,
       cleared: cleared,
@@ -336,22 +380,29 @@ class FibsResumeCoordinator {
     );
   }
 
-  FibsResumeCoordinator _clearPendingAttempt() => _copyWith(
-    pendingOpponent: null,
-    mode: mode == FibsResumeMode.attempting ? FibsResumeMode.idle : mode,
-  );
+  FibsResumeCoordinator _clearPendingAttempt() =>
+      _copyWith(flow: _flow.clearAttempt());
+
+  _FibsResumeFlow _flowAfterParking(String? opponentKey) => switch (_flow) {
+    _ResumeLoginDiscovery() => const _ResumeSuppressingBoards(),
+    _ResumeAttempting(opponentKey: final pending) when pending == opponentKey =>
+      const _ResumeIdle(),
+    _ => _flow,
+  };
+
+  _FibsResumeFlow _flowAfterDelay(String opponentKey) => switch (_flow) {
+    _ResumeAttempting(opponentKey: final pending) when pending == opponentKey =>
+      const _ResumeIdle(),
+    _ => _flow,
+  };
 
   FibsResumeCoordinator _copyWith({
     Map<String, ResumeDelayInfo>? delays,
     Set<String>? parkedKeys,
-    Object? pendingOpponent = _pendingOpponentUnchanged,
-    FibsResumeMode? mode,
+    _FibsResumeFlow? flow,
   }) => FibsResumeCoordinator._(
     delays: delays ?? _delays,
     parkedKeys: parkedKeys ?? _parkedKeys,
-    pendingOpponent: identical(pendingOpponent, _pendingOpponentUnchanged)
-        ? _pendingOpponent
-        : pendingOpponent as String?,
-    mode: mode ?? this.mode,
+    flow: flow ?? _flow,
   );
 }

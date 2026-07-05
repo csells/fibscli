@@ -31,6 +31,11 @@ class FakeTransport implements FibsTransport {
   @override
   void send(String s) => sent.add(s);
   @override
+  void sendBatch(Iterable<String> commands) {
+    sent.addAll(commands);
+  }
+
+  @override
   Stream<CookieMessage> get stream => _ctrl.stream;
   @override
   Future<void> close() async => _connected = false;
@@ -76,6 +81,9 @@ class StrictFakeTransport implements FibsTransport {
 
   @override
   void send(String s) {}
+  @override
+  void sendBatch(Iterable<String> commands) {}
+
   @override
   Stream<CookieMessage> get stream => _ctrl.stream;
   @override

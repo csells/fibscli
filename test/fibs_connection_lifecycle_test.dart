@@ -9,6 +9,17 @@ class _StickyCloseTransport extends FakeTransport {
   Future<void> close() async {}
 }
 
+class _SecondCommandThrowingTransport extends FakeTransport {
+  @override
+  void sendBatch(Iterable<String> commands) {
+    final pending = commands.toList(growable: false);
+    if (pending.contains('show savedgames')) {
+      throw StateError('socket write failed');
+    }
+    super.sendBatch(pending);
+  }
+}
+
 void main() {
   test('login cleanup allows a fresh production-like transport', () async {
     final transports = [
@@ -64,6 +75,31 @@ void main() {
 
       expect(fake.connected, isTrue);
       expect(lifecycle.connected, isFalse);
+    },
+  );
+
+  test(
+    'command batches are sent as an all-or-nothing transport effect',
+    () async {
+      final fake = _SecondCommandThrowingTransport();
+      final lifecycle = FibsConnectionLifecycle(
+        makeTransport: () => fake,
+        loginTimeout: const Duration(milliseconds: 50),
+      );
+
+      await lifecycle.login(
+        user: 'me',
+        pass: 'pw',
+        onCookie: (_) {},
+        onError: (_, _) {},
+        onDone: () {},
+      );
+
+      expect(
+        () => lifecycle.sendAll(const ['leave', 'show savedgames']),
+        throwsStateError,
+      );
+      expect(fake.sent, isEmpty);
     },
   );
 }

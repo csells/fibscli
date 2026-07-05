@@ -308,14 +308,24 @@ class FibsConnection {
   ///
   /// The message should not contain any newline characters, as this method
   /// will append the newline before sending.
-  ///
-  /// Parameters:
-  ///
-  /// s - The message string to send
-  void send(String s) {
-    assert(connected);
-    assert(!s.endsWith('\n'));
-    _channel!.sink.add('$s\n');
+  void send(String s) => sendBatch([s]);
+
+  /// Sends a contiguous set of FIBS commands in one WebSocket write.
+  void sendBatch(Iterable<String> commands) {
+    final channel = _channel;
+    if (channel == null) throw StateError('not connected to FIBS');
+    final pending = commands.toList(growable: false);
+    if (pending.isEmpty) return;
+    for (final command in pending) {
+      if (command.contains('\n') || command.contains('\r')) {
+        throw ArgumentError.value(
+          command,
+          'commands',
+          'must not contain lines',
+        );
+      }
+    }
+    channel.sink.add('${pending.join('\n')}\n');
   }
 
   // Normalize a websocket frame to text. Native (dart:io) yields Uint8List for

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
@@ -11,6 +12,10 @@ void installFibsE2eProbe(FibsState fibs) {
   globalContext.setProperty(
     '__fibscliE2EState'.toJS,
     (() => _snapshot(fibs).jsify()).toJS,
+  );
+  globalContext.setProperty(
+    '__fibscliE2EAction'.toJS,
+    ((JSString action) => _runAction(fibs, action.toDart).jsify()).toJS,
   );
 }
 
@@ -72,4 +77,26 @@ Map<String, Object?> _snapshot(FibsState fibs) {
     }
   }
   return (ready: ready, busy: busy, waiting: waiting);
+}
+
+Map<String, Object?> _runAction(FibsState fibs, String action) {
+  switch (action) {
+    case 'leaveGame':
+      if (fibs.gameState == null) return {'ok': false};
+      fibs.leaveGame();
+      return {'ok': true};
+    case 'logout':
+      if (!fibs.loggedIn) return {'ok': false};
+      unawaited(fibs.logout());
+      return {'ok': true};
+    case 'resumeFirstReady':
+      for (final display in fibs.savedMatchDisplays) {
+        if (!display.canResume) continue;
+        fibs.resumeSavedMatch(display.match.opponent);
+        return {'ok': true, 'opponent': display.match.opponent};
+      }
+      return {'ok': false};
+    default:
+      throw UnsupportedError('unknown FIBS e2e action: $action');
+  }
 }

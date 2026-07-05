@@ -33,6 +33,14 @@ const getProbeState = async () =>
     const probe = globalThis.__fibscliE2EState;
     return typeof probe === 'function' ? probe() : null;
   });
+const runProbeAction = async (action) =>
+  page.evaluate((name) => {
+    const probe = globalThis.__fibscliE2EAction;
+    if (typeof probe !== 'function') {
+      throw new Error('FIBS e2e action probe is not installed');
+    }
+    return probe(name);
+  }, action);
 const pathOf = () => new URL(page.url()).pathname;
 
 mkdirSync(OUT, { recursive: true });
@@ -163,16 +171,13 @@ const waitForScreenshotChange = async (
 const leaveGameIfOpen = async () => {
   const state = await getProbeState().catch(() => null);
   if (!state?.inGame || pathOf() !== '/fibs/play') return false;
-  await page.mouse.click(313, 821);
+  const result = await runProbeAction('leaveGame');
+  if (!result?.ok) return false;
   await waitForPath('/fibs/bots', 15000).catch(() => {});
   return true;
 };
 
-const clickLogout = async () => {
-  await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
-  await sleep(750);
-  await page.mouse.click(1035, 44);
-};
+const logoutFromProbe = async () => runProbeAction('logout');
 
 const logoutIfNeeded = async () => {
   const state = await getProbeState().catch(() => null);
@@ -182,7 +187,7 @@ const logoutIfNeeded = async () => {
     await page.goto(`${BASE}/fibs/bots`, { waitUntil: 'load' }).catch(() => {});
     await sleep(1000);
   }
-  await clickLogout();
+  await logoutFromProbe();
 };
 
 const runSavedMatchResumeCheck = async (initialLobbyState) => {
@@ -207,8 +212,11 @@ const runSavedMatchResumeCheck = async (initialLobbyState) => {
     };
   }
 
-  console.log('E2E_RESUME_CLICK: first ready saved match');
-  await page.mouse.click(1000, 455);
+  console.log('E2E_RESUME_ACTION: first ready saved match');
+  const resumed = await runProbeAction('resumeFirstReady');
+  if (!resumed?.ok) {
+    throw new Error('saved-match resume action found no ready match');
+  }
 
   const gameState = await waitForProbe(
     'saved-match resume board',
@@ -294,21 +302,19 @@ try {
     throw new Error('AI game screenshot matched landing page');
   }
 
-  // FIBS route: real in-app navigation from the landing page, so the test
-  // proves the browser address bar follows a user click.
-  await page.goto(`${BASE}/`, { waitUntil: 'load' });
+  // FIBS route: direct deep link. The app must route/redirect to the live
+  // FIBS lobby and keep the browser address bar under /fibs.
+  await page.goto(`${BASE}/fibs/bots`, { waitUntil: 'load' });
   await page
     .waitForSelector('flt-glass-pane, flutter-view', { timeout: 30000 })
     .catch(() => {});
   await sleep(2500);
-  assertPath('/');
-  await page.mouse.click(935, 555);
   const fibsPathWaitUntil = Date.now() + 15000;
   while (!pathOf().startsWith('/fibs') && Date.now() < fibsPathWaitUntil) {
     await sleep(250);
   }
   if (!pathOf().startsWith('/fibs')) {
-    throw new Error(`FIBS click did not update browser path; got ${pathOf()}`);
+    throw new Error(`FIBS route did not hold a /fibs path; got ${pathOf()}`);
   }
   const waitUntil = Date.now() + 45000;
   while (
@@ -357,8 +363,8 @@ try {
 
   const resumeResult = await runSavedMatchResumeCheck(lobbyState);
 
-  // good citizen: log out cleanly (Logout is top-right on the bot list)
-  await clickLogout();
+  // good citizen: log out cleanly from the app state machine
+  await logoutFromProbe();
   const closeWaitUntil = Date.now() + 10000;
   while (!proxyWebSocketClosed && Date.now() < closeWaitUntil) {
     await sleep(500);

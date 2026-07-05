@@ -26,6 +26,8 @@ class _HangingLoginTransport implements FibsTransport {
 
   @override
   void send(String s) {}
+  @override
+  void sendBatch(Iterable<String> commands) {}
 
   @override
   Stream<CookieMessage> get stream => _ctrl.stream;
