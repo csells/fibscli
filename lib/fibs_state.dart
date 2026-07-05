@@ -10,6 +10,7 @@ import 'fibs_board.dart';
 import 'fibs_crumb_keys.dart';
 import 'fibs_lobby.dart';
 import 'fibs_move.dart';
+import 'fibs_resume_coordinator.dart';
 import 'fibs_session.dart';
 import 'fibs_transport.dart';
 import 'model.dart';
@@ -18,9 +19,9 @@ import 'tinystate.dart';
 // WhoInfo/FibsLobby moved to fibs_lobby.dart; re-export so importers of
 // fibs_state (the UI, tests) still see WhoInfo unchanged.
 export 'fibs_lobby.dart' show FibsLobby, WhoInfo;
+export 'fibs_resume_coordinator.dart' show ResumeDelayInfo;
 export 'fibs_session.dart' show SavedMatchAvailability, SavedMatchInfo;
 
-part 'fibs_resume_state.dart';
 part 'fibs_saved_match_display.dart';
 part 'fibs_state_actions.dart';
 
@@ -164,7 +165,7 @@ class FibsState extends ChangeNotifier {
   bool _lobbyReadyTracked = false;
   bool _doublePromptToggleSent = false;
   bool _moreboardsToggleSent = false;
-  final _resume = _FibsResumeState();
+  final _resume = FibsResumeCoordinator();
   var _cookieCount = 0;
   FibsCookie? _lastCookie;
   var _whoInfoCookieCount = 0;
@@ -179,14 +180,14 @@ class FibsState extends ChangeNotifier {
   List<SavedMatchInfo> get savedMatchInfos {
     final matchesByOpponent = <String, SavedMatchInfo>{
       for (final match in _session.savedMatches.values)
-        _FibsResumeState.key(match.opponent): match,
+        FibsResumeCoordinator.key(match.opponent): match,
     };
     final currentUser = user;
     if (currentUser != null) {
       final currentLower = currentUser.toLowerCase();
       for (final who in whoInfos) {
         if (who.opponent.toLowerCase() != currentLower) continue;
-        final key = _FibsResumeState.key(who.user);
+        final key = FibsResumeCoordinator.key(who.user);
         final existing = matchesByOpponent[key];
         matchesByOpponent[key] = SavedMatchInfo(
           opponent: existing?.opponent ?? who.user,
@@ -407,11 +408,21 @@ class FibsState extends ChangeNotifier {
   }
 
   void _onBoard(CookieMessage cm) {
-    if (_resume.ignoreBoardsUntilUserAction && _session.board == null) {
-      if (_resume.captureUnsolicitedLoginBoard) {
-        final board = FibsBoard.fromCrumbs(cm.crumbs!);
-        _parkSavedMatchInLobby(board.opponentNameFor(_session.user));
-      }
+    final board = _session.board == null
+        ? FibsBoard.fromCrumbs(cm.crumbs!)
+        : null;
+    final decision = _resume.decideBoard(
+      opponent: board?.opponentNameFor(_session.user),
+      hasSessionBoard: _session.board != null,
+    );
+    if (decision.action == FibsResumeBoardAction.park) {
+      _parkSavedMatchInLobby(
+        decision.opponent,
+        refreshSavedGames: decision.refreshSavedGames,
+      );
+      return;
+    }
+    if (decision.action == FibsResumeBoardAction.ignore) {
       return;
     }
     _applyCookie(cm);
@@ -435,15 +446,17 @@ class FibsState extends ChangeNotifier {
     final wasInGame = _session.board != null;
     final wasGameOver = _session.isGameOver;
     final opponent = cm.crumbOrNull(FibsCrumbKeys.opponent);
-    if (_isUnsolicitedResume(opponent)) {
-      _parkSavedMatchInLobby(opponent);
+    final decision = _resume.acceptResumeAcknowledgement(opponent);
+    if (decision.action == FibsResumeAckAction.park) {
+      _parkSavedMatchInLobby(
+        decision.opponent,
+        refreshSavedGames: decision.refreshSavedGames,
+      );
       return;
     }
     final saved = opponent == null ? null : _session.savedMatches[opponent];
-    _resume.clearDelayForCookie(cm);
     _session = _session.reduce(cm);
     if (_session.board == null && opponent != null) {
-      _resume.markAttemptWaitingForBoard(opponent);
       _session = _session.copyWith(
         savedMatches: {
           ..._session.savedMatches,
@@ -518,12 +531,9 @@ class FibsState extends ChangeNotifier {
     if (_session.board != null) _conn?.send('board');
   }
 
-  bool _isUnsolicitedResume(String? opponent) =>
-      _resume.isUnsolicitedResume(opponent);
-
-  void _parkSavedMatchInLobby(String? opponent) {
+  void _parkSavedMatchInLobby(String? opponent, {bool? refreshSavedGames}) {
     _session = _session.outOfGame(savedOpponent: opponent);
-    if (_resume.markParked(opponent)) {
+    if (refreshSavedGames ?? _resume.markParked(opponent)) {
       _conn?.send('leave');
       _conn?.send('show savedgames');
     }
@@ -599,7 +609,7 @@ class FibsState extends ChangeNotifier {
         cm.crumbOrNull(FibsCrumbKeys.from) ??
         'FIBS';
     final message = cm.crumb(FibsCrumbKeys.message);
-    final resumeDelay = _FibsResumeState.parseDelay(from, message);
+    final resumeDelay = FibsResumeCoordinator.parseDelay(from, message);
     if (resumeDelay != null) {
       _resume.recordDelay(resumeDelay);
     }

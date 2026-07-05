@@ -1,4 +1,7 @@
-part of 'fibs_state.dart';
+import 'package:fibscli_lib/fibscli_lib.dart';
+import 'package:flutter/foundation.dart';
+
+import 'fibs_crumb_keys.dart';
 
 const _resumeRejectedCookies = {
   FibsCookie.FIBS_NoSavedMatch,
@@ -11,6 +14,63 @@ const _resumeRejectedCookies = {
   FibsCookie.FIBS_NotPlaying,
   FibsCookie.FIBS_NotWatchingPlaying,
 };
+
+enum FibsResumeBoardAction { admit, ignore, park }
+
+@immutable
+class FibsResumeBoardDecision {
+  const FibsResumeBoardDecision._({
+    required this.action,
+    this.opponent,
+    this.refreshSavedGames = false,
+  });
+
+  const FibsResumeBoardDecision.admit()
+    : this._(action: FibsResumeBoardAction.admit);
+
+  const FibsResumeBoardDecision.ignore()
+    : this._(action: FibsResumeBoardAction.ignore);
+
+  const FibsResumeBoardDecision.park({
+    required String? opponent,
+    required bool refreshSavedGames,
+  }) : this._(
+         action: FibsResumeBoardAction.park,
+         opponent: opponent,
+         refreshSavedGames: refreshSavedGames,
+       );
+
+  final FibsResumeBoardAction action;
+  final String? opponent;
+  final bool refreshSavedGames;
+}
+
+enum FibsResumeAckAction { park, requestBoard }
+
+@immutable
+class FibsResumeAckDecision {
+  const FibsResumeAckDecision._({
+    required this.action,
+    this.opponent,
+    this.refreshSavedGames = false,
+  });
+
+  const FibsResumeAckDecision.park({
+    required String? opponent,
+    required bool refreshSavedGames,
+  }) : this._(
+         action: FibsResumeAckAction.park,
+         opponent: opponent,
+         refreshSavedGames: refreshSavedGames,
+       );
+
+  const FibsResumeAckDecision.requestBoard(String? opponent)
+    : this._(action: FibsResumeAckAction.requestBoard, opponent: opponent);
+
+  final FibsResumeAckAction action;
+  final String? opponent;
+  final bool refreshSavedGames;
+}
 
 @immutable
 class ResumeDelayInfo {
@@ -35,7 +95,7 @@ class ResumeDelayInfo {
   String get sentence => '$opponent $detail.';
 }
 
-class _FibsResumeState {
+class FibsResumeCoordinator {
   final _delays = <String, ResumeDelayInfo>{};
   final _attempts = <String>{};
   final _parkedKeys = <String>{};
@@ -106,6 +166,34 @@ class _FibsResumeState {
     return !_attempts.contains(key(opponent));
   }
 
+  FibsResumeBoardDecision decideBoard({
+    required String? opponent,
+    required bool hasSessionBoard,
+  }) {
+    if (!ignoreBoardsUntilUserAction || hasSessionBoard) {
+      return const FibsResumeBoardDecision.admit();
+    }
+    if (!captureUnsolicitedLoginBoard) {
+      return const FibsResumeBoardDecision.ignore();
+    }
+    return FibsResumeBoardDecision.park(
+      opponent: opponent,
+      refreshSavedGames: markParked(opponent),
+    );
+  }
+
+  FibsResumeAckDecision acceptResumeAcknowledgement(String? opponent) {
+    clearDelayForOpponent(opponent);
+    if (isUnsolicitedResume(opponent)) {
+      return FibsResumeAckDecision.park(
+        opponent: opponent,
+        refreshSavedGames: markParked(opponent),
+      );
+    }
+    if (opponent != null) markAttemptWaitingForBoard(opponent);
+    return FibsResumeAckDecision.requestBoard(opponent);
+  }
+
   bool markParked(String? opponent) {
     final opponentKey = opponent == null || opponent.isEmpty
         ? null
@@ -131,6 +219,10 @@ class _FibsResumeState {
     return cleared;
   }
 
+  void clearDelayForOpponent(String? opponent) {
+    if (opponent != null) _delays.remove(key(opponent));
+  }
+
   void clearDelayForCookie(CookieMessage cm) {
     final opponent = switch (cm.cookie) {
       FibsCookie.FIBS_ResumeMatchAck0 ||
@@ -138,7 +230,7 @@ class _FibsResumeState {
       FibsCookie.FIBS_ResumeMatchRequest => cm.crumbOrNull(FibsCrumbKeys.name),
       _ => null,
     };
-    if (opponent != null) _delays.remove(key(opponent));
+    clearDelayForOpponent(opponent);
   }
 
   void clearAttemptForCookie(CookieMessage cm) {
