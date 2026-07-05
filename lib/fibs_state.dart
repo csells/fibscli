@@ -11,6 +11,7 @@ import 'fibs_crumb_keys.dart';
 import 'fibs_lobby.dart';
 import 'fibs_move.dart';
 import 'fibs_resume_coordinator.dart';
+import 'fibs_saved_match_display.dart';
 import 'fibs_session.dart';
 import 'fibs_transport.dart';
 import 'model.dart';
@@ -20,9 +21,10 @@ import 'tinystate.dart';
 // fibs_state (the UI, tests) still see WhoInfo unchanged.
 export 'fibs_lobby.dart' show FibsLobby, WhoInfo;
 export 'fibs_resume_coordinator.dart' show ResumeDelayInfo;
+export 'fibs_saved_match_display.dart'
+    show SavedMatchDisplay, SavedMatchDisplayState;
 export 'fibs_session.dart' show SavedMatchAvailability, SavedMatchInfo;
 
-part 'fibs_saved_match_display.dart';
 part 'fibs_state_actions.dart';
 
 final _log = Logger('fibs');
@@ -210,7 +212,7 @@ class FibsState extends ChangeNotifier {
 
   List<SavedMatchDisplay> get savedMatchDisplays => [
     for (final match in savedMatchInfos)
-      _savedMatchDisplayFor(
+      savedMatchDisplayFor(
         match: match,
         currentUser: user,
         resumePending: resumePendingFor(match.opponent),

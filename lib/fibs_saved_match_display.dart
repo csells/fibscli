@@ -1,4 +1,6 @@
-part of 'fibs_state.dart';
+import 'fibs_lobby.dart';
+import 'fibs_resume_coordinator.dart';
+import 'fibs_session.dart';
 
 enum SavedMatchDisplayState {
   delayed,
@@ -30,7 +32,7 @@ class SavedMatchDisplay {
   final String? note;
 }
 
-SavedMatchDisplay _savedMatchDisplayFor({
+SavedMatchDisplay savedMatchDisplayFor({
   required SavedMatchInfo match,
   required String? currentUser,
   required bool resumePending,
