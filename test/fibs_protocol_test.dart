@@ -416,6 +416,26 @@ void main() {
     expect(loss.matchResult!.message, 'BlunderBot wins the 1 point match 1-0.');
   });
 
+  test('a different-opponent board cannot replace the current game', () {
+    final afterResult = const FibsProtocolState()
+        .loggedInAs('me')
+        .state
+        .inviteBot('Octopus', matchLength: 1)
+        .state
+        .receiveBoard(_cookie(_boardLine(player2: 'Octopus')))
+        .state
+        .receive(_cookie('Octopus wins the 1 point match 1-0 .'))
+        .state;
+
+    final transition = afterResult.receiveBoard(
+      _cookie(_boardLine(player2: 'GammonBot')),
+    );
+
+    expect(transition.state.session.board, isNull);
+    expect(transition.state.session.savedMatches, contains('GammonBot'));
+    expect(transition.commands, ['leave', 'show savedgames']);
+  });
+
   test(
     'watched game finish clears the board and suppresses trailing boards',
     () {

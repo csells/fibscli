@@ -227,8 +227,29 @@ class MoveAnimation {
     final ordered = movements.toList()
       ..sort((a, b) => travel(b).compareTo(travel(a)));
 
+    final hitByPoint = <int, int>{};
+    for (var victimIndex = 0; victimIndex < ordered.length; victimIndex += 1) {
+      final victim = ordered[victimIndex];
+      if (victim.toPip != GammonRules.barPipNoFor(victim.player)) continue;
+      for (
+        var hitterIndex = 0;
+        hitterIndex < ordered.length;
+        hitterIndex += 1
+      ) {
+        final hitter = ordered[hitterIndex];
+        if (hitter.player != victim.player && hitter.toPip == victim.fromPip) {
+          hitByPoint[victim.fromPip] = hitterIndex;
+          break;
+        }
+      }
+    }
+
+    final moveStarts = <Duration>[];
+    final moveDurations = <Duration>[];
     var elapsed = Duration.zero;
-    for (final move in ordered) {
+    for (var moveIndex = 0; moveIndex < ordered.length; moveIndex += 1) {
+      final move = ordered[moveIndex];
+      moveStarts.add(elapsed);
       final dest = takeTop(toLayouts, usedTo, move.toPip, move.player);
       final src = takeTop(fromLayouts, usedFrom, move.fromPip, move.player);
       // A board diff should always pair a source and destination slot. If it
@@ -252,6 +273,16 @@ class MoveAnimation {
             )
           : <int>[move.fromPip, move.toPip];
 
+      final hitLanding = hitByPoint[move.toPip] == moveIndex;
+      final destFrame = hitLanding
+          ? PieceLayout(
+              pieceID: dest.pieceID,
+              offset: PieceLayout.baseSlotOffset(move.toPip),
+              label: '',
+              pipNo: move.toPip,
+            )
+          : dest;
+
       // first frame = the real source slot; last = the real destination slot;
       // any middle pips = that point's base slot (a transient pass-through).
       final frames = <PieceLayout>[
@@ -269,11 +300,30 @@ class MoveAnimation {
             label: '',
             pipNo: pip,
           ),
-        dest,
+        destFrame,
       ];
       layouts[dest.pieceID] = frames;
       if (elapsed > Duration.zero) delays[dest.pieceID] = elapsed;
-      elapsed += kHopAnimationDuration * (frames.length - 1);
+      final duration = kHopAnimationDuration * (frames.length - 1);
+      moveDurations.add(duration);
+      elapsed += duration;
+    }
+
+    for (final victim in ordered) {
+      if (victim.toPip != GammonRules.barPipNoFor(victim.player)) continue;
+      final hitterIndex = hitByPoint[victim.fromPip];
+      if (hitterIndex == null) continue;
+      PieceLayout? hittee;
+      for (final layout in toLayouts) {
+        if (layout.pipNo == victim.toPip &&
+            GammonRules.playerFor(layout.pieceID) == victim.player) {
+          hittee = layout;
+          break;
+        }
+      }
+      if (hittee == null || !layouts.containsKey(hittee.pieceID)) continue;
+      delays[hittee.pieceID] =
+          moveStarts[hitterIndex] + moveDurations[hitterIndex];
     }
     return MoveAnimation(layouts, delays);
   }

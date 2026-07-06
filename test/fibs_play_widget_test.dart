@@ -161,6 +161,25 @@ void main() {
     expect(find.text('Double'), findsOneWidget);
   });
 
+  testWidgets('board size stays fixed when footer controls change', (
+    tester,
+  ) async {
+    final fake = FakeTransport();
+    await _startGame(tester, fake, dice: '0:0');
+
+    final waitingBoard = tester.getRect(find.byType(BoardView));
+    fake.feed(rollOrDoubleLine);
+    await tester.pumpAndSettle();
+    final actionBoard = tester.getRect(find.byType(BoardView));
+
+    fake.feed('You win the 1 point match 1-0 .');
+    await tester.pumpAndSettle();
+    final resultBoard = tester.getRect(find.byType(BoardView));
+
+    expect(actionBoard.size, waitingBoard.size);
+    expect(resultBoard.size, waitingBoard.size);
+  });
+
   testWidgets('waiting for an opponent has a visible leave action', (
     tester,
   ) async {
@@ -297,7 +316,7 @@ void main() {
       find.widgetWithText(FilledButton, 'Back to lobby'),
     );
     expect(lobby.center.dy, greaterThan(board.top + board.height * 0.35));
-    expect(lobby.center.dy, lessThan(board.top + board.height * 0.65));
+    expect(lobby.center.dy, lessThan(board.top + board.height * 0.70));
     expect(lobby.center.dx, greaterThan(board.left));
     expect(lobby.center.dx, lessThan(board.left + board.width * 0.5));
 

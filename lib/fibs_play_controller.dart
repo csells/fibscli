@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'board_animator.dart';
 import 'dice.dart';
 import 'fibs_protocol.dart';
+import 'fibs_resume_coordinator.dart';
 import 'fibs_state.dart';
 import 'model.dart';
 import 'pieces.dart';
@@ -27,6 +28,7 @@ class FibsPlayController extends ChangeNotifier {
       _seenProtocolSignalCount = fibs.protocolSignalCount {
     _prevBoard = _boardCopy();
     _prevDice = _diceSnapshot();
+    _prevGameKey = _gameKey();
     _fibs.addListener(_onFibsChanged);
   }
 
@@ -49,6 +51,7 @@ class FibsPlayController extends ChangeNotifier {
   // dice are already gone, so reading them then would give the wrong dice.
   List<List<int>>? _prevBoard;
   List<int> _prevDice = const [];
+  String? _prevGameKey;
 
   // --- read surface for the view ------------------------------------------
 
@@ -135,7 +138,18 @@ class FibsPlayController extends ChangeNotifier {
     }
 
     final cur = _fibs.gameState?.board;
+    final gameKey = _gameKey();
     if (cur != null) {
+      if (_prevGameKey != null && gameKey != _prevGameKey) {
+        _turn = null;
+        _submittedTurn = null;
+        _moves.clear();
+        _prevBoard = _boardCopy();
+        _prevDice = _diceSnapshot();
+        _prevGameKey = gameKey;
+        notifyListeners();
+        return;
+      }
       if (_submittedTurn != null && opponentRolled) {
         _prevDice = _diceSnapshot();
       }
@@ -157,7 +171,12 @@ class FibsPlayController extends ChangeNotifier {
       if (_submittedTurn == null) {
         _prevBoard = _boardCopy();
         _prevDice = _diceSnapshot();
+        _prevGameKey = gameKey;
       }
+    } else {
+      _prevBoard = null;
+      _prevDice = const [];
+      _prevGameKey = null;
     }
     // rebuild the view on every FIBS change (turn state, waiting/roll/double)
     notifyListeners();
@@ -304,6 +323,14 @@ class FibsPlayController extends ChangeNotifier {
   // the dice the on-roll player has in play on the current board
   List<int> _diceSnapshot() =>
       _fibs.gameState?.dice.map((d) => d.roll).toList() ?? const <int>[];
+
+  String? _gameKey() {
+    final board = _fibs.board;
+    if (board == null) return null;
+    final mode = _fibs.myColor == null ? 'watch' : 'play';
+    final opponent = board.opponentNameFor(_fibs.user);
+    return '$mode:${FibsResumeCoordinator.key(opponent)}';
+  }
 
   @override
   void dispose() {

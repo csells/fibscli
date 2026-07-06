@@ -164,11 +164,21 @@ class FibsProtocolState {
   }
 
   FibsProtocolTransition receiveBoard(CookieMessage cm) {
-    final board = session.board == null
-        ? FibsBoard.fromCrumbs(cm.crumbs!)
-        : null;
+    final board = FibsBoard.fromCrumbs(cm.crumbs!);
+    final opponent = board.opponentNameFor(session.user);
+    final currentOpponent = session.board?.opponentNameFor(session.user);
+    if (currentOpponent != null &&
+        FibsResumeCoordinator.key(currentOpponent) !=
+            FibsResumeCoordinator.key(opponent) &&
+        !resume.pendingFor(opponent)) {
+      return _parkSavedMatchInLobby(
+        opponent,
+        resume: resume.suppressBoards(),
+        refreshSavedGames: true,
+      );
+    }
     final decision = resume.decideBoard(
-      opponent: board?.opponentNameFor(session.user),
+      opponent: opponent,
       hasSessionBoard: session.board != null,
     );
     return switch (decision.action) {

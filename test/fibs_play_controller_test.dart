@@ -6,8 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_transport.dart';
 
-String boardLine({String p1dice = '6:3'}) =>
-    'board:You:wildbg:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5:0:0:0:-3:0:-5:0:0:0:0'
+String boardLine({String opponent = 'wildbg', String p1dice = '6:3'}) =>
+    'board:You:$opponent:1:0:0:0:-2:0:0:0:0:5:0:3:0:0:0:-5:5'
+    ':0:0:0:-3:0:-5:0:0:0:0'
     ':2:0:1:$p1dice:0:0:1:1:1:0:1:-1:0:25:0:0:0:0:2:0:0:0';
 
 String watchedBoardLine(
@@ -207,6 +208,21 @@ void main() {
       controller.animator.delays.values,
       contains(kHopAnimationDuration * 2),
     );
+  });
+
+  test('a new opponent board resets the diff animation baseline', () async {
+    final fake = FakeTransport();
+    final fibs = await _inGame(fake);
+    final controller = FibsPlayController(fibs: fibs);
+    addTearDown(controller.dispose);
+
+    fibs.resumeSavedMatch('GammonBot');
+    fake.feed(boardLine(opponent: 'GammonBot'));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fibs.board!.opponentNameFor(fibs.user), 'GammonBot');
+    expect(controller.animator.isAnimating, isFalse);
+    expect(controller.interactive, isFalse);
   });
 
   test('post-submit opponent board animates with PlayerRolls dice', () async {

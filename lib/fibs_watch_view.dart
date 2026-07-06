@@ -103,44 +103,57 @@ class _WatchStatusBar extends StatelessWidget {
         ? GammonPlayer.two
         : GammonPlayer.one;
     final position = board.position;
-    return Container(
+    return SizedBox(
+      height: _fibsFooterHeight,
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
-        color: AppColors.ivory,
-        border: Border(top: BorderSide(color: AppColors.ink)),
-      ),
-      child: Wrap(
-        spacing: 18,
-        runSpacing: 10,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: AppColors.ivory,
+          border: Border(top: BorderSide(color: AppColors.ink)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
-                Text('Watching', style: editorialKicker(size: 10)),
-                Text(
-                  '${board.player1Name} vs ${board.player2Name}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.headlineSmall?.copyWith(fontSize: 22),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Watching', style: editorialKicker(size: 10)),
+                      Text(
+                        '${board.player1Name} vs ${board.player2Name}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.headlineSmall?.copyWith(fontSize: 22),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 18),
+                _WatchMetric(
+                  label: 'Turn',
+                  value: _watchTurnStatus(board, fibs),
+                ),
+                const SizedBox(width: 18),
+                _WatchMetric(
+                  label: '${board.player1Name} pips',
+                  value: '${position.pipCountFor(player1Color)}',
+                ),
+                const SizedBox(width: 18),
+                _WatchMetric(
+                  label: '${board.player2Name} pips',
+                  value: '${position.pipCountFor(player2Color)}',
+                ),
+                const SizedBox(width: 18),
+                _WatchMetric(label: 'Cube', value: '${board.cube}'),
               ],
             ),
           ),
-          _WatchMetric(label: 'Turn', value: _watchTurnStatus(board, fibs)),
-          _WatchMetric(
-            label: '${board.player1Name} pips',
-            value: '${position.pipCountFor(player1Color)}',
-          ),
-          _WatchMetric(
-            label: '${board.player2Name} pips',
-            value: '${position.pipCountFor(player2Color)}',
-          ),
-          _WatchMetric(label: 'Cube', value: '${board.cube}'),
-        ],
+        ),
       ),
     );
   }

@@ -9,7 +9,7 @@ routes = [
 [vars]
 ENVIRONMENT = "dev"
 VERSION = "local"
-ALLOWED_ORIGINS = "http://127.0.0.1:18088,http://localhost:18088,http://127.0.0.1:8088,http://localhost:8088"
+ALLOWED_ORIGINS = "http://127.0.0.1:9090,http://localhost:9090,http://127.0.0.1:18088,http://localhost:18088,http://127.0.0.1:8088,http://localhost:8088"
 
 [[analytics_engine_datasets]]
 binding = "FIBS_PROXY_ANALYTICS"

@@ -2,6 +2,8 @@ part of 'fibs_page.dart';
 
 // The tap-to-move play view (drives FibsPlayController) + controls.
 
+const _fibsFooterHeight = 76.0;
+
 // Playing a bot via tap-to-move: tap a source pip, then a destination; the
 // server validates (milestone 2).
 class _PlayView extends StatefulWidget {
@@ -94,7 +96,9 @@ class _PlayViewState extends State<_PlayView> {
               ),
             ),
           ),
-          if (!_hasBoardAction(fibs))
+          if (_hasBoardAction(fibs))
+            const _FooterSpacer()
+          else
             _StatusBar(
               fibs: fibs,
               opponent: opponent,
@@ -132,6 +136,21 @@ class _PlayViewState extends State<_PlayView> {
     );
     if (ok ?? false) _fibs.resign();
   }
+}
+
+class _FooterSpacer extends StatelessWidget {
+  const _FooterSpacer();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+    height: _fibsFooterHeight,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.ivory,
+        border: Border(top: BorderSide(color: AppColors.ink)),
+      ),
+    ),
+  );
 }
 
 class _BoardStage extends StatelessWidget {
@@ -355,31 +374,42 @@ class _StatusBar extends StatelessWidget {
         : _waitingText();
 
     final waiting = !fibs.canMoveNow;
-    return Container(
+    return SizedBox(
+      height: _fibsFooterHeight,
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
-        color: AppColors.ivory,
-        border: Border(top: BorderSide(color: AppColors.ink)),
-      ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(text, style: status),
-          if (waiting)
-            OutlinedButton(onPressed: onLeave, child: const Text('Leave')),
-          if (waiting)
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.accent,
-                side: const BorderSide(color: AppColors.accent),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: AppColors.ivory,
+          border: Border(top: BorderSide(color: AppColors.ink)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: status,
+                ),
               ),
-              onPressed: onResign,
-              child: const Text('Resign'),
-            ),
-        ],
+              if (waiting) ...[
+                const SizedBox(width: 12),
+                OutlinedButton(onPressed: onLeave, child: const Text('Leave')),
+                const SizedBox(width: 12),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    side: const BorderSide(color: AppColors.accent),
+                  ),
+                  onPressed: onResign,
+                  child: const Text('Resign'),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

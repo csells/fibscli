@@ -12,9 +12,9 @@
 //   * web build with creds: flutter build web --release \
 //       --dart-define=fibs_uname=$U --dart-define=fibs_pword=$P
 //   * hosted proxy: wss://proxy.playfibs.com/fibs
-//   * serve build/web, e.g. (cd build/web && python3 -m http.server 8088)
+//   * serve build/web, e.g. (cd build/web && python3 -m http.server 9090)
 //
-//   BASE_URL=http://localhost:8088 OUT=tool/browser_e2e/out node fibs_e2e.mjs
+//   BASE_URL=http://localhost:9090 OUT=tool/browser_e2e/out node fibs_e2e.mjs
 //
 // Credentials live only in the build (via .env -> dart-define); this script
 // never sees or types them.
@@ -22,7 +22,7 @@ import { chromium } from 'playwright';
 import { createHash } from 'crypto';
 import { mkdirSync, readFileSync, statSync } from 'fs';
 
-const BASE = process.env.BASE_URL ?? 'http://localhost:8088';
+const BASE = process.env.BASE_URL ?? 'http://localhost:9090';
 const OUT = process.env.OUT ?? 'out';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sha256 = (path) =>

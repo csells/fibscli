@@ -48,7 +48,7 @@ Future<FibsState> _inGame(
 
 // a finished game: player1 ("You" = X) has borne off all 15, turnColor 0.
 String gameOverLine({int xOff = 15, int oOff = 0}) => [
-  'board', 'You', 'bot', '1', '0', '0',
+  'board', 'You', 'wildbg', '1', '0', '0',
   List.filled(26, 0).join(':'),
   '0', // turnColor 0 = game over
   '0:0', '0:0', '1', '1', '1', '0',

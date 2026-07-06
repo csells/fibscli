@@ -2,7 +2,7 @@
 // own headless Chromium (no extension, no FIBS login) and captures the screens
 // we're redesigning. Point BASE_URL at a running `flutter run -d web-server`.
 //
-//   BASE_URL=http://127.0.0.1:8137 OUT=tool/browser_e2e/shots node shots.mjs
+//   BASE_URL=http://127.0.0.1:9090 OUT=tool/browser_e2e/shots node shots.mjs
 //
 // Clicks are canvas coordinates (Flutter web paints to a canvas), matching the
 // approach in fibs_e2e.mjs. Steps are passed as argv: each is "name" to just
@@ -10,7 +10,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 
-const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:8137';
+const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:9090';
 const OUT = process.env.OUT ?? 'shots';
 const W = Number(process.env.W ?? 1280);
 const H = Number(process.env.H ?? 920);

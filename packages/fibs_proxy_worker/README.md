@@ -48,7 +48,9 @@ The manual GitHub Actions deploy workflow expects these repository settings:
 Production should set `ENVIRONMENT=prod`, `VERSION` to the release identifier,
 and `ALLOWED_ORIGINS` to the deployed Flutter app origins before promoting the
 route. Include the public origins (`https://playfibs.com`,
-`https://www.playfibs.com`, and `https://playfibs-f3c5b.web.app`) plus
+`https://www.playfibs.com`, and `https://playfibs-f3c5b.web.app`) plus the
+local development origins: `http://127.0.0.1:9090` and
+`http://localhost:9090` for pinned Flutter web runs, and
 `http://127.0.0.1:18088` and `http://localhost:18088` when running
 `tool/browser_e2e/run.sh` against the hosted Worker.
 

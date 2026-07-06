@@ -11,7 +11,8 @@ websocat proxy) are both reachable from the landing page — see below.
 
 ## Commands
 
-- Run (dev): `flutter run` (targets web/desktop/mobile; works across form factors)
+- Run (dev): `flutter run` (targets desktop/mobile; works across form factors)
+- Run web (dev): `flutter run -d web-server --web-hostname 127.0.0.1 --web-port 9090` → http://127.0.0.1:9090. Keep Flutter web pinned to `9090` for local manual testing and gnubg-service integration work.
 - Build web: `./build-web.sh` → `flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true`
 - Analyze/lint: `flutter analyze` (lint config in `analysis_options.yaml`, based on `all_lint_rules_community` with many explicit overrides). CI (`.github/workflows/ci.yml`) gates on `dart format --set-exit-if-changed lib test`, `dart analyze --fatal-infos lib test`, and `flutter test` on every push/PR; Dependabot scans pub deps. CI gates the **whole workspace** the same way — `dart format --set-exit-if-changed .` and `dart analyze --fatal-infos .` cover `lib`/`test` **and** every `packages/` member, since those are first-party code we own outright (there is no upstream — see below). Nothing is excluded from the strict gate.
 - Secure storage (`flutter_secure_storage`) backs remembered passwords on all platforms; **Linux** also needs `libsecret-1-dev` at build/run time.

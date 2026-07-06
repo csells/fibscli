@@ -23,7 +23,7 @@ Never log or expose credentials, raw FIBS lines, who-list rows, hostnames, email
 
 1. Check local processes:
    - Verify `websocat` is not listening on `:8080`.
-   - Stop any stale local static server that would conflict with `:8088`, or use a different port only after updating the e2e command.
+   - Stop any stale local Flutter web or static server that would conflict with `:9090`, or use a different port only after updating the e2e command.
 2. Confirm `.env` has `fibs_uname` and `fibs_pword`. Do not print the password.
 3. Build through `tool/browser_e2e/run.sh`. It must pass `--dart-define=fibs_e2e_probe=true` and use the hosted proxy.
 4. Run Playwright through `tool/browser_e2e/fibs_e2e.mjs`.

@@ -138,4 +138,28 @@ void main() {
     expect(frames.first.offset, topSlot(fromSlots, 20).offset);
     expect(frames.last.offset, topSlot(toSlots, 22).offset);
   });
+
+  test('board diff hits land on the blot slot before the victim bars', () {
+    final from = List<List<int>>.generate(26, (_) => <int>[]);
+    from[14].add(1); // opponent checker
+    from[20].add(-1); // our blot on the top row
+
+    final to = List<List<int>>.generate(26, (_) => <int>[]);
+    to[20].add(1); // the hitter owns the point after the hit
+    to[25].add(-1); // our checker is on the bar
+
+    final anim = MoveAnimation.between(from, to, dice: [6]);
+    final hitter = anim.layouts.values.singleWhere(
+      (frames) => frames.first.pipNo == 14,
+    );
+    final hittee = anim.layouts.values.singleWhere(
+      (frames) => frames.first.pipNo == 20,
+    );
+
+    expect(hitter.last.pipNo, 20);
+    expect(hitter.last.offset, PieceLayout.baseSlotOffset(20));
+    expect(hittee.first.offset, PieceLayout.baseSlotOffset(20));
+    expect(hittee.last.pipNo, 25);
+    expect(anim.delays[hittee.last.pieceID], kHopAnimationDuration);
+  });
 }
