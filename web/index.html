@@ -1,10 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Play backgammon on FIBS or against the computer.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Play backgammon free in your browser — live on FIBS, the First Internet Backgammon Server (est. 1992), or against the Gary Gammon AI.">
   <base href="/">
+
+  <title>playfibs — play backgammon online on FIBS</title>
+  <link rel="canonical" href="https://playfibs.com/">
+  <meta name="theme-color" content="#f4f1ea">
+
+  <!-- Social share cards -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="playfibs">
+  <meta property="og:title" content="playfibs — play backgammon online on FIBS">
+  <meta property="og:description" content="Roll, double, bear off. A single-player parlor and a living window onto FIBS — the same felt the world has played on since 1992.">
+  <meta property="og:url" content="https://playfibs.com/">
+  <meta property="og:image" content="https://playfibs.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="playfibs — play backgammon online on FIBS">
+  <meta name="twitter:description" content="Roll, double, bear off. Play backgammon free in your browser — live on FIBS or against the Gary Gammon AI.">
+  <meta name="twitter:image" content="https://playfibs.com/og-image.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "playfibs",
+    "url": "https://playfibs.com/",
+    "description": "Play backgammon free in the browser: live matches against bots on FIBS, the First Internet Backgammon Server (est. 1992), games against the Gary Gammon AI at five difficulty levels, or local hot-seat play.",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "about": {
+      "@type": "Thing",
+      "name": "Backgammon"
+    }
+  }
+  </script>
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,10 +55,40 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>playfibs</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Crawlable landing content: real text for search engines and a styled
+       loading state for humans. Removed the moment Flutter renders its first
+       frame, so the running app never shows it. -->
+  <div id="static-landing" style="font-family: Georgia, 'Times New Roman', serif; max-width: 40rem; margin: 0 auto; padding: 3rem 1.5rem; color: #1a1a1a;">
+    <h1>playfibs — backgammon online</h1>
+    <p><em>The First Internet Backgammon Server &middot; Est. 1992</em></p>
+    <p>Roll, double, bear off. A single-player parlor and a living window onto
+       FIBS &mdash; the same felt the world has played on since 1992, redrawn
+       with a clean modern hand. Free to play, right in the browser.</p>
+    <ul>
+      <li><strong>Play a bot on FIBS</strong> &mdash; log in to the real
+          server, browse who is online, invite a bot, or watch a match.</li>
+      <li><strong>Play Gary Gammon</strong> &mdash; one computer opponent,
+          five settings, from a gentle warm-up to a neural engine that
+          punishes a loose blot.</li>
+      <li><strong>Local two-player</strong> &mdash; one screen, one board,
+          pass the device between turns.</li>
+    </ul>
+    <p>Loading the table&hellip; <a href="/privacy">Privacy</a></p>
+  </div>
+  <noscript>
+    <p>playfibs is a browser backgammon app and needs JavaScript to draw the
+       board. Enable JavaScript, then roll on.</p>
+  </noscript>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var landing = document.getElementById('static-landing');
+      if (landing) landing.remove();
+    });
+  </script>
+
   <!-- NO service worker. It only added offline PWA caching (useless for a
        network FIBS client) and its aggressive cache forced a clear-site-data to
        see new builds -- which wiped localStorage, i.e. the remembered FIBS
