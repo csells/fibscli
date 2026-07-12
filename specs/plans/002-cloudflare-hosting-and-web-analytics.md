@@ -28,7 +28,11 @@
 - **Beacon lives statically in `web/index.html`** with the real site token (beacon
   tokens are public by design). Local-dev traffic noise is acceptable and can be
   filtered by hostname in the dashboard; this keeps the build free of injection
-  plumbing.
+  plumbing. The dashboard-created Web Analytics site has `auto_install: true`,
+  but Cloudflare's edge injection does not apply to Worker-served HTML (verified
+  empirically against the live site), so the static snippet is the effective
+  mechanism and there is no double-count. Deploy verification asserts exactly
+  one beacon in the served page.
 - **Firebase stays up as fallback** during cutover (`playfibs-f3c5b.web.app`).
   Removing `firebase.json`/`.firebaserc` is deliberately deferred until Cloudflare
   hosting has been stable in production.
