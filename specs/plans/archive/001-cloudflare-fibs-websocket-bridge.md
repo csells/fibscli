@@ -392,3 +392,18 @@ Manual validation:
 - Whether to promote the manual workflow to automatic deployment later.
 - Exact Analytics Engine dataset name and retention/export strategy beyond the
   default retention window.
+
+## Archival note (2026-07-11)
+
+Shipped and live (`proxy.playfibs.com`). Verified 97.5% complete by the
+fresh-eyes gap analysis in `specs/gaps/2026-07-11-plans-001-002.md`; no missing
+or drifted requirements. Outstanding at archival, consciously carried rather
+than dropped:
+
+- §7 typed logging metadata (gap E3) and §8 per-column analytics assertions
+  (gap F6) — hardening polish, tracked in the gap analysis's ranked list.
+- §13 open decisions resolved since writing: the production Origin allowlist is
+  `https://playfibs.com`, `https://playfibs-f3c5b.web.app`, plus local dev/e2e
+  ports (deployed 2026-07-11); deploy credentials use the manual GitHub Actions
+  workflow's secrets. Still open: promoting manual deploys to automatic, and an
+  Analytics Engine retention/export strategy beyond the default window.

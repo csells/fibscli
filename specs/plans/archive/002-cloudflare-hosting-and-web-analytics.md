@@ -73,3 +73,12 @@
 
 - gnubg-service build flags (updated gnubg API is in flight separately).
 - Decommissioning Firebase and the CI deploy workflow (see Decisions).
+
+## Archival note (2026-07-11)
+
+Complete — verified 100% by the fresh-eyes gap analysis in
+`specs/gaps/2026-07-11-plans-001-002.md`, including live checks of the apex,
+the www redirect, the SPA fallback, the beacon (exactly one, token matching
+source), and the deployed privacy copy. The two deferrals recorded under
+Decisions (no CI deploy workflow until Actions can clone `backgammon_ai`;
+Firebase decommission after Cloudflare hosting proves stable) remain in force.

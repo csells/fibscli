@@ -72,3 +72,46 @@ if the error outlives its SnackBar, hence the retained history + viewer.
 adding remote reporting required no call-site changes. The sink is
 fire-and-forget and failure-swallowing: a crash reporter that can itself crash
 the app is worse than none.
+
+## The FIBS proxy target is hardcoded; users never choose a proxy
+
+The bridge Worker connects only to the compile-time constant `fibs.com:4321`,
+and the app exposes no UI control, URL parameter, or persisted setting for the
+proxy endpoint — only `--dart-define` build seams for developers.
+
+**Decision:** no user-facing proxy selection anywhere, and no request-supplied
+target in the Worker, ever.
+
+**Why:** backgammon players should open the app and play — hosting, choosing,
+or pasting a proxy URL is infrastructure noise. A request-configurable target
+would also turn the Worker into a generic TCP relay and an abuse vector.
+
+## playfibs.com is hosted on Cloudflare Workers static assets, not Pages or Firebase
+
+The release bundle is served by the `playfibs-site` Worker
+(`packages/playfibs_site`) with SPA fallback and a www→apex redirect.
+
+**Decision:** Workers static assets over Firebase Hosting (the previous host)
+and over Cloudflare Pages.
+
+**Why:** the `playfibs.com` zone already had to live on Cloudflare for the
+proxy Worker's custom domain, so Firebase required maintaining cross-vendor
+DNS verification records while everything else (DNS, proxy, analytics) was
+Cloudflare-administered. Workers assets is Cloudflare's recommended path for
+new static sites and reuses the exact deploy pattern, CLI, and CI secrets the
+proxy Worker already established; Pages would have added a second deployment
+model for no capability gain.
+
+## The Web Analytics beacon is a static snippet, not Cloudflare auto-injection
+
+`web/index.html` carries the deferred beacon with the playfibs.com site token.
+
+**Decision:** static snippet in source, even though the dashboard-created
+Web Analytics site has `auto_install: true`.
+
+**Why:** Cloudflare's edge injection does not apply to Worker-served HTML
+(verified empirically against the live site), so auto-install is inert here —
+the static snippet is the only mechanism that actually measures. Keeping it in
+source also makes the contract testable (`test/web_index_test.dart`) and the
+served page verifiable (exactly one beacon after deploy, so no double-count if
+Cloudflare's injection behavior ever changes).
