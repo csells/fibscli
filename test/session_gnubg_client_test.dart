@@ -214,7 +214,8 @@ void main() {
   });
 
   group('SessionGnubgClient errors', () {
-    test('lets key-level ApiExceptions propagate (never swallows)', () async {
+    test('a key-level refusal is never swallowed: it surfaces as the '
+        'permanent GnubgUnavailableException', () async {
       final svc = _FakeService({
         '/v1/token': [_mintOk()],
         '/v1/play/move': [_err(429, 'quota exceeded')],
@@ -222,7 +223,13 @@ void main() {
       final client = _client(svc);
       await expectLater(
         client.playMove(_opening()),
-        throwsA(isA<ApiException>()),
+        throwsA(
+          isA<GnubgUnavailableException>().having(
+            (e) => e.cause,
+            'cause',
+            isA<ApiException>(),
+          ),
+        ),
       );
       client.dispose();
     });

@@ -95,6 +95,11 @@ enum GnubgResignStake {
 /// HTTP implementation encodes the position and calls the service; tests
 /// inject a fake.
 abstract class GnubgClient {
+  /// Warm whatever the client needs before play (a remote client mints its
+  /// session credential here), so the cost -- and any challenge the user must
+  /// answer -- lands at a natural pause instead of mid-turn. Default: nothing.
+  Future<void> prepare() async {}
+
   /// The checker play the opponent makes for [position] (an in-roll decision
   /// point; [BgPosition.dice] is part of the request).
   Future<GnubgPlayedMove> playMove(BgPosition position);
@@ -157,6 +162,13 @@ class GnubgAiPlayer extends BgAiPlayer {
 
   @override
   void dispose() => _client.dispose();
+
+  /// Warm the service credential at a natural pause (match start), so the
+  /// mint -- and any human challenge it triggers -- does not interrupt a turn.
+  /// A failure here is the same [GnubgUnavailableException] a decision would
+  /// throw: the caller surfaces it and lets the user retry.
+  @override
+  Future<void> prepare() => _withRetry(_client.prepare);
 
   @override
   Future<BgTurn> chooseTurn(BgPosition position) async {
@@ -230,6 +242,11 @@ class GnubgAiPlayer extends BgAiPlayer {
       }
       try {
         return await call();
+      } on GnubgUnavailableException {
+        // The client already judged this permanent (a refused credential, a
+        // rejected human check, an exhausted quota). Hammering it would only
+        // re-run the challenge; surface it and let the user retry by hand.
+        rethrow;
       } on Exception catch (error) {
         lastError = error;
       }

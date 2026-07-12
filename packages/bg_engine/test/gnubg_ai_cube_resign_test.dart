@@ -55,6 +55,9 @@ class _ScriptedClient implements GnubgClient {
   }
 
   @override
+  Future<void> prepare() async {}
+
+  @override
   void dispose() {}
 }
 

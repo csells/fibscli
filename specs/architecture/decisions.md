@@ -115,3 +115,22 @@ the static snippet is the only mechanism that actually measures. Keeping it in
 source also makes the contract testable (`test/web_index_test.dart`) and the
 served page verifiable (exactly one beacon after deploy, so no double-count if
 Cloudflare's injection behavior ever changes).
+
+## The gnubg session is app-scoped, pre-warmed, and never retried on a refusal
+
+Gary Gammon (the gnubg-service opponent) runs on the `gnubg_service` package's
+`GnubgSession`: a publishable key plus a Cloudflare Turnstile challenge mints a
+short-lived `bg_tk_` token that authorizes every call.
+
+**Decision:** one session for the whole app (not one per game); warm its token
+at the deal via `BgAiPlayer.prepare()` → `ensureToken()`; and treat a 401/403/429
+as permanent — surface it and let the user retry, never retry it in a loop.
+
+**Why:** a token lasts ~1 hour and covers hundreds of decisions, so a session per
+game would mint per game — and each mint can escalate to a visible "confirming
+you are human" dialog. Per-game sessions would put that dialog in front of the
+player every game; a lazy first-call mint would put it *mid-turn*. Pre-warming at
+the deal moves it to a pause the player already expects. And retrying a refused
+attestation just re-runs the challenge, so the adapter's transient-failure retry
+loop must not apply to it: `GnubgUnavailableException` rethrows immediately,
+while an outage stays an `ApiException` that is retried.

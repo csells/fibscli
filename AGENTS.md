@@ -64,7 +64,14 @@ gnubg-service's calibrated leveled opponent (novice → world-class) played
 through `GnubgAiPlayer` (`bg_engine`, hop-matching + never-fabricate) over
 `SessionGnubgClient` (`lib/session_gnubg_client.dart`), which wraps the
 `gnubg_service` package's `GnubgSession` (attested session tokens:
-publishable key + Turnstile). Gary is web-only and needs
+publishable key + Turnstile). **The token lifecycle follows the package's
+design**: ONE app-scoped session shared by every Gary (a token covers hundreds
+of decisions, so re-minting is hourly, not per-game — a finished game's
+opponent does not close it); the credential is pre-warmed via
+`BgAiPlayer.prepare()` → `session.ensureToken()` at the deal, so a human check
+lands in that pause instead of mid-turn; and a permanent refusal (401/403/429)
+becomes a `GnubgUnavailableException` that is surfaced **without retrying** —
+retrying would only re-run the Turnstile challenge. Gary is web-only and needs
 `--dart-define=gnubg_publishable_key` + `gnubg_turnstile_sitekey`
 (`gnubg_service_url` optional); without them levels 1-7 render grayed out and
 only Harry plays. The landing page picks the level inline

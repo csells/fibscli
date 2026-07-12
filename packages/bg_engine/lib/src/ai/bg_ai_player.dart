@@ -103,6 +103,13 @@ abstract class BgAiPlayer {
   /// Optional difficulty levels this engine exposes (empty == single strength).
   List<String> get levels => const [];
 
+  /// Get ready to play, at a moment when a brief pause is expected (the start
+  /// of a match, a menu). A remote engine warms its credentials here so the
+  /// cost -- and any challenge the user must answer -- lands in the pause
+  /// instead of mid-turn. In-process engines need nothing; the default is a
+  /// no-op.
+  Future<void> prepare() async {}
+
   /// Choose the checker play for [position]. Returns an empty [BgTurn] when
   /// there is no legal move (a dance).
   Future<BgTurn> chooseTurn(BgPosition position);

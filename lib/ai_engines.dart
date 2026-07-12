@@ -11,9 +11,14 @@ import 'session_gnubg_client.dart';
 /// - level 0 — **Harry Heuristic**: the offline [PubevalAiPlayer], playable
 ///   on every platform and build.
 /// - levels 1–7 — **Gary Gammon**: the gnubg-service's calibrated leveled
-///   opponent (novice → world-class) over an attested [GnubgSession], one
-///   session per player, with a fresh random per-match seed so the weakened
-///   tiers (1–4) play each match their own way.
+///   opponent (novice → world-class) over an attested [GnubgSession], with a
+///   fresh random per-match seed so the weakened tiers (1–4) play each match
+///   their own way.
+///
+/// Every Gary shares ONE app-scoped session: a session token covers hundreds
+/// of decisions, so re-minting (and any human check it carries) is an hourly
+/// event rather than a per-game one. Disposing a finished game's opponent
+/// therefore leaves the session open.
 ///
 /// Gary needs a web build with a configured publishable key (the token mint
 /// requires a browser Origin and a Turnstile challenge). Built without a
@@ -26,9 +31,11 @@ class ComputerOpponentsFactory extends BgAiPlayerFactory {
   /// build/platform.
   ComputerOpponentsFactory({required this.sessionFor});
 
-  /// Builds a fresh [GnubgSession] per Gary player, or null when the online
+  /// Builds the app's [GnubgSession] (once, lazily), or null when the online
   /// opponent is unavailable in this build/platform.
   final GnubgSession Function()? sessionFor;
+
+  GnubgSession? _session;
 
   /// The service's calibrated tier names, indexed by level - 1.
   static const tierNames = [
@@ -84,13 +91,15 @@ class ComputerOpponentsFactory extends BgAiPlayerFactory {
     }
     return GnubgAiPlayer(
       SessionGnubgClient(
-        buildSession(),
+        _session ??= buildSession(),
         level: n,
         // A fresh seed per created opponent = per match: the weakened tiers
         // vary between matches but stay internally consistent within one.
         // 0x40000000 (2^30), not `1 << 32`: on the web ints are JS numbers,
         // where a 32-bit shift wraps to 0 and nextInt(0) throws.
         seed: Random().nextInt(0x40000000),
+        // The session outlives this opponent: it is the app's, not the game's.
+        ownsSession: false,
       ),
       name: 'Gary Gammon',
       description: tierNames[n - 1],

@@ -243,7 +243,9 @@ class _GameViewState extends State<GameView> {
     widget.controller.attach(_game!); // derives canUndo/canAutoBearOff
     _game!.addListener(_gameChanged);
     _reset();
-    unawaited(_maybePlayAi()); // the AI may be on roll first
+    // Warm the engine at the deal (a natural pause), then let it play if it
+    // won the opening roll.
+    unawaited(_prepareThenPlayAi());
   }
 
   // 1-player mode: when it becomes the AI side's turn, drive a full turn with
@@ -251,6 +253,31 @@ class _GameViewState extends State<GameView> {
   // logic lives there (and is unit-tested); this only supplies the UI hooks
   // (think pause, the double-offer dialog, animation). A no-op in 2-player mode
   // (widget.ai == null) and re-entrancy-guarded by _aiBusy.
+  // Let the engine get ready while the board is still being dealt: a remote
+  // engine mints its credential here, so the cost -- and any human check it
+  // carries -- lands in this pause instead of interrupting a turn. Then play
+  // the AI's turn if it is on roll.
+  Future<void> _prepareThenPlayAi() async {
+    final ai = widget.ai;
+    if (ai == null) return;
+    _aiBusy = true;
+    widget.controller.busy = true;
+    try {
+      await ai.prepare();
+    } on GnubgUnavailableException catch (e) {
+      _reportEngineUnavailable(e.message);
+      return;
+    } on Object catch (e, st) {
+      _log.warning('computer engine failed to get ready', e, st);
+      _reportEngineUnavailable('$e');
+      return;
+    } finally {
+      _aiBusy = false;
+      widget.controller.busy = false;
+    }
+    await _maybePlayAi();
+  }
+
   Future<void> _maybePlayAi() async {
     if (widget.ai == null || _aiBusy) return;
     if (_game == null || _game!.gameOver) return;

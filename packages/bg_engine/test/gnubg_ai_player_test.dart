@@ -34,6 +34,9 @@ class _FakeGnubgClient implements GnubgClient {
       throw StateError('not exercised by the move-path tests');
 
   @override
+  Future<void> prepare() async {}
+
+  @override
   void dispose() {}
 }
 
@@ -69,6 +72,9 @@ class _FlakyGnubgClient implements GnubgClient {
   @override
   Future<GnubgResignStake> playResign(BgPosition position) =>
       throw StateError('not exercised by the move-path tests');
+
+  @override
+  Future<void> prepare() async {}
 
   @override
   void dispose() {}
