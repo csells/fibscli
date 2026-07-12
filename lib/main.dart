@@ -138,12 +138,11 @@ Future<AppDeps> bootstrap({
       ? () => GnubgSession(
           baseUrl: gnubgUrl.isEmpty ? null : gnubgUrl,
           publishableKey: gnubgPk,
-          // Resolve a LIVE context at mint time (mints can happen an hour
-          // into a game); the app-lifetime navigator is always mounted.
-          attest: () => turnstileAttest(
-            App.navigatorKey.currentContext!,
-            siteKey: gnubgSiteKey,
-          ),
+          // Resolve a LIVE overlay-hosting context at mint time (mints can
+          // happen an hour into a game); App.turnstileContext is mounted for
+          // the app's lifetime.
+          attest: () =>
+              turnstileAttest(App.turnstileContext!, siteKey: gnubgSiteKey),
         )
       : null;
   AiRegistry.register(ComputerOpponentsFactory(sessionFor: garySessions));
@@ -198,6 +197,19 @@ class App extends StatefulWidget {
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
   static final navigatorKey = GlobalKey<NavigatorState>();
 
+  // The gnubg session's Turnstile attestation needs a context with BOTH an
+  // Overlay ancestor (the challenge runs hidden in the overlay) and a
+  // Navigator ancestor (an escalated challenge is shown with showDialog).
+  // Both lookups walk ancestors, and the router's Navigator builds its Overlay
+  // as a child -- so the key hangs on a subtree INSIDE the navigator (a shell
+  // wrapping every route), mounted for the app's lifetime so a mint an hour
+  // into a game still lands.
+  static final _turnstileHostKey = GlobalKey();
+
+  /// A live context resolving both an [Overlay] and a [Navigator] ancestor,
+  /// for the gnubg-service Turnstile attestation. Null before the first frame.
+  static BuildContext? get turnstileContext => _turnstileHostKey.currentContext;
+
   @override
   _AppState createState() => _AppState();
 }
@@ -228,30 +240,40 @@ class _AppState extends State<App> {
       refreshListenable: widget.fibs,
       redirect: _redirect,
       routes: [
-        GoRoute(
-          path: AppRoutes.home,
-          builder: (context, state) => ChangeNotifierBuilder<FibsState>(
-            notifier: widget.fibs,
-            builder: (context, fibs, child) => const LandingPage(),
-          ),
+        // Every route lives under one shell, whose subtree is keyed as the
+        // app-lifetime host for the gnubg Turnstile attestation context (see
+        // App.turnstileContext): it sits inside the router's navigator, so it
+        // resolves both the Overlay and the Navigator the challenge needs.
+        ShellRoute(
+          builder: (context, state, child) =>
+              KeyedSubtree(key: App._turnstileHostKey, child: child),
+          routes: [
+            GoRoute(
+              path: AppRoutes.home,
+              builder: (context, state) => ChangeNotifierBuilder<FibsState>(
+                notifier: widget.fibs,
+                builder: (context, fibs, child) => const LandingPage(),
+              ),
+            ),
+            GoRoute(
+              path: AppRoutes.local,
+              builder: (context, state) => const GamePlayPage(),
+            ),
+            GoRoute(path: AppRoutes.computer, builder: _buildComputerRoute),
+            GoRoute(
+              path: AppRoutes.privacy,
+              builder: (context, state) => const PrivacyPage(),
+            ),
+            for (final path in [
+              AppRoutes.fibs,
+              AppRoutes.fibsLogin,
+              AppRoutes.fibsBots,
+              AppRoutes.fibsPlay,
+              AppRoutes.fibsWatch,
+            ])
+              GoRoute(path: path, builder: _buildFibsRoute),
+          ],
         ),
-        GoRoute(
-          path: AppRoutes.local,
-          builder: (context, state) => const GamePlayPage(),
-        ),
-        GoRoute(path: AppRoutes.computer, builder: _buildComputerRoute),
-        GoRoute(
-          path: AppRoutes.privacy,
-          builder: (context, state) => const PrivacyPage(),
-        ),
-        for (final path in [
-          AppRoutes.fibs,
-          AppRoutes.fibsLogin,
-          AppRoutes.fibsBots,
-          AppRoutes.fibsPlay,
-          AppRoutes.fibsWatch,
-        ])
-          GoRoute(path: path, builder: _buildFibsRoute),
       ],
     );
   }

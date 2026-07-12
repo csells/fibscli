@@ -88,7 +88,9 @@ class ComputerOpponentsFactory extends BgAiPlayerFactory {
         level: n,
         // A fresh seed per created opponent = per match: the weakened tiers
         // vary between matches but stay internally consistent within one.
-        seed: Random().nextInt(1 << 32),
+        // 0x40000000 (2^30), not `1 << 32`: on the web ints are JS numbers,
+        // where a 32-bit shift wraps to 0 and nextInt(0) throws.
+        seed: Random().nextInt(0x40000000),
       ),
       name: 'Gary Gammon',
       description: tierNames[n - 1],
