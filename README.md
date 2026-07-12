@@ -74,7 +74,10 @@ $ ./build-web.sh
 The output in `build/web` is a static bundle, served at https://playfibs.com by
 the `playfibs-site` Cloudflare Worker (`packages/playfibs_site`): static assets
 with SPA fallback plus a www→apex redirect, attached to the `playfibs.com` and
-`www.playfibs.com` custom domains. Deploy the site with:
+`www.playfibs.com` custom domains.
+
+**Every push to `main` deploys automatically** (`.github/workflows/deploy-playfibs-site.yml`:
+full gate → `./build-web.sh` → `wrangler deploy`). To deploy by hand:
 
 ```sh
 $ ./build-web.sh
@@ -83,6 +86,11 @@ $ npm ci
 $ npm run check && npm test
 $ npx wrangler deploy
 ```
+
+CI and the deploy workflow both need `GNUBG_SERVICE_TOKEN` (a fine-grained PAT
+with `contents: read` on the private `csells/gnubg-service` repo) to resolve the
+`gnubg_service` git dependency, plus `CLOUDFLARE_API_TOKEN` /
+`CLOUDFLARE_ACCOUNT_ID` to deploy.
 
 To play FIBS from a deployed build, the app uses the hosted Cloudflare Worker
 bridge. Users do not configure the bridge; it is app infrastructure. The
@@ -121,16 +129,38 @@ Each error is then POSTed as JSON (`context`, `error`, `stack`, `time`). With no
 ladder: level 0 is **Harry Heuristic** (the offline pubeval evaluator), and
 levels 1–7 are **Gary Gammon** — the gnubg-service's calibrated leveled
 opponent (novice → world-class), consumed through the `gnubg_service`
-package's attested session-token flow. Gary needs a web build configured
-with a publishable key and a Turnstile sitekey:
+package's attested session-token flow. Gary needs a web build configured with a publishable key and a Turnstile
+sitekey. `build-web.sh` supplies playfibs.com's by default (both are public by
+design: the key is origin-locked and only mints tokens behind a Turnstile
+challenge). Override them — or point at a local engine — with env vars:
 
 ```sh
-$ flutter build web --release \
-    --dart-define=gnubg_publishable_key=bg_pk_... \
-    --dart-define=gnubg_turnstile_sitekey=0x... \
-    --dart-define=gnubg_service_url=...   # optional; defaults to the hosted service
+$ GNUBG_SERVICE_URL=http://localhost:8080 \
+  GNUBG_PUBLISHABLE_KEY=bg_pk_... \
+  GNUBG_TURNSTILE_SITEKEY=0x... \
+  ./build-web.sh
 ```
 
 Without a key (or on non-web platforms, where the browser-origin token mint
 cannot run), levels 1–7 still show in the picker but are grayed out; only
 Harry is playable.
+
+Two service-side facts constrain testing: the publishable key's
+`allowed_origins` must list the page's exact origin, and the Turnstile widget's
+domains must list its hostname (`playfibs.com`, `www.playfibs.com`, and
+`localhost` are configured). Cloudflare's Turnstile deliberately refuses
+automated browsers, so **browser e2e against the hosted service cannot get past
+the challenge** — automated end-to-end runs point at a local engine with
+Cloudflare's always-pass test keys:
+
+```sh
+$ docker run -d --name fibscli-gnubg -p 8081:8080 \
+    -e GNUBG_AUTH='[{"account_id":"fibscli","keys":[{"key":"bg_pk_fibscli_localhost","app_id":"fibscli","allowed_origins":["http://localhost:9090"],"quota":1000000,"rate_limit_per_min":0}]}]' \
+    -e TOKEN_SIGNING_KEY=fibscli-local-secret \
+    -e TURNSTILE_SECRET=1x0000000000000000000000000000000AA \
+    gnubg-service:dev
+$ GNUBG_SERVICE_URL=http://localhost:8081 \
+  GNUBG_PUBLISHABLE_KEY=bg_pk_fibscli_localhost \
+  GNUBG_TURNSTILE_SITEKEY=1x00000000000000000000BB \
+  ./build-web.sh   # then serve build/web on port 9090
+```

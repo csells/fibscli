@@ -1,0 +1,67 @@
+name: Deploy playfibs.com
+
+# Every push to main that passes the full gate ships to playfibs.com. Also
+# runnable on demand (e.g. to redeploy the current main without a new commit).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-playfibs-site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: packages/playfibs_site/package-lock.json
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.4
+      # See ci.yml: the gnubg_service git dependency lives in a private repo.
+      - name: Authenticate private pub git dependency
+        env:
+          GNUBG_SERVICE_TOKEN: ${{ secrets.GNUBG_SERVICE_TOKEN }}
+        run: |
+          if [ -z "$GNUBG_SERVICE_TOKEN" ]; then
+            echo "GNUBG_SERVICE_TOKEN is not set: pub cannot clone the private"
+            echo "csells/gnubg-service dependency."
+            exit 1
+          fi
+          git config --global \
+            url."https://x-access-token:${GNUBG_SERVICE_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+      - run: flutter pub get
+      # Never ship a red build: the same gate CI enforces, re-run here so a
+      # deploy cannot outrun a failing test.
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyze
+        run: dart analyze --fatal-infos .
+      - name: Test
+        run: flutter test
+      - name: Build web release
+        run: ./build-web.sh
+      - name: Install site Worker dependencies
+        working-directory: packages/playfibs_site
+        run: npm ci
+      - name: Check site Worker
+        working-directory: packages/playfibs_site
+        run: npm run check
+      - name: Test site Worker
+        working-directory: packages/playfibs_site
+        run: npm test
+      - name: Deploy to Cloudflare
+        working-directory: packages/playfibs_site
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy

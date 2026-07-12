@@ -81,7 +81,44 @@ tokens). The old `HttpGnubgClient` targets endpoints that no longer exist.
    the real browser artifact (token mint visible in Network tab, then
    `GET /v1/play/*` under `Bearer bg_tk_…`); whole-workspace gate green.
 
+## What verification found (both fixed, both pinned by tests)
+
+1. **Turnstile attestation context.** `turnstileAttest` resolves an `Overlay`
+   (hidden challenge) and, when Cloudflare escalates, a `Navigator`
+   (`showDialog`) — both by ANCESTOR lookup. The router's Navigator builds its
+   Overlay as a *child*, so `App.navigatorKey.currentContext` has neither, and a
+   context above the router (a custom app-level Overlay) has the Overlay but no
+   Navigator. Fix: a `ShellRoute` wrapping every route keys an app-lifetime
+   subtree *inside* the navigator; `App.turnstileContext` reads it.
+   (`test/turnstile_overlay_host_test.dart`.)
+2. **Per-match seed on the web.** `Random().nextInt(1 << 32)` wraps to
+   `nextInt(0)` on JS numbers and throws. Fix: `nextInt(0x40000000)`.
+
+## Verified
+
+- Automated, against a local engine (Docker + Cloudflare's always-pass test
+  Turnstile pair) on the pinned port 9090: a real game vs Gary produced
+  `POST /v1/token` → 200 (one mint) followed by `GET /v1/play/resign` and
+  `GET /v1/play/move` → 200, each carrying `Authorization: Bearer bg_tk_…`,
+  the level, and the per-match seed; Gary's move applied on the board (pip
+  count 167 → 160).
+- Against the **hosted** service, the flow reaches the Turnstile challenge and
+  Cloudflare escalates to the visible "Confirming you are human" dialog —
+  the documented, intended response to an automated browser. Production
+  therefore needs one human sanity game.
+- Whole-workspace gate: `dart format`, `dart analyze --fatal-infos`,
+  `flutter test` (533) all green.
+
 ## Hand-offs / follow-ups
 
-- User: mint the fine-grained PAT and `gh secret set` it (exact command in the
-  session report); one human production sanity game on playfibs.com.
+- **User (blocking CI + auto-deploy):** mint a fine-grained GitHub PAT with
+  `contents: read` on `csells/gnubg-service` and add it as the repo secret
+  `GNUBG_SERVICE_TOKEN` (`gh secret set GNUBG_SERVICE_TOKEN`). Until then both
+  workflows fail at `pub get` — the private dependency cannot be cloned.
+  `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` are already set from the
+  vault.
+- **User:** one human game vs Gary on https://playfibs.com (automation cannot
+  pass Turnstile by design).
+- Done service-side: `playfibs.com` + `www.playfibs.com` added to the gnubg
+  Turnstile widget's domains; the publishable key already allow-listed
+  `https://playfibs.com`.
