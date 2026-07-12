@@ -12,10 +12,6 @@ environment:
   sdk: ^3.12.0
 
 dependencies:
-  backgammon_ai:
-    git:
-      url: https://github.com/csells/backgammon_ai.git
-      ref: per-level-weakening
   bg_engine: ^0.1.0
   cupertino_icons: ^1.0.1+1
   dartx: ^1.2.0
@@ -25,6 +21,10 @@ dependencies:
   flutter_secure_storage: ^10.3.1
   flutter_web_plugins:
     sdk: flutter
+  gnubg_service:
+    git:
+      url: https://github.com/csells/gnubg-service.git
+      path: packages/gnubg_service
   go_router: ^17.3.0
   google_fonts: ^6.2.1
   http: ^1.2.0

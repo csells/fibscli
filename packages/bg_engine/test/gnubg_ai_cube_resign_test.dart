@@ -1,21 +1,25 @@
 import 'package:bg_engine/bg_engine.dart';
 import 'package:test/test.dart';
 
-// A scripted gnubg client for the cube/resign paths: answers every cube call
-// with [cubeAction] and every resign call with [resignAdvice], after failing
-// the first [failures] calls (to model a down service or a transient blip).
-// The move path rejects if reached -- these tests never play checkers.
+// A scripted gnubg client for the cube/take/resign paths: answers every cube
+// call with [doubles], every take call with [takes], and every resign call
+// with [resigns], after failing the first [failures] calls (to model a down
+// service or a transient blip). The move path rejects if reached -- these
+// tests never play checkers.
 class _ScriptedClient implements GnubgClient {
   _ScriptedClient({
-    this.cubeAction = GnubgCubeAction.noDouble,
-    this.resignAdvice = 0,
+    this.doubles = false,
+    this.takes = true,
+    this.resigns = GnubgResignStake.none,
     this.failures = 0,
   });
 
-  final GnubgCubeAction cubeAction;
-  final int resignAdvice;
+  final bool doubles;
+  final bool takes;
+  final GnubgResignStake resigns;
   int failures;
   int cubeCalls = 0;
+  int takeCalls = 0;
   int resignCalls = 0;
 
   void _maybeFail() {
@@ -26,30 +30,28 @@ class _ScriptedClient implements GnubgClient {
   }
 
   @override
-  Future<List<GnubgRankedMove>> evalMoves(BgPosition position) =>
+  Future<GnubgPlayedMove> playMove(BgPosition position) =>
       throw StateError('not exercised by the cube/resign tests');
 
   @override
-  Future<GnubgCubeDecision> cubeDecision(BgPosition position) async {
+  Future<bool> playCube(BgPosition position) async {
     cubeCalls++;
     _maybeFail();
-    return GnubgCubeDecision(
-      action: cubeAction,
-      cubelessEquity: 0.4,
-      cubefulNoDouble: 0.55,
-      cubefulDoubleTake: 0.6,
-      cubefulDoublePass: 1,
-    );
+    return doubles;
   }
 
   @override
-  Future<GnubgResignDecision> resignDecision(
-    BgPosition position, {
-    int offered = 0,
-  }) async {
+  Future<bool> playTake(BgPosition position) async {
+    takeCalls++;
+    _maybeFail();
+    return takes;
+  }
+
+  @override
+  Future<GnubgResignStake> playResign(BgPosition position) async {
     resignCalls++;
     _maybeFail();
-    return GnubgResignDecision(resignAdvice: resignAdvice, equityPlayOn: -1.5);
+    return resigns;
   }
 
   @override
@@ -85,35 +87,19 @@ BgPosition _dominatingRace() => BgPosition(
 
 void main() {
   group('GnubgAiPlayer.cubeDecision', () {
-    test('offers a double when gnubg says double/take', () async {
-      final ai = _player(
-        _ScriptedClient(cubeAction: GnubgCubeAction.doubleTake),
-      );
+    test('offers a double when the leveled opponent doubles', () async {
+      final ai = _player(_ScriptedClient(doubles: true));
       expect(await ai.cubeDecision(_opening()), BgCubeAction.offerDouble);
     });
 
-    test('offers a double when gnubg says double/pass', () async {
-      final ai = _player(
-        _ScriptedClient(cubeAction: GnubgCubeAction.doublePass),
-      );
-      expect(await ai.cubeDecision(_opening()), BgCubeAction.offerDouble);
-    });
-
-    test('rolls on when gnubg says no double', () async {
+    test('rolls on when the leveled opponent does not double', () async {
       final ai = _player(_ScriptedClient());
-      expect(await ai.cubeDecision(_opening()), BgCubeAction.noDouble);
-    });
-
-    test('plays on for the gammon when gnubg says too good', () async {
-      final ai = _player(
-        _ScriptedClient(cubeAction: GnubgCubeAction.tooGoodToDouble),
-      );
       expect(await ai.cubeDecision(_opening()), BgCubeAction.noDouble);
     });
 
     test('does not consult the service when the opponent owns the '
         'cube', () async {
-      final client = _ScriptedClient(cubeAction: GnubgCubeAction.doublePass);
+      final client = _ScriptedClient(doubles: true);
       final ai = _player(client);
       final action = await ai.cubeDecision(
         _opening(cubeValue: 2, cubeOwner: GammonPlayer.two),
@@ -123,7 +109,7 @@ void main() {
     });
 
     test('does not consult the service when the cube is maxed', () async {
-      final client = _ScriptedClient(cubeAction: GnubgCubeAction.doublePass);
+      final client = _ScriptedClient(doubles: true);
       final ai = _player(client);
       final action = await ai.cubeDecision(
         _opening(cubeValue: 64, cubeOwner: GammonPlayer.one),
@@ -146,10 +132,7 @@ void main() {
     });
 
     test('retries a transient failure and answers', () async {
-      final client = _ScriptedClient(
-        cubeAction: GnubgCubeAction.doubleTake,
-        failures: 1,
-      );
+      final client = _ScriptedClient(doubles: true, failures: 1);
       final ai = _player(client);
       expect(await ai.cubeDecision(_opening()), BgCubeAction.offerDouble);
       expect(client.cubeCalls, 2);
@@ -157,29 +140,13 @@ void main() {
   });
 
   group('GnubgAiPlayer.respondToDouble', () {
-    test('takes when gnubg says the double is take-able', () async {
-      final ai = _player(
-        _ScriptedClient(cubeAction: GnubgCubeAction.doubleTake),
-      );
+    test('takes when the leveled opponent takes', () async {
+      final ai = _player(_ScriptedClient(takes: true));
       expect(await ai.respondToDouble(_opening()), BgCubeAction.take);
     });
 
-    test('takes when gnubg says the doubler should not even double', () async {
-      final ai = _player(_ScriptedClient());
-      expect(await ai.respondToDouble(_opening()), BgCubeAction.take);
-    });
-
-    test('passes when gnubg says double/pass', () async {
-      final ai = _player(
-        _ScriptedClient(cubeAction: GnubgCubeAction.doublePass),
-      );
-      expect(await ai.respondToDouble(_opening()), BgCubeAction.pass);
-    });
-
-    test('passes when the doubler is too good to double', () async {
-      final ai = _player(
-        _ScriptedClient(cubeAction: GnubgCubeAction.tooGoodToDouble),
-      );
+    test('passes when the leveled opponent drops', () async {
+      final ai = _player(_ScriptedClient(takes: false));
       expect(await ai.respondToDouble(_opening()), BgCubeAction.pass);
     });
 
@@ -196,23 +163,23 @@ void main() {
   });
 
   group('GnubgAiPlayer.resignDecision', () {
-    test('plays on when gnubg advises no resignation', () async {
+    test('plays on when the leveled opponent does not resign', () async {
       final ai = _player(_ScriptedClient());
       expect(await ai.resignDecision(_opening()), BgResignDecision.playOn);
     });
 
-    test('maps each non-zero advice to its stake', () async {
-      const adviceToDecision = {
-        1: BgResignDecision.resignSingle,
-        2: BgResignDecision.resignGammon,
-        3: BgResignDecision.resignBackgammon,
+    test('maps each resignation stake to its decision', () async {
+      const stakeToDecision = {
+        GnubgResignStake.single: BgResignDecision.resignSingle,
+        GnubgResignStake.gammon: BgResignDecision.resignGammon,
+        GnubgResignStake.backgammon: BgResignDecision.resignBackgammon,
       };
-      for (final entry in adviceToDecision.entries) {
-        final ai = _player(_ScriptedClient(resignAdvice: entry.key));
+      for (final entry in stakeToDecision.entries) {
+        final ai = _player(_ScriptedClient(resigns: entry.key));
         expect(
           await ai.resignDecision(_opening()),
           entry.value,
-          reason: 'advice ${entry.key}',
+          reason: 'stake ${entry.key}',
         );
       }
     });
@@ -229,7 +196,10 @@ void main() {
     });
 
     test('retries a transient failure and answers', () async {
-      final client = _ScriptedClient(resignAdvice: 1, failures: 1);
+      final client = _ScriptedClient(
+        resigns: GnubgResignStake.single,
+        failures: 1,
+      );
       final ai = _player(client);
       expect(
         await ai.resignDecision(_opening()),

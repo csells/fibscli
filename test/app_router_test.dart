@@ -21,10 +21,10 @@ class _RouteTestAi extends BgAiPlayer {
 
 class _RouteTestAiFactory extends BgAiPlayerFactory {
   @override
-  String get name => 'Gary Gammon';
+  String get name => 'Computer';
 
   @override
-  List<String> get levels => const ['1', '2', '3', '4', '5'];
+  List<String> get levels => const ['0', '1', '2', '3', '4', '5', '6', '7'];
 
   @override
   BgAiPlayer create({String? level}) => _RouteTestAi();
@@ -85,8 +85,8 @@ void main() {
 
   test('computer route locations encode query parameters', () {
     expect(
-      AppRoutes.computerLocation(engine: 'Gary Gammon', level: '3'),
-      '/computer?engine=Gary+Gammon&level=3',
+      AppRoutes.computerLocation(engine: 'Computer', level: '3'),
+      '/computer?engine=Computer&level=3',
     );
   });
 
@@ -102,7 +102,9 @@ void main() {
     await pumpAt(tester, AppRoutes.home);
 
     final fibsTop = tester.getTopLeft(find.text('Play a Bot on FIBS')).dy;
-    final computerTop = tester.getTopLeft(find.text('Play Gary Gammon')).dy;
+    final computerTop = tester
+        .getTopLeft(find.text('Play Against the Computer'))
+        .dy;
     final localTop = tester.getTopLeft(find.text('Local 2-Player')).dy;
 
     expect(fibsTop, lessThan(computerTop));
@@ -165,7 +167,7 @@ void main() {
   testWidgets('computer game route is deep-linkable', (tester) async {
     await pumpAt(
       tester,
-      AppRoutes.computerLocation(engine: 'Gary Gammon', level: '3'),
+      AppRoutes.computerLocation(engine: 'Computer', level: '3'),
     );
 
     expect(find.byType(GamePlayPage), findsOneWidget);

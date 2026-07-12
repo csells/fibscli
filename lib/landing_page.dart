@@ -1,8 +1,9 @@
 part of 'main.dart';
 
 // The landing page: an editorial masthead over three "tables" -- the local
-// hot-seat game, Gary Gammon (with an inline difficulty selector), and the live
-// FIBS bot client. Keeps the working local game as a first-class path.
+// hot-seat game, the computer opponent (with an inline 0-7 difficulty
+// selector: Harry Heuristic offline, Gary Gammon online), and the live FIBS
+// bot client. Keeps the working local game as a first-class path.
 class LandingPage extends StatefulWidget {
   const LandingPage({this.openUrl, super.key});
 
@@ -18,25 +19,23 @@ class _LandingPageState extends State<LandingPage> {
   static const _aiEngineKey = 'ai_engine';
   static const _aiLevelKey = 'ai_level';
 
-  // The inline Gary Gammon difficulty (1-5), restored from prefs (default: 3).
+  // The inline computer difficulty (0-7), restored from prefs (default: 3,
+  // Gary Gammon's "casual"), clamped to a playable level for this build.
   int _level = 3;
 
   @override
   void initState() {
     super.initState();
     final stored = int.tryParse(App.prefs?.getString(_aiLevelKey) ?? '');
-    if (stored != null && stored >= 1 && stored <= 5) _level = stored;
+    if (stored != null && stored >= 0 && stored <= 7) _level = stored;
+    if (!(_computerFactory?.isLevelEnabled('$_level') ?? true)) _level = 0;
   }
 
-  // A one-line read on what a Gary Gammon difficulty means, shown under the
-  // level chips so the number isn't opaque.
-  static String _levelCaption(int n) => switch (n) {
-    1 => 'gentle',
-    2 => 'casual',
-    3 => 'club player',
-    4 => 'strong',
-    _ => 'ruthless',
-  };
+  // The registered computer-opponent engine (levels 0-7), or null when the
+  // host registered no engines (some widget tests build the page bare).
+  BgAiPlayerFactory? get _computerFactory =>
+      AiRegistry.byName('Computer') ??
+      (AiRegistry.available.isEmpty ? null : AiRegistry.available.first);
 
   @override
   Widget build(BuildContext context) {
@@ -121,13 +120,14 @@ class _LandingPageState extends State<LandingPage> {
                     _ModeRow(
                       index: '02',
                       tag: 'vs. Computer',
-                      title: 'Play Gary Gammon',
+                      title: 'Play Against the Computer',
                       description:
-                          'One opponent, five settings — '
-                          'from a gentle warm-up to a neural engine '
-                          'that punishes a loose blot.',
+                          'Eight settings — Harry Heuristic for an '
+                          'offline warm-up, or Gary Gammon: GNU '
+                          'Backgammon calibrated from novice to '
+                          'world-class.',
                       cta: 'Play',
-                      onTap: () => unawaited(_playGaryGammon()),
+                      onTap: () => unawaited(_playComputer()),
                       child: _difficultyPicker(text),
                     ),
                     _ModeRow(
@@ -205,43 +205,58 @@ class _LandingPageState extends State<LandingPage> {
     await launcher(Uri.parse(url));
   }
 
-  // The inline 1-5 difficulty chips for Gary Gammon plus a plain-language
-  // caption for the selected level.
-  Widget _difficultyPicker(TextTheme text) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const SizedBox(height: 14),
-      Text('Difficulty', style: editorialKicker(size: 10)),
-      const SizedBox(height: 8),
-      Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: [
-          for (var n = 1; n <= 5; n++)
-            _LevelChip(
-              n: n,
-              selected: n == _level,
-              onTap: () => setState(() => _level = n),
-            ),
-        ],
-      ),
-      const SizedBox(height: 8),
-      Text(
-        'Level $_level — ${_levelCaption(_level)}',
-        style: text.bodySmall?.copyWith(color: AppColors.inkSoft),
-      ),
-      if (AiRegistry.available.length > 1) ...[
-        const SizedBox(height: 12),
-        GestureDetector(
-          onTap: () => unawaited(_playVsComputer()),
-          child: Text(
-            'MORE OPPONENTS  →',
-            style: editorialKicker(size: 11, color: AppColors.accent),
-          ),
+  // The inline 0-7 difficulty chips for the computer opponent plus the
+  // selected level's persona label. Levels this build cannot play (Gary
+  // without a key / off web) render grayed out and inert, with a note naming
+  // the boundary.
+  Widget _difficultyPicker(TextTheme text) {
+    final factory = _computerFactory;
+    if (factory == null) return const SizedBox.shrink();
+    final anyDisabled = factory.levels.any((l) => !factory.isLevelEnabled(l));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 14),
+        Text('Difficulty', style: editorialKicker(size: 10)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final l in factory.levels)
+              _LevelChip(
+                n: int.parse(l),
+                selected: l == '$_level',
+                enabled: factory.isLevelEnabled(l),
+                onTap: () => setState(() => _level = int.parse(l)),
+              ),
+          ],
         ),
+        const SizedBox(height: 8),
+        Text(
+          'Level $_level — ${factory.levelLabel('$_level')}',
+          style: text.bodySmall?.copyWith(color: AppColors.inkSoft),
+        ),
+        if (anyDisabled) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Levels 1–7 are Gary Gammon, an online opponent — web only.',
+            style: text.bodySmall?.copyWith(color: AppColors.inkFaint),
+          ),
+        ],
+        if (AiRegistry.available.length > 1) ...[
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () => unawaited(_playVsComputer()),
+            child: Text(
+              'MORE OPPONENTS  →',
+              style: editorialKicker(size: 11, color: AppColors.accent),
+            ),
+          ),
+        ],
       ],
-    ],
-  );
+    );
+  }
 
   // Open the full engine + difficulty picker (used only when more than one AI
   // engine is registered), then start the chosen 1-player game.
@@ -269,14 +284,13 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  // Start a 1-player game against Gary Gammon at the selected inline level,
-  // remembering the choice. Building the engine can fail (e.g. a neural weight
-  // load); surface it instead of throwing with no game started.
-  Future<void> _playGaryGammon() async {
-    final factory = AiRegistry.available.firstWhere(
-      (f) => f.name == 'Gary Gammon',
-      orElse: () => AiRegistry.available.first,
-    );
+  // Start a 1-player game against the computer at the selected inline level,
+  // remembering the choice. Building the engine can fail (e.g. gnubg
+  // misconfigured); the route builder surfaces that instead of throwing with
+  // no game started.
+  Future<void> _playComputer() async {
+    final factory = _computerFactory;
+    if (factory == null) return;
     final level = '$_level';
     await App.prefs?.setString(_aiEngineKey, factory.name);
     await App.prefs?.setString(_aiLevelKey, level);

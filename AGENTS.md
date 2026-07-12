@@ -36,9 +36,10 @@ probe state, and clean logout before claiming end-to-end success.
 refactor without consequence. There is **no external upstream and nothing to
 "sync" to**: nothing here is a mirror or a vendored copy of another project. The
 packages simply live in-repo so the checkout builds standalone. (The one genuine
-*external* dependency is `backgammon_ai`, pulled as a git dep in
-`pubspec.yaml` — its source is **not** in this folder; it lives in its own repo.
-Everything under this folder is ours.)
+*external* dependency is `gnubg_service`, pulled as a git dep in
+`pubspec.yaml` from `github.com/csells/gnubg-service` — its source is **not**
+in this folder; it lives in its own repo, and its generated client code is
+never hand-edited. Everything under this folder is ours.)
 
 This repo is a self-contained **Dart pub workspace** — it builds standalone with no sibling repos. The root `pubspec.yaml` lists `workspace:` members:
 
@@ -55,16 +56,19 @@ Each member has its own minimal `pubspec.yaml` (with `resolution: workspace`); i
 `AiRegistry.available` → `GamePlayPage` with an `aiSide`/`BgAiPlayer`, driven by
 `lib/local_ai_driver.dart`'s `positionFromState`/`playAiTurn`), and **Play a bot
 (FIBS)** (`FibsPage`). The AI abstraction (`BgAiPlayer`, `PubevalAiPlayer`,
-`AiRegistry`) lives in `packages/bg_engine`; see the spec. The picker offers
-**Gary Gammon** (`GaryGammonFactory` in `lib/backgammon_ai_player.dart`), a
-single opponent exposing five difficulty levels of increasing strength: levels
-1-2 and 4-5 map to the `backgammon_ai` neural engine (its levels 2/4/6/8), and
-level 3 is the built-in `PubevalAiPlayer` heuristic. The neural engine is a git
-dependency on `github.com/csells/backgammon_ai`, adapted to `BgAiPlayer` in the
-same file. The landing page picks the level inline; a full engine picker only
-appears when a second engine (e.g. gnubg) is configured. A **gnubg-service** adapter (`GnubgAiPlayer` + `HttpGnubgClient` in
-`bg_engine`) is also listed when a service URL is configured
-(`--dart-define=gnubg_service_url`). `lib/fibs_page.dart` is the working FIBS client UI —
+`AiRegistry`) lives in `packages/bg_engine`; see the spec. The single
+registered engine is **Computer** (`ComputerOpponentsFactory` in
+`lib/ai_engines.dart`), an eight-step ladder: level 0 is **Harry Heuristic**
+(the offline `PubevalAiPlayer`), levels 1-7 are **Gary Gammon** — the
+gnubg-service's calibrated leveled opponent (novice → world-class) played
+through `GnubgAiPlayer` (`bg_engine`, hop-matching + never-fabricate) over
+`SessionGnubgClient` (`lib/session_gnubg_client.dart`), which wraps the
+`gnubg_service` package's `GnubgSession` (attested session tokens:
+publishable key + Turnstile). Gary is web-only and needs
+`--dart-define=gnubg_publishable_key` + `gnubg_turnstile_sitekey`
+(`gnubg_service_url` optional); without them levels 1-7 render grayed out and
+only Harry plays. The landing page picks the level inline
+(`Play Against the Computer`). `lib/fibs_page.dart` is the working FIBS client UI —
 account creation, login (with optional autologin from `--dart-define`
 `fibs_uname`/`fibs_pword`), the live bot list (invite / watch), tap-to-move play,
 **"Play for me"**

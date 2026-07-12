@@ -33,6 +33,9 @@ abstract final class AppColors {
 
   /// Hairline rule color (ink at 16% — the editorial divider).
   static const line = Color(0x2916130F);
+
+  /// A fainter hairline for disabled outlines.
+  static const lineFaint = Color(0x1416130F);
 }
 
 /// Editorial type scale: [GoogleFonts.instrumentSerif] for large display copy,

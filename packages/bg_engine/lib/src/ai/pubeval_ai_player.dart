@@ -7,12 +7,20 @@ import 'turn_search.dart';
 /// scores highest from the mover's perspective (~1650 FIBS strength). Moves
 /// only — it never doubles and always takes (the [BgAiPlayer] defaults).
 class PubevalAiPlayer extends BgAiPlayer {
-  @override
-  String get name => 'Heuristic (pubeval)';
+  /// Creates the player; [name] and [description] label it in the UI (an app
+  /// can present the same evaluator under its own persona).
+  PubevalAiPlayer({
+    this.name = 'Heuristic (pubeval)',
+    this.description = "Tesauro's public-domain evaluator",
+  });
 
+  /// The opponent's UI label.
   @override
-  String? get description =>
-      "Tesauro's public-domain evaluator (~1650 FIBS strength)";
+  final String name;
+
+  /// The opponent's UI caption.
+  @override
+  final String? description;
 
   @override
   Future<BgTurn> chooseTurn(BgPosition position) async {

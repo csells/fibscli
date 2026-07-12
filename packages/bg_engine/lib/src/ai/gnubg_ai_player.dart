@@ -4,9 +4,9 @@ import '../rules.dart';
 import 'bg_ai_player.dart';
 import 'turn_search.dart';
 
-/// Thrown when gnubg cannot supply a move: the service is unreachable (after
-/// retries) or it answered but none of its ranked plays matched a legal turn.
-/// The adapter NEVER substitutes a locally-chosen move for gnubg's -- that
+/// Thrown when gnubg cannot supply a decision: the service is unreachable
+/// (after retries) or it answered with something that cannot be played. The
+/// adapter NEVER substitutes a locally-chosen decision for gnubg's -- that
 /// would misreport a heuristic play as gnubg's. Callers surface this to the
 /// user (e.g. "the gnubg endpoint is unavailable").
 class GnubgUnavailableException implements Exception {
@@ -25,7 +25,7 @@ class GnubgUnavailableException implements Exception {
       'GnubgUnavailableException: $message${cause == null ? '' : ' ($cause)'}';
 }
 
-/// One chequer movement within a ranked move, in the service's numbering
+/// One chequer movement within a played move, in the service's numbering
 /// convention: points 1..24 from the MOVER's perspective (the mover bears off
 /// at 1 and enters at 24), 25 = the bar, 0 = off. There is one hop per segment
 /// of gnubg's move notation, so a single hop may consume both dice where gnubg
@@ -54,144 +54,89 @@ class GnubgHop {
   String toString() => 'GnubgHop($from -> $to)';
 }
 
-/// One ranked move from gnubg: the structured [hops] the adapter plays by,
-/// the same play as notation text ([play], diagnostic only), and its cubeless
-/// equity (higher is better for the mover).
-class GnubgRankedMove {
-  /// Creates a ranked move.
-  const GnubgRankedMove({
-    required this.play,
-    required this.hops,
-    required this.equity,
-  });
+/// The ONE checker play a leveled gnubg opponent makes for a position: the
+/// structured [hops] the adapter plays by, plus the same play as notation
+/// text ([play], diagnostic only). A dance -- no legal play for the roll --
+/// is a null [play] with empty [hops].
+class GnubgPlayedMove {
+  /// Creates a played move.
+  const GnubgPlayedMove({required this.play, required this.hops});
 
-  /// The play in standard notation, from the mover's perspective. Carried for
-  /// diagnostics; the [hops] are the structured form of the same play.
-  final String play;
+  /// The play in standard notation, from the mover's perspective, or null
+  /// when the roll dances. Carried for diagnostics; the [hops] are the
+  /// structured form of the same play.
+  final String? play;
 
-  /// The play's chequer movements — see [GnubgHop] for the numbering
-  /// convention.
+  /// The play's chequer movements -- see [GnubgHop] for the numbering
+  /// convention. Empty on a dance.
   final List<GnubgHop> hops;
-
-  /// The move's equity (higher is better).
-  final double equity;
 }
 
-/// gnubg's verdict for the on-roll player's cube decision, exactly as the
-/// service's `/v1/cube` reports it.
-enum GnubgCubeAction {
-  /// Do not double (doubling loses equity; the opponent would take).
-  noDouble,
+/// What a leveled gnubg opponent resigns now: nothing, or one of the three
+/// backgammon stakes.
+enum GnubgResignStake {
+  /// Keep playing; no resignation.
+  none,
 
-  /// Double; the opponent should take.
-  doubleTake,
+  /// Resign a single game.
+  single,
 
-  /// Double; the opponent should pass.
-  doublePass,
+  /// Resign a gammon.
+  gammon,
 
-  /// Too good to double: play on for the gammon (the opponent would pass).
-  tooGoodToDouble,
+  /// Resign a backgammon.
+  backgammon,
 }
 
-/// The service's `/v1/cube` evaluation: the recommended [action] plus the
-/// equities gnubg compared to reach it, all from the on-roll player's
-/// perspective.
-class GnubgCubeDecision {
-  /// Creates a cube decision.
-  const GnubgCubeDecision({
-    required this.action,
-    required this.cubelessEquity,
-    required this.cubefulNoDouble,
-    required this.cubefulDoubleTake,
-    required this.cubefulDoublePass,
-  });
-
-  /// gnubg's recommended cube action for the player on roll.
-  final GnubgCubeAction action;
-
-  /// The position's cubeless equity.
-  final double cubelessEquity;
-
-  /// Cubeful equity of not doubling.
-  final double cubefulNoDouble;
-
-  /// Cubeful equity of double/take.
-  final double cubefulDoubleTake;
-
-  /// Cubeful equity of double/pass.
-  final double cubefulDoublePass;
-}
-
-/// The service's `/v1/resign` evaluation for the on-roll player ("the mover"):
-/// what they should resign now and — when the opponent has offered to resign —
-/// whether to accept.
-class GnubgResignDecision {
-  /// Creates a resignation decision.
-  const GnubgResignDecision({
-    required this.resignAdvice,
-    required this.equityPlayOn,
-    this.accept,
-  }) : assert(
-         resignAdvice >= 0 && resignAdvice <= 3,
-         'resignAdvice must be 0..3',
-       );
-
-  /// What the mover should resign NOW: 0 = play on, 1 = single, 2 = gammon,
-  /// 3 = backgammon (gnubg's `getResignation` rule).
-  final int resignAdvice;
-
-  /// The mover's cubeless equity playing on (the advice baseline).
-  final double equityPlayOn;
-
-  /// Only when the request carried an offer: whether the mover should accept
-  /// the opponent's offer to resign.
-  final bool? accept;
-}
-
-/// The seam over the gnubg-service decision endpoints: given a position,
-/// return gnubg's ranked moves (`/v1/eval`), cube verdict (`/v1/cube`), or
-/// resignation verdict (`/v1/resign`). The HTTP implementation encodes the
-/// position and calls the service; tests inject a fake.
+/// The seam over the gnubg-service leveled-opponent endpoints
+/// (`/v1/play/*`): each call returns the ONE decision a level-N opponent
+/// makes for the position. The opponent's level and per-match seed are fixed
+/// per client instance -- they identify the opponent, not the request. The
+/// HTTP implementation encodes the position and calls the service; tests
+/// inject a fake.
 abstract class GnubgClient {
-  /// Rank the legal moves for [position] (best first). May be empty.
-  Future<List<GnubgRankedMove>> evalMoves(BgPosition position);
+  /// The checker play the opponent makes for [position] (an in-roll decision
+  /// point; [BgPosition.dice] is part of the request).
+  Future<GnubgPlayedMove> playMove(BgPosition position);
 
-  /// gnubg's cube verdict for [position]'s player on roll (a pre-roll
-  /// decision point; [BgPosition.dice] is not part of the request).
-  Future<GnubgCubeDecision> cubeDecision(BgPosition position);
+  /// Whether the opponent, on roll before rolling, doubles from [position]
+  /// (a pre-roll decision point; the dice are not part of the request).
+  Future<bool> playCube(BgPosition position);
 
-  /// gnubg's resignation verdict for [position]'s player on roll (pre-roll).
-  /// With [offered] 1|2|3 the OPPONENT has offered to resign that many points
-  /// (times the cube value) and the reply carries the accept verdict.
-  Future<GnubgResignDecision> resignDecision(
-    BgPosition position, {
-    int offered = 0,
-  });
+  /// Whether the opponent takes a double offered from [position], whose
+  /// player on roll is the DOUBLER (the service's `/v1/play/take` contract).
+  Future<bool> playTake(BgPosition position);
+
+  /// What the opponent resigns now from [position], if anything (pre-roll).
+  Future<GnubgResignStake> playResign(BgPosition position);
 
   /// Release any resources (e.g. an HTTP client).
   void dispose() {}
 }
 
-/// An AI player backed by GNU Backgammon via [GnubgClient]. It asks gnubg to
-/// rank the moves, applies each ranked move's structured [GnubgHop]s to the
-/// position, and returns the locally-enumerated legal turn that reaches the
-/// same position — so the returned [GammonMove]s always have valid hops,
-/// regardless of how gnubg collapses segments. Cube and resignation decisions
-/// come from the service too (`/v1/cube`, `/v1/resign`), overriding the base
-/// class's local `CubePolicy` defaults.
+/// An AI player backed by GNU Backgammon's calibrated leveled opponent via
+/// [GnubgClient]. It asks the service for the opponent's single decision,
+/// applies the returned [GnubgHop]s to the position, and returns the
+/// locally-enumerated legal turn that reaches the same position -- so the
+/// returned [GammonMove]s always have valid hops, regardless of how gnubg
+/// collapses segments. Cube and resignation decisions come from the service
+/// too, overriding the base class's local `CubePolicy` defaults.
 ///
 /// It NEVER fabricates a decision: if the service is unreachable (after
-/// [retries] attempts) or answers with nothing usable, every decision method
-/// throws [GnubgUnavailableException] so the caller can tell the user the
-/// gnubg endpoint is unavailable, rather than silently passing off a local
-/// heuristic as gnubg's.
+/// [retries] attempts) or answers with nothing playable, every decision
+/// method throws [GnubgUnavailableException] so the caller can tell the user
+/// the gnubg endpoint is unavailable, rather than silently passing off a
+/// local heuristic as gnubg's.
 class GnubgAiPlayer extends BgAiPlayer {
   /// Creates a player driven by [_client]. A transient transport failure is
   /// retried [retries] extra times, waiting [retryDelay] between attempts.
+  /// [name] and [description] label the opponent in the UI.
   GnubgAiPlayer(
     this._client, {
     this.retries = 2,
     this.retryDelay = const Duration(milliseconds: 300),
+    this.name = 'GNU Backgammon (gnubg)',
+    this.description,
   });
 
   final GnubgClient _client;
@@ -202,11 +147,13 @@ class GnubgAiPlayer extends BgAiPlayer {
   /// Delay between retry attempts.
   final Duration retryDelay;
 
+  /// The opponent's UI label.
   @override
-  String get name => 'GNU Backgammon (gnubg)';
+  final String name;
 
+  /// The opponent's UI caption (e.g. the level's tier name).
   @override
-  String? get description => 'World-class neural-net engine via gnubg-service';
+  final String? description;
 
   @override
   void dispose() => _client.dispose();
@@ -219,24 +166,26 @@ class GnubgAiPlayer extends BgAiPlayer {
       position.dice,
     );
     // No legal play (empty, or only a dance): pass without bothering the
-    // service -- there is nothing for it to rank, and nothing to fail on.
+    // service -- there is nothing for it to play, and nothing to fail on.
     if (turns.isEmpty || turns.every((t) => t.moves.isEmpty)) {
       return const BgTurn([]);
     }
 
-    final ranked = await _withRetry(() => _client.evalMoves(position));
-    for (final move in ranked) {
+    final played = await _withRetry(() => _client.playMove(position));
+    if (played.hops.isNotEmpty) {
       final target = _signatureOfHops(
         position.board,
         position.onRoll,
-        move.hops,
+        played.hops,
       );
-      if (target == null) continue;
-      final match = matchTurnBySignature(turns, target);
-      if (match != null) return BgTurn(match.moves);
+      if (target != null) {
+        final match = matchTurnBySignature(turns, target);
+        if (match != null) return BgTurn(match.moves);
+      }
     }
-    // The service answered but none of its ranked plays matched a legal turn.
-    // We will NOT invent one -- report it so the user knows gnubg failed us.
+    // The service answered but its play cannot be matched to a legal turn
+    // (or it reported a dance where legal turns exist). We will NOT invent
+    // one -- report it so the user knows gnubg failed us.
     throw GnubgUnavailableException(
       'gnubg returned no usable move for this position',
     );
@@ -253,37 +202,22 @@ class GnubgAiPlayer extends BgAiPlayer {
     final owner = position.cubeOwner;
     if (owner != null && owner != position.onRoll) return BgCubeAction.noDouble;
 
-    final decision = await _withRetry(() => _client.cubeDecision(position));
-    switch (decision.action) {
-      case GnubgCubeAction.doubleTake:
-      case GnubgCubeAction.doublePass:
-        return BgCubeAction.offerDouble;
-      case GnubgCubeAction.noDouble:
-      case GnubgCubeAction.tooGoodToDouble:
-        return BgCubeAction.noDouble;
-    }
+    final doubles = await _withRetry(() => _client.playCube(position));
+    return doubles ? BgCubeAction.offerDouble : BgCubeAction.noDouble;
   }
 
   @override
   Future<BgCubeAction> respondToDouble(BgPosition position) async {
-    final decision = await _withRetry(() => _client.cubeDecision(position));
-    // [position]'s onRoll is the doubler. Drop exactly when gnubg judges their
-    // position pass-strength: an outright double/pass, or too good to double
-    // (they gain even more playing on than the pass would concede).
-    switch (decision.action) {
-      case GnubgCubeAction.doublePass:
-      case GnubgCubeAction.tooGoodToDouble:
-        return BgCubeAction.pass;
-      case GnubgCubeAction.noDouble:
-      case GnubgCubeAction.doubleTake:
-        return BgCubeAction.take;
-    }
+    // [position]'s onRoll is the doubler, matching `/v1/play/take`'s
+    // contract: "the id is the position on which the double was offered".
+    final takes = await _withRetry(() => _client.playTake(position));
+    return takes ? BgCubeAction.take : BgCubeAction.pass;
   }
 
   @override
   Future<BgResignDecision> resignDecision(BgPosition position) async {
-    final decision = await _withRetry(() => _client.resignDecision(position));
-    return BgResignDecision.values[decision.resignAdvice];
+    final stake = await _withRetry(() => _client.playResign(position));
+    return BgResignDecision.values[stake.index];
   }
 
   // Ask the service, retrying a transient transport failure. On exhaustion,
@@ -362,22 +296,4 @@ class GnubgAiPlayer extends BgAiPlayer {
     if (point < 1 || point > 24) return null;
     return player == GammonPlayer.one ? point : 25 - point;
   }
-}
-
-/// Factory that builds [GnubgAiPlayer]s from a [GnubgClient] supplier. Register
-/// it with the `AiRegistry` once a gnubg-service URL is configured.
-class GnubgAiPlayerFactory extends BgAiPlayerFactory {
-  /// Creates a factory that builds a fresh client per player via [_clientFor].
-  GnubgAiPlayerFactory(this._clientFor);
-
-  final GnubgClient Function() _clientFor;
-
-  @override
-  String get name => 'GNU Backgammon (gnubg)';
-
-  @override
-  String? get description => 'World-class neural-net engine via gnubg-service';
-
-  @override
-  BgAiPlayer create({String? level}) => GnubgAiPlayer(_clientFor());
 }

@@ -1,63 +1,74 @@
 import 'package:bg_engine/bg_engine.dart';
 import 'package:test/test.dart';
 
-// A ranked move as the service reports it: the hops carry the play (the
-// notation string is diagnostic only, so these fixtures leave it empty).
-GnubgRankedMove _move(List<GnubgHop> hops, {double equity = 0}) =>
-    GnubgRankedMove(play: '', hops: hops, equity: equity);
+// The single played move as the service reports it: the hops carry the play
+// (the notation string is diagnostic only, so these fixtures leave it empty).
+GnubgPlayedMove _move(List<GnubgHop> hops) =>
+    GnubgPlayedMove(play: hops.isEmpty ? null : '', hops: hops);
 
-// A scripted gnubg client: returns the given ranked moves (best first)
-// regardless of the position, so the adapter's hops->turn matching can be
-// tested offline. Only the move path is exercised here (cube/resign live in
+// A scripted gnubg client: returns the given played move regardless of the
+// position, so the adapter's hops->turn matching can be tested offline. Only
+// the move path is exercised here (cube/take/resign live in
 // gnubg_ai_cube_resign_test.dart), so those members reject if reached.
 class _FakeGnubgClient implements GnubgClient {
-  _FakeGnubgClient(this.moves);
-  final List<GnubgRankedMove> moves;
+  _FakeGnubgClient(this.move);
+  final GnubgPlayedMove move;
+  int moveCalls = 0;
 
   @override
-  Future<List<GnubgRankedMove>> evalMoves(BgPosition position) async => moves;
+  Future<GnubgPlayedMove> playMove(BgPosition position) async {
+    moveCalls++;
+    return move;
+  }
 
   @override
-  Future<GnubgCubeDecision> cubeDecision(BgPosition position) =>
+  Future<bool> playCube(BgPosition position) =>
       throw StateError('not exercised by the move-path tests');
 
   @override
-  Future<GnubgResignDecision> resignDecision(
-    BgPosition position, {
-    int offered = 0,
-  }) => throw StateError('not exercised by the move-path tests');
+  Future<bool> playTake(BgPosition position) =>
+      throw StateError('not exercised by the move-path tests');
+
+  @override
+  Future<GnubgResignStake> playResign(BgPosition position) =>
+      throw StateError('not exercised by the move-path tests');
 
   @override
   void dispose() {}
 }
 
-// A client that fails its first [failures] calls, then serves [moves]. With
+// A client that fails its first [failures] calls, then serves [move]. With
 // failures large it models a down service; with failures==1 a transient blip.
 class _FlakyGnubgClient implements GnubgClient {
-  _FlakyGnubgClient({this.failures = 1 << 30, this.moves = const []});
+  _FlakyGnubgClient({
+    this.failures = 1 << 30,
+    this.move = const GnubgPlayedMove(play: null, hops: []),
+  });
   int failures;
-  final List<GnubgRankedMove> moves;
+  final GnubgPlayedMove move;
   int calls = 0;
 
   @override
-  Future<List<GnubgRankedMove>> evalMoves(BgPosition position) async {
+  Future<GnubgPlayedMove> playMove(BgPosition position) async {
     calls++;
     if (failures > 0) {
       failures--;
       throw Exception('connection refused');
     }
-    return moves;
+    return move;
   }
 
   @override
-  Future<GnubgCubeDecision> cubeDecision(BgPosition position) =>
+  Future<bool> playCube(BgPosition position) =>
       throw StateError('not exercised by the move-path tests');
 
   @override
-  Future<GnubgResignDecision> resignDecision(
-    BgPosition position, {
-    int offered = 0,
-  }) => throw StateError('not exercised by the move-path tests');
+  Future<bool> playTake(BgPosition position) =>
+      throw StateError('not exercised by the move-path tests');
+
+  @override
+  Future<GnubgResignStake> playResign(BgPosition position) =>
+      throw StateError('not exercised by the move-path tests');
 
   @override
   void dispose() {}
@@ -76,7 +87,7 @@ List<GnubgHop> _makeFivePoint() => const [
 void main() {
   group('GnubgAiPlayer', () {
     test('player one: hops 8/5 6/5 select the make-the-5-point turn', () async {
-      final ai = GnubgAiPlayer(_FakeGnubgClient([_move(_makeFivePoint())]));
+      final ai = GnubgAiPlayer(_FakeGnubgClient(_move(_makeFivePoint())));
       final turn = await ai.chooseTurn(
         BgPosition(
           board: GammonRules.initialBoard(),
@@ -93,9 +104,9 @@ void main() {
       // point N is engine pip 25-N: 24/23 13/9 is engine 1->2 and 12->16
       // (dice 1 and 4).
       final ai = GnubgAiPlayer(
-        _FakeGnubgClient([
+        _FakeGnubgClient(
           _move(const [GnubgHop(from: 24, to: 23), GnubgHop(from: 13, to: 9)]),
-        ]),
+        ),
       );
       final turn = await ai.chooseTurn(
         BgPosition(
@@ -120,9 +131,7 @@ void main() {
       final checker = board[24].removeLast(); // a player1 checker to the bar
       board[25].add(checker); // engine pip 25 = player1 bar
       final ai = GnubgAiPlayer(
-        _FakeGnubgClient([
-          _move(const [GnubgHop(from: 25, to: 20)]),
-        ]),
+        _FakeGnubgClient(_move(const [GnubgHop(from: 25, to: 20)])),
       );
       final turn = await ai.chooseTurn(
         BgPosition(board: board, onRoll: GammonPlayer.one, dice: [4, 1]),
@@ -139,9 +148,9 @@ void main() {
       board[1].add(-2);
       board[19].addAll([50, 51]); // opponent checkers, out of play
       final ai = GnubgAiPlayer(
-        _FakeGnubgClient([
+        _FakeGnubgClient(
           _move(const [GnubgHop(from: 4, to: 0), GnubgHop(from: 1, to: 0)]),
-        ]),
+        ),
       );
       final turn = await ai.chooseTurn(
         BgPosition(board: board, onRoll: GammonPlayer.one, dice: [4, 1]),
@@ -150,31 +159,15 @@ void main() {
       expect(turn.moves.every((m) => m.toPipNo == 0), isTrue);
     });
 
-    test('skips an unmatchable move and uses the next ranked one', () async {
-      // the first ranked move's hops don't reach any legal turn (nothing on
-      // the 20-point); the adapter falls through to 8/5 6/5
-      final ai = GnubgAiPlayer(
-        _FakeGnubgClient([
-          _move(const [GnubgHop(from: 20, to: 17)]),
-          _move(_makeFivePoint(), equity: -0.1),
-        ]),
-      );
-      final turn = await ai.chooseTurn(
-        BgPosition(
-          board: GammonRules.initialBoard(),
-          onRoll: GammonPlayer.one,
-          dice: [3, 1],
-        ),
-      );
-      expect(turn.moves.any((m) => m.fromPipNo == 8 && m.toPipNo == 5), isTrue);
-    });
-
     test(
-      'throws (never fabricates) when gnubg returns nothing usable',
+      'throws (never fabricates) when the played move is unmatchable',
       () async {
-        // service answered but with no matchable move: we must NOT substitute
-        // a local move and pass it off as gnubg's -- surface the failure.
-        final ai = _player(_FakeGnubgClient(const []));
+        // The play surface returns ONE decision; if its hops cannot reach any
+        // legal turn (nothing on the 20-point here) there is no fallback --
+        // we must NOT substitute a local move and pass it off as gnubg's.
+        final ai = _player(
+          _FakeGnubgClient(_move(const [GnubgHop(from: 20, to: 17)])),
+        );
         await expectLater(
           ai.chooseTurn(
             BgPosition(
@@ -187,6 +180,23 @@ void main() {
         );
       },
     );
+
+    test('throws (never fabricates) when gnubg reports a dance but legal '
+        'turns exist', () async {
+      final ai = _player(
+        _FakeGnubgClient(const GnubgPlayedMove(play: null, hops: [])),
+      );
+      await expectLater(
+        ai.chooseTurn(
+          BgPosition(
+            board: GammonRules.initialBoard(),
+            onRoll: GammonPlayer.one,
+            dice: [3, 1],
+          ),
+        ),
+        throwsA(isA<GnubgUnavailableException>()),
+      );
+    });
 
     test(
       'an unavailable service throws after retrying -- never a faked move',
@@ -212,7 +222,7 @@ void main() {
     test('a transient blip is retried and then succeeds', () async {
       // one failure, then a good response -> gnubg's move, no error
       final ai = _player(
-        _FlakyGnubgClient(failures: 1, moves: [_move(_makeFivePoint())]),
+        _FlakyGnubgClient(failures: 1, move: _move(_makeFivePoint())),
       );
       final turn = await ai.chooseTurn(
         BgPosition(
@@ -243,9 +253,14 @@ void main() {
       expect(client.calls, 0, reason: 'a dance needs no service call');
     });
 
-    test('registers as an engine via its factory', () {
-      final factory = GnubgAiPlayerFactory(() => _FakeGnubgClient(const []));
-      expect(factory.create(), isA<GnubgAiPlayer>());
+    test('carries the UI label and caption it was created with', () {
+      final ai = GnubgAiPlayer(
+        _FakeGnubgClient(_move(_makeFivePoint())),
+        name: 'Gary Gammon',
+        description: 'casual',
+      );
+      expect(ai.name, 'Gary Gammon');
+      expect(ai.description, 'casual');
     });
   });
 }

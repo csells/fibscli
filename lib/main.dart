@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:bg_engine/bg_engine.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:gnubg_service/gnubg_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:logging/logging.dart';
@@ -12,7 +14,6 @@ import 'package:url_launcher/url_launcher.dart' as ul;
 import 'ai_engines.dart';
 import 'analytics.dart';
 import 'app_close_stub.dart' if (dart.library.html) 'app_close_web.dart';
-import 'backgammon_ai_player.dart';
 import 'credential_store.dart';
 import 'error_log_dialog.dart';
 import 'fibs_e2e_probe_stub.dart'
@@ -120,17 +121,32 @@ Future<AppDeps> bootstrap({
           version: appVersion,
         );
   analytics.track('app_start', screen: 'landing');
-  // Offer Gary Gammon (five levels) as the computer opponent, and the
-  // gnubg-service engine too when a service URL is configured via
-  // --dart-define=gnubg_service_url=... (optional gnubg_api_key). No URL -> the
-  // gnubg engine is simply not listed.
-  AiRegistry.register(GaryGammonFactory());
+  // The single computer opponent: level 0 is the offline Harry Heuristic;
+  // levels 1-7 are Gary Gammon, the gnubg-service's calibrated leveled
+  // opponent. Gary needs a web build (the attested token mint requires a
+  // browser Origin + Turnstile) AND a publishable key configured via
+  // --dart-define=gnubg_publishable_key (with gnubg_turnstile_sitekey;
+  // gnubg_service_url overrides the hosted default). Without those, the
+  // ladder still shows levels 1-7 but only Harry is playable.
   // ignore: do_not_use_environment -- compile-time gnubg config seam
   const gnubgUrl = String.fromEnvironment('gnubg_service_url');
   // ignore: do_not_use_environment -- compile-time gnubg config seam
-  const gnubgKey = String.fromEnvironment('gnubg_api_key');
-  final gnubg = gnubgFactoryFor(gnubgUrl, apiKey: gnubgKey);
-  if (gnubg != null) AiRegistry.register(gnubg);
+  const gnubgPk = String.fromEnvironment('gnubg_publishable_key');
+  // ignore: do_not_use_environment -- compile-time gnubg config seam
+  const gnubgSiteKey = String.fromEnvironment('gnubg_turnstile_sitekey');
+  final garySessions = (kIsWeb && gnubgPk.isNotEmpty && gnubgSiteKey.isNotEmpty)
+      ? () => GnubgSession(
+          baseUrl: gnubgUrl.isEmpty ? null : gnubgUrl,
+          publishableKey: gnubgPk,
+          // Resolve a LIVE context at mint time (mints can happen an hour
+          // into a game); the app-lifetime navigator is always mounted.
+          attest: () => turnstileAttest(
+            App.navigatorKey.currentContext!,
+            siteKey: gnubgSiteKey,
+          ),
+        )
+      : null;
+  AiRegistry.register(ComputerOpponentsFactory(sessionFor: garySessions));
   final prefs = await SharedPreferences.getInstance();
   App.prefs = prefs;
   final creds = SecureCredentialStore(prefs, secretStore);
@@ -317,10 +333,10 @@ class _AppState extends State<App> {
 
   Widget _buildComputerRoute(BuildContext context, GoRouterState state) {
     final params = state.uri.queryParameters;
-    final engineName = params['engine'] ?? 'Gary Gammon';
+    final engineName = params['engine'] ?? 'Computer';
     final factory =
         AiRegistry.byName(engineName) ??
-        AiRegistry.byName('Gary Gammon') ??
+        AiRegistry.byName('Computer') ??
         (AiRegistry.available.isEmpty ? null : AiRegistry.available.first);
     if (factory == null) {
       return const _ComputerUnavailablePage('No computer engines registered.');

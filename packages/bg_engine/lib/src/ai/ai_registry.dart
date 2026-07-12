@@ -22,4 +22,7 @@ class AiRegistry {
   /// The factory with the given [name], or null if none is registered.
   static BgAiPlayerFactory? byName(String name) =>
       _factories.firstWhereOrNull((f) => f.name == name);
+
+  /// Remove every registered engine (test isolation between cases).
+  static void clear() => _factories.clear();
 }

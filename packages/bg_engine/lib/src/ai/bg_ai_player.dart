@@ -160,6 +160,14 @@ abstract class BgAiPlayerFactory {
   /// The difficulty levels this engine offers (empty == single strength).
   List<String> get levels => const [];
 
+  /// A human-readable label for [level] (defaults to the raw level string).
+  String levelLabel(String level) => level;
+
+  /// Whether [level] is currently playable. A factory may list a level it
+  /// cannot build in this environment (shown disabled in pickers) so the
+  /// full ladder stays visible; [create] for such a level throws.
+  bool isLevelEnabled(String level) => true;
+
   /// Build an instance, optionally at the given difficulty [level].
   BgAiPlayer create({String? level});
 }

@@ -115,17 +115,22 @@ $ flutter build web --release --dart-define=crash_report_url=https://example.com
 Each error is then POSTed as JSON (`context`, `error`, `stack`, `time`). With no
 `crash_report_url` set, nothing leaves the device.
 
-### Optional: the gnubg engine
+### The computer opponent
 
-**Play Gary Gammon** on the landing page offers five difficulty levels of
-increasing strength (level 3 is a fast heuristic; 1-2 and 4-5 are the neural
-engine). To also offer the world-class **GNU Backgammon** engine, point the
-build at a gnubg-service:
+**Play Against the Computer** on the landing page offers an eight-step
+ladder: level 0 is **Harry Heuristic** (the offline pubeval evaluator), and
+levels 1–7 are **Gary Gammon** — the gnubg-service's calibrated leveled
+opponent (novice → world-class), consumed through the `gnubg_service`
+package's attested session-token flow. Gary needs a web build configured
+with a publishable key and a Turnstile sitekey:
 
 ```sh
 $ flutter build web --release \
-    --dart-define=gnubg_service_url=https://gnubg.example.com \
-    --dart-define=gnubg_api_key=...   # optional, sent as "Authorization: Bearer <key>"
+    --dart-define=gnubg_publishable_key=bg_pk_... \
+    --dart-define=gnubg_turnstile_sitekey=0x... \
+    --dart-define=gnubg_service_url=...   # optional; defaults to the hosted service
 ```
 
-With no `gnubg_service_url`, the gnubg engine is simply not listed.
+Without a key (or on non-web platforms, where the browser-origin token mint
+cannot run), levels 1–7 still show in the picker but are grayed out; only
+Harry is playable.
