@@ -65,13 +65,17 @@ class PrivacyPage extends StatelessWidget {
                           'mode, app version, platform, and counts such as how '
                           'many FIBS rows or bots were visible. They do not '
                           'include usernames, passwords, raw FIBS messages, '
-                          'chat, emails, hostnames, or game commands.',
+                          'chat, emails, hostnames, or game commands. The '
+                          'site also uses Cloudflare Web Analytics, which '
+                          'measures page views and referrers in aggregate '
+                          'without cookies and without tracking you '
+                          'across sites.',
                     ),
                     const _PrivacySection(
                       title: 'Hosting and errors',
                       body:
-                          'Firebase Hosting serves the web app. Cloudflare '
-                          'runs the FIBS proxy and analytics endpoint. The '
+                          'Cloudflare serves the web app and runs the FIBS '
+                          'proxy and analytics endpoint. The '
                           'playfibs.com build does not enable remote crash '
                           'reporting; errors are shown locally in the app.',
                     ),

@@ -71,9 +71,23 @@ Build the release web bundle:
 $ ./build-web.sh
 ```
 
-The output in `build/web` is a static bundle. To play FIBS from a deployed
-build, the app uses the hosted Cloudflare Worker bridge. Users do not configure
-the bridge; it is app infrastructure.
+The output in `build/web` is a static bundle, served at https://playfibs.com by
+the `playfibs-site` Cloudflare Worker (`packages/playfibs_site`): static assets
+with SPA fallback plus a www→apex redirect, attached to the `playfibs.com` and
+`www.playfibs.com` custom domains. Deploy the site with:
+
+```sh
+$ ./build-web.sh
+$ cd packages/playfibs_site
+$ npm ci
+$ npm run check && npm test
+$ npx wrangler deploy
+```
+
+To play FIBS from a deployed build, the app uses the hosted Cloudflare Worker
+bridge. Users do not configure the bridge; it is app infrastructure. The
+bridge's production `ALLOWED_ORIGINS` must include `https://playfibs.com` (see
+`.github/workflows/deploy-fibs-proxy-worker.yml`).
 
 `build-web.sh` enables sanitized app analytics by default:
 
@@ -83,8 +97,10 @@ the bridge; it is app infrastructure.
 - A dirty worktree appends `-dirty` to `APP_VERSION`.
 
 Set `ANALYTICS_URL=` to disable app analytics for an ad hoc release build.
-The public app includes a `/privacy` page describing the Firebase Hosting,
-Cloudflare proxy, FIBS credential flow, and analytics fields.
+The site also carries a Cloudflare Web Analytics beacon (cookieless visitor
+analytics) in `web/index.html`. The public app includes a `/privacy` page
+describing the Cloudflare hosting and proxy, FIBS credential flow, and
+analytics fields.
 
 ### Optional: remote crash reporting
 

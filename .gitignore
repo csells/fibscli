@@ -65,3 +65,5 @@ tool/browser_e2e/package-lock.json
 # Cloudflare Worker package dependencies
 packages/fibs_proxy_worker/node_modules/
 packages/fibs_proxy_worker/.wrangler/
+packages/playfibs_site/node_modules/
+packages/playfibs_site/.wrangler/
