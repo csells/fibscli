@@ -63,6 +63,33 @@ $ npx wrangler whoami   # must be authenticated before deploy
 $ npx wrangler deploy
 ```
 
+## CI runs locally
+
+There is no GitHub Actions gate on this repo, and that is deliberate. The app
+depends on `gnubg_service` through a **pub git dependency on a private repo**
+(`csells/gnubg-service`), which an Actions runner cannot clone without a
+credential — a hosted gate would either sit permanently red or require a
+long-lived token with read access to a private repo on every push. A developer
+machine already has that access, so the gate lives there:
+
+```sh
+$ ./tool/ci.sh
+```
+
+That is the whole gate: `flutter pub get`, `dart format --set-exit-if-changed .`,
+`dart analyze --fatal-infos .`, `flutter test`, then `tsc` + `vitest` for both
+Cloudflare Worker packages. Nothing is excluded — `lib`, `test`, and every
+`packages/` member are first-party code held to the same bar.
+
+A **pre-push hook** runs it automatically. Enable it once per clone:
+
+```sh
+$ git config core.hooksPath .githooks
+```
+
+A red gate then blocks the push; `git push --no-verify` bypasses it deliberately
+(e.g. a docs-only push you have already gated).
+
 ## Production build & deployment
 
 Build the release web bundle:
@@ -76,10 +103,11 @@ the `playfibs-site` Cloudflare Worker (`packages/playfibs_site`): static assets
 with SPA fallback plus a www→apex redirect, attached to the `playfibs.com` and
 `www.playfibs.com` custom domains.
 
-**Every push to `main` deploys automatically** (`.github/workflows/deploy-playfibs-site.yml`:
-full gate → `./build-web.sh` → `wrangler deploy`). To deploy by hand:
+Deploys are run from a developer machine (for the same reason CI is local —
+see above), gated first:
 
 ```sh
+$ ./tool/ci.sh
 $ ./build-web.sh
 $ cd packages/playfibs_site
 $ npm ci
@@ -87,10 +115,8 @@ $ npm run check && npm test
 $ npx wrangler deploy
 ```
 
-CI and the deploy workflow both need `GNUBG_SERVICE_TOKEN` (a fine-grained PAT
-with `contents: read` on the private `csells/gnubg-service` repo) to resolve the
-`gnubg_service` git dependency, plus `CLOUDFLARE_API_TOKEN` /
-`CLOUDFLARE_ACCOUNT_ID` to deploy.
+`wrangler` needs an authenticated Cloudflare session (`npx wrangler login`, or
+`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in the environment).
 
 To play FIBS from a deployed build, the app uses the hosted Cloudflare Worker
 bridge. Users do not configure the bridge; it is app infrastructure. The

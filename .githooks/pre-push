@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Gate every push with the full local CI (tool/ci.sh). GitHub Actions cannot run
+# this repo's gate -- the app depends on the private csells/gnubg-service repo
+# through a pub git dependency that a runner has no credential for -- so this
+# hook is what keeps a red commit off main.
+#
+# Enable it once per clone:
+#   git config core.hooksPath .githooks
+#
+# Bypass deliberately (docs-only push, a hotfix you have already gated):
+#   git push --no-verify
+set -euo pipefail
+
+printf '\033[1mpre-push: running the full gate (tool/ci.sh)…\033[0m\n'
+printf 'bypass with: git push --no-verify\n'
+
+if ! ./tool/ci.sh; then
+  printf '\n\033[31m\033[1mpre-push: the gate failed -- push aborted.\033[0m\n'
+  exit 1
+fi
