@@ -57,9 +57,9 @@ List<LegalTurn> enumerateLegalTurns(
 
 /// A position fingerprint independent of piece ids: per pip, the (player1,
 /// player2) checker counts, as a flat list `[p1@0, p2@0, p1@1, p2@1, …]`. Two
-/// positions are equal iff their signatures are. Used by the gnubg and
-/// backgammon_ai adapters to match an external engine's chosen position back to
-/// a locally-enumerated legal turn.
+/// positions are equal iff their signatures are. Used by the gnubg adapter to
+/// match an external engine's chosen position back to a locally-enumerated
+/// legal turn.
 List<int> positionSignature(List<List<int>> board) {
   final sig = List<int>.filled(board.length * 2, 0);
   for (var i = 0; i < board.length; i++) {

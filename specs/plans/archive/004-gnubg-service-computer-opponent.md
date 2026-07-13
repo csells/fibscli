@@ -122,3 +122,14 @@ tokens). The old `HttpGnubgClient` targets endpoints that no longer exist.
 - Done service-side: `playfibs.com` + `www.playfibs.com` added to the gnubg
   Turnstile widget's domains; the publishable key already allow-listed
   `https://playfibs.com`.
+
+## Archival note (2026-07-12)
+
+Complete and deployed. `specs/handoff-gnubg-service-package.md` (the prompt this
+plan was written from) is archived alongside it: it was written before the
+service's `play*` surface existed, so parts of it are now **wrong** — it
+prescribes `analyze*` + plies for the opponent, and a `navigatorKey` context for
+the Turnstile attestation. Both were superseded during implementation (see "What
+verification found"). Read this plan, not the handoff, for what was actually
+built; the lasting design lives in `specs/architecture/game-modes-and-ai-players.md`
+and the ADR log.

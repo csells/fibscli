@@ -4,8 +4,8 @@ import 'package:fibscli/model.dart'; // re-exports bg_engine (GammonPlayer, …)
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// An engine that fails on its turn with an ordinary (non-gnubg) error, the way
-// an unexpected throw from the external backgammon_ai engine would.
+// An engine that fails on its turn with an ordinary (non-gnubg) error: the
+// game must stay recoverable whatever an engine throws.
 class _ThrowingAi extends BgAiPlayer {
   @override
   String get name => 'throwing';

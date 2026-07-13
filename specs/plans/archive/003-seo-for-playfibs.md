@@ -53,3 +53,13 @@ site. The www→apex 301 (single canonical host) already exists.
 - Prerendering or bot-specific rendering (cloaking risk, no content to gain).
 - Soft-404 hardening of the SPA fallback (revisit only if Search Console
   flags it).
+
+## Archival note (2026-07-12)
+
+Complete and deployed: robots.txt, sitemap.xml, canonical + title/description,
+Open Graph + Twitter cards with a 1200x630 share image, WebApplication JSON-LD,
+and crawlable landing content that yields to the app on `flutter-first-frame`
+(all pinned by `test/seo_test.dart` and verified live). The operator follow-ups
+remain open and are the user's: register the domain in Google Search Console and
+Bing Webmaster Tools and submit the sitemap; optionally enable Crawler Hints /
+IndexNow on the zone.

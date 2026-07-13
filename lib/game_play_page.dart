@@ -230,8 +230,9 @@ class _GameViewState extends State<GameView> {
   void dispose() {
     if (_game != null) _game!.removeListener(_gameChanged);
     _animator.dispose();
-    // Release the AI engine's resources (e.g. the gnubg adapter's http.Client
-    // connection pool). pubeval/backgammon_ai have a no-op dispose.
+    // Release the AI engine's resources. The offline heuristic has a no-op
+    // dispose; a gnubg opponent drops its client (the app-scoped session it
+    // shares with every other game stays open).
     widget.ai?.dispose();
     super.dispose();
   }
@@ -305,9 +306,8 @@ class _GameViewState extends State<GameView> {
       // NOT fabricate one -- tell the user and let them retry the engine.
       _reportEngineUnavailable(e.message);
     } on Object catch (e, st) {
-      // Any OTHER engine failure (e.g. an unexpected throw from the external
-      // backgammon_ai engine) must not strand the game on the AI's turn -- the
-      // human can't move on the AI's behalf. Log it and surface it with the
+      // Any OTHER engine failure must not strand the game on the AI's turn --
+      // the human can't move on the AI's behalf. Log it and surface it with the
       // same Retry affordance so the game is always recoverable.
       _log.warning('computer engine failed on its turn', e, st);
       _reportEngineUnavailable('$e');

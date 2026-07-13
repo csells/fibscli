@@ -70,8 +70,8 @@ class FibsPlay {
   // arbitrary [BgAiPlayer] (the spec's "Play for Me" unification). The AI works
   // in the engine's canonical frame, so we hand it a BgPosition built from the
   // FIBS board and translate its chosen turn back to FIBS coordinates. With a
-  // PubevalAiPlayer this matches [bestTurnCommand]; other engines (gnubg,
-  // backgammon_ai) plug in unchanged. Returns null for a dance / no dice.
+  // PubevalAiPlayer this matches [bestTurnCommand]; any other engine (e.g. a
+  // gnubg opponent) plugs in unchanged. Returns null for a dance / no dice.
   static Future<String?> bestTurnCommandWithAi(
     FibsBoard fb,
     BgAiPlayer ai, {
