@@ -47,10 +47,28 @@ Close/error propagates in both directions.
 
 Logging (`src/logging.ts`) and Analytics Engine emission carry operational
 metadata only: routes, categories, counts, durations, error class names. Raw
-frames, TCP bytes, credentials, who-list rows, chat, and game commands are
-never logged or emitted; `logging_test.ts` pins this by driving a real login
-and asserting the secrets appear nowhere. Client IPs and full user-agents are
-never stored.
+frames, TCP bytes, credentials, who-list rows, chat, and game commands are never
+logged or emitted. Client IPs and full user-agents are never stored.
+
+**The type system holds this line, not code review.** Log metadata is
+`LogValue = number | boolean | LogName`, where `LogName` is a union of closed
+category sets the bridge itself chooses (`RouteName`, `RejectReason`,
+`CloseSide`, `CloseReason`, the distinguished HTTP methods, and a *branded*
+`ErrorName` obtainable only from `sanitizedError`). Consequences worth knowing:
+
+- Logging a frame, a chunk, or any object payload is a **compile error** —
+  `npm run check` (tsc) is gated in CI, so it cannot reach production.
+- `bridge.ts` uses those same unions for its own `MetricEvent` and reject
+  helpers, so the categories have one source of truth and a typo will not
+  compile.
+- A request's raw method token never reaches a log line: `loggableMethod()`
+  reduces it to `GET | POST | OPTIONS | other` first.
+- An error's *message* is dropped (it can quote the payload that broke); only
+  the class name survives.
+
+Widen `LogValue` only with a value that is provably not user content.
+`logging_test.ts` additionally drives a real login and a who-list row and
+asserts the secrets appear in neither the logs nor the metrics.
 
 ## Analytics
 
@@ -63,6 +81,16 @@ origin category, client kind). Per-session byte/message counters aggregate in
 memory and emit once on close — never per frame. Emission is best-effort: a
 throwing `writeDataPoint` never breaks the bridge. Dashboard fields and starter
 SQL live in `packages/fibs_proxy_worker/docs/analytics.md`.
+
+**The schema is positional, so it is pinned by column.** Analytics Engine stores
+`blobs[]` / `doubles[]` by index, and every query in `docs/analytics.md` reads by
+position — so a value written to the wrong slot is not a type error and would
+silently corrupt the dashboards. `test/test_support.ts` names the schema
+(`BLOB_COLUMNS`, `DOUBLE_COLUMNS`) and `metricByType()` decodes a data point into
+those names, so `metric_schema_test.ts` asserts the exact slot each dimension and
+metric lands in (a containment check over the JSON would not). **Reordering or
+inserting a column means updating those two lists and the queries together** —
+the tests fail until you do.
 
 ## Deployment
 

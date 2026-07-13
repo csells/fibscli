@@ -395,13 +395,16 @@ Manual validation:
 
 ## Archival note (2026-07-11)
 
-Shipped and live (`proxy.playfibs.com`). Verified 97.5% complete by the
-fresh-eyes gap analysis in `specs/gaps/2026-07-11-plans-001-002.md`; no missing
-or drifted requirements. Outstanding at archival, consciously carried rather
-than dropped:
+Shipped and live (`proxy.playfibs.com`). Verified **100% complete** by the
+fresh-eyes gap analysis in
+`specs/plans/archive/2026-07-11-gap-analysis-plans-001-002.md`; no missing or
+drifted requirements. (That analysis first scored 97.5%, with §7 typed logging
+metadata and §8 per-column analytics assertions carried as partials; both were
+closed on 2026-07-12 — logging metadata is now a closed type, so a payload is a
+compile error, and the analytics tests assert positional columns.)
 
-- §7 typed logging metadata (gap E3) and §8 per-column analytics assertions
-  (gap F6) — hardening polish, tracked in the gap analysis's ranked list.
+Notes at archival:
+
 - §13 open decisions resolved since writing: the production Origin allowlist is
   `https://playfibs.com`, `https://playfibs-f3c5b.web.app`, plus local dev/e2e
   ports (deployed 2026-07-11); deploy credentials use the manual GitHub Actions
