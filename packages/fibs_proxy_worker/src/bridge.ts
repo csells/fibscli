@@ -9,7 +9,19 @@ import {
   DEFAULT_PRE_CLIENT_IDLE_TIMEOUT_MS,
   MAX_MESSAGE_BYTES,
 } from './limits';
-import { logError, logInfo, logWarn, sanitizedError } from './logging';
+import type {
+  CloseReason,
+  CloseSide,
+  RejectReason,
+  RouteName,
+} from './logging';
+import {
+  logError,
+  logInfo,
+  loggableMethod,
+  logWarn,
+  sanitizedError,
+} from './logging';
 
 export interface AnalyticsDataPoint {
   blobs: string[];
@@ -75,15 +87,14 @@ export interface BridgeDependencies<R extends BridgeResponseLike = Response> {
   preClientIdleTimeoutMs?: number;
 }
 
-type RouteName = '/' | '/fibs' | '/healthz' | '/analytics' | 'unknown';
 
 interface MetricEvent {
   type: string;
   route: RouteName;
   result?: string;
-  rejectReason?: string;
-  closeSide?: string;
-  closeReason?: string;
+  rejectReason?: RejectReason;
+  closeSide?: CloseSide;
+  closeReason?: CloseReason;
   originCategory?: string;
   colo?: string;
   country?: string;
@@ -296,7 +307,7 @@ function rejectHttp<R extends BridgeResponseLike>(
   options: {
     context: RequestContext;
     headers: HeadersInit;
-    reason: string;
+    reason: RejectReason;
     status: number;
   },
 ) {
@@ -324,7 +335,7 @@ function reject<R extends BridgeResponseLike>(
   deps: BridgeDependencies<R>,
   options: {
     context: RequestContext;
-    reason: string;
+    reason: RejectReason;
     status: number;
   },
 ) {
@@ -344,7 +355,7 @@ function reject<R extends BridgeResponseLike>(
     rejectedCount: 1,
   });
   logWarn(deps.logger, 'session_reject', {
-    method: request.method,
+    method: loggableMethod(request.method),
     reason: options.reason,
     route: options.context.route,
     status: options.status,
@@ -417,8 +428,8 @@ async function bridgeSession<R extends BridgeResponseLike>(
   };
 
   const finish = async (
-    closeSide: string,
-    closeReason: string,
+    closeSide: CloseSide,
+    closeReason: CloseReason,
     code = 1000,
   ) => {
     if (closed) return;

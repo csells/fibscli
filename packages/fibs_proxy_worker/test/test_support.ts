@@ -211,3 +211,83 @@ export function decode(data: unknown) {
 export function allMetricText(analytics: FakeAnalytics) {
   return JSON.stringify(analytics.points);
 }
+
+/**
+ * The Analytics Engine schema, by name. These lists mirror the positional
+ * `blobs`/`doubles` arrays `emitMetric` writes, so a test can assert a value
+ * landed in its own COLUMN rather than merely appearing somewhere in the JSON.
+ * Reordering the schema without updating these fails the schema tests -- which
+ * is the point: every query in docs/analytics.md reads by position.
+ */
+export const BLOB_COLUMNS = [
+  'type',
+  'environment',
+  'version',
+  'route',
+  'result',
+  'rejectReason',
+  'closeSide',
+  'closeReason',
+  'colo',
+  'country',
+  'originCategory',
+  'clientKind',
+  'appEvent',
+  'appScreen',
+  'appMode',
+  'appEnvironment',
+  'appVersion',
+  'appPlatform',
+] as const;
+
+export const DOUBLE_COLUMNS = [
+  'requestCount',
+  'acceptedCount',
+  'rejectedCount',
+  'tcpConnectMs',
+  'firstByteMs',
+  'durationMs',
+  'browserToFibsMessages',
+  'fibsToBrowserMessages',
+  'browserToFibsBytes',
+  'fibsToBrowserBytes',
+  'closeCount',
+  'errorCount',
+  'idleTimeoutCount',
+  'oversizeCount',
+  'appEventCount',
+  'appWhoInfoCount',
+  'appAvailableBotCount',
+  'appWatchableBotCount',
+  'appSavedMatchCount',
+  'appMessageCount',
+] as const;
+
+type NamedPoint = {
+  blobs: Record<(typeof BLOB_COLUMNS)[number], string>;
+  doubles: Record<(typeof DOUBLE_COLUMNS)[number], number>;
+  indexes: string[];
+};
+
+/** The single emitted data point of [type], decoded into named columns. */
+export function metricByType(
+  analytics: FakeAnalytics,
+  type: string,
+): NamedPoint {
+  const points = analytics.points.filter((p) => p.blobs[0] === type);
+  if (points.length !== 1) {
+    throw new Error(
+      `expected exactly one "${type}" metric, got ${points.length}`,
+    );
+  }
+  const point = points[0]!;
+  const blobs = {} as Record<(typeof BLOB_COLUMNS)[number], string>;
+  BLOB_COLUMNS.forEach((name, i) => {
+    blobs[name] = point.blobs[i] ?? '';
+  });
+  const doubles = {} as Record<(typeof DOUBLE_COLUMNS)[number], number>;
+  DOUBLE_COLUMNS.forEach((name, i) => {
+    doubles[name] = point.doubles[i] ?? 0;
+  });
+  return { blobs, doubles, indexes: point.indexes };
+}
