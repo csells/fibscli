@@ -64,7 +64,7 @@ sleep 1
 # --- playwright (install once) + run ----------------------------------------
 if [ ! -d "$HERE/node_modules/playwright" ]; then
   echo "installing playwright (one-time)"
-  ( cd "$HERE" && npm init -y >/dev/null 2>&1 && npm install playwright >/dev/null 2>&1 )
+  ( cd "$HERE" && npm ci --no-audit --no-fund )
 fi
 
 echo "running browser e2e..."

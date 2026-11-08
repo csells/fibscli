@@ -9,15 +9,15 @@ const _b64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 /// perspective (the 14-character string gnubg uses, e.g. the opening position
 /// is `4HPwATDgc/ABMA`).
 ///
-/// The key is built as gnubg's `PositionKey`: for each side (on-roll first,
-/// then opponent), for each of that side's 25 points (point 0 = the ace point,
+/// The key is built as gnubg's `PositionKey`: for each side (opponent first,
+/// then on-roll), for each of that side's 25 points (point 0 = the ace point,
 /// … point 23 = the 24-point, point 24 = the bar) write `count` 1-bits followed
 /// by a 0 separator, packed LSB-first into 10 bytes; those bytes are then
 /// emitted in gnubg's 9-bytes-as-base64 + final-byte-as-2-chars form.
 String gnubgPositionId(List<List<int>> board, GammonPlayer onRoll) {
   final sides = [
-    _sideCounts(board, onRoll),
     _sideCounts(board, GammonRules.otherPlayer(onRoll)),
+    _sideCounts(board, onRoll),
   ];
 
   final key = List<int>.filled(10, 0);

@@ -43,3 +43,47 @@ This hits the **real, shared** FIBS server. Per `AGENTS.md` ("FIBS testing
 etiquette"): one login per run, log out cleanly, iterate selectors/coordinates
 offline so the live run is a single pass — don't loop it. The baked-in password
 lives only in the local, gitignored `build/web` bundle; never commit a build.
+
+## Complete games against Gary
+
+`computer_games.mjs` drives three complete level-7 games through the rendered
+computer-game screen. The read-only `__computerE2EState` probe provides legal
+human moves and rendered pointer targets. The driver clicks the actual board,
+Roll, dice, cube-acceptance and end-game controls. It never applies a move or
+changes game state through the probe. Gary uses the production session-token,
+Turnstile and gnubg endpoints. Every failed engine response, page exception,
+unavailable-engine banner or stalled board fails the run.
+
+Build the candidate with its read-only probe:
+
+```sh
+./build-web.sh --dart-define=computer_e2e_probe=true --no-wasm-dry-run
+npm ci --prefix tool/browser_e2e
+./tool/browser_e2e/node_modules/.bin/playwright install ffmpeg
+```
+
+Serve that build using `spa_server.mjs` on localhost9090 (or forward that port
+to the disposable candidate VM). Keep the localhost origin: the existing
+publishable key permits it. The BB share's different origin does not authorize
+Gary.
+
+The verified Mac browser configuration uses Camoufox156.0.1-beta.36 with
+Playwright1.64.0. Browser checks remain real; there are no fabricated challenge
+tokens or network mocks. Chromium is also supported and can click the ordinary
+visible verification checkbox, but its production challenge may decline automation.
+
+```sh
+uv run --with camoufox==0.5.8 python -m camoufox fetch official/156.0.1-beta.36
+uv run --with camoufox==0.5.8 python tool/browser_e2e/camoufox_options.py \
+  --output /tmp/fibs-browser-options.json
+CAMOUFOX_OPTIONS=/tmp/fibs-browser-options.json \
+  GAMES=3 node tool/browser_e2e/computer_games.mjs
+```
+
+Artifacts in `out/computer/` include screenshots throughout each game, full
+browser video, sanitized endpoint/status evidence and completed-game results.
+`HEADED=1` opens the Chromium run visibly; `CHROME_BINARY` selects an installed
+Chrome for Testing. `BASE_URL`, `OUT` and `GAMES` configure the target, evidence
+directory and game count. The test has no FIBS login or live FIBS-server traffic.
+The normal local CI gate remains offline; run this production-backed browser
+check explicitly after changing the computer-opponent integration.

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
 
 import 'board_animator.dart';
+import 'computer_e2e_probe_stub.dart'
+    if (dart.library.js_interop) 'computer_e2e_probe_web.dart';
 import 'game_board.dart';
 import 'game_dialogs.dart';
 import 'game_view_controller.dart';
@@ -14,6 +17,7 @@ import 'local_ai_driver.dart';
 import 'main.dart';
 import 'model.dart';
 import 'pieces.dart';
+import 'pips.dart';
 import 'theme.dart';
 import 'tinystate.dart';
 
@@ -184,6 +188,7 @@ class GameView extends StatefulWidget {
 }
 
 class _GameViewState extends State<GameView> {
+  final _boardProbeKey = GlobalKey();
   GammonState? _game;
   var _legalMovesForPips = <int, List<GammonMove>>{};
   // owns the in-flight checker animation (layouts, hit-delays, completion) so
@@ -191,6 +196,7 @@ class _GameViewState extends State<GameView> {
   final _animator = BoardAnimator();
   // 1-player mode: guards re-entrancy while the AI plays.
   var _aiBusy = false;
+  var _engineErrors = 0;
 
   @override
   void initState() {
@@ -224,11 +230,13 @@ class _GameViewState extends State<GameView> {
     widget.controller.onShowOdds = () => OddsDialog.show(context, _game!);
 
     _newGame();
+    installComputerE2eProbe(_browserSnapshot);
   }
 
   @override
   void dispose() {
     if (_game != null) _game!.removeListener(_gameChanged);
+    removeComputerE2eProbe();
     _animator.dispose();
     // Release the AI engine's resources. The offline heuristic has a no-op
     // dispose; a gnubg opponent drops its client (the app-scoped session it
@@ -237,7 +245,75 @@ class _GameViewState extends State<GameView> {
     super.dispose();
   }
 
+  Map<String, Object?> _browserSnapshot() {
+    final game = _game;
+    final box = _boardProbeKey.currentContext?.findRenderObject() as RenderBox?;
+    if (game == null || box == null || !box.hasSize) return {'ready': false};
+    final scale = math.min(box.size.width / 574, box.size.height / 420);
+    List<double> screen(Offset point) {
+      final offset = box.localToGlobal(
+        Offset(
+          (box.size.width - 574 * scale) / 2 + point.dx * scale,
+          (box.size.height - 420 * scale) / 2 + point.dy * scale,
+        ),
+      );
+      return [offset.dx, offset.dy];
+    }
+
+    final pieces = PieceLayout.getLayouts(game.board).toList();
+    Offset source(int pip) => pieces
+        .lastWhere(
+          (p) =>
+              p.pipNo == pip &&
+              GammonRules.playerFor(p.pieceID) == game.turnPlayer,
+        )
+        .rect
+        .center;
+    Offset destination(int pip) =>
+        pip == GammonRules.offPipNoFor(game.turnPlayer)
+        ? const Offset(536, 307)
+        : PipLayout.layouts!.firstWhere((p) => p.pipNo == pip).rect.center;
+    return {
+      'ready': true,
+      'engineErrors': _engineErrors,
+      'busy': _aiBusy || _animator.isAnimating,
+      'gameOver': game.gameOver,
+      'winner': game.winner?.name,
+      'moveNo': game.moveNo,
+      'board': [
+        for (final point in game.board)
+          [
+            point.where((id) => id < 0).length,
+            point.where((id) => id > 0).length,
+          ],
+      ],
+      'dice': [
+        for (final die in game.dice)
+          {'roll': die.roll, 'available': die.available},
+      ],
+      'humanTurn': game.turnPlayer != widget.aiSide,
+      'canRoll': game.canRoll,
+      'canCommit': game.dice.isNotEmpty && game.dice.every((d) => !d.available),
+      'diceTarget': screen(const Offset(370, 210)),
+      'legalMoves': [
+        if (!_aiBusy &&
+            !_animator.isAnimating &&
+            !game.gameOver &&
+            game.turnPlayer != widget.aiSide)
+          for (final moves in _legalMovesForPips.values)
+            for (final move in moves)
+              {
+                'from': move.fromPipNo,
+                'to': move.toPipNo,
+                'source': screen(source(move.fromPipNo)),
+                'destination': screen(destination(move.toPipNo)),
+              },
+      ],
+    };
+  }
+
   void _newGame() {
+    _engineErrors = 0;
     if (_game != null) _game!.removeListener(_gameChanged);
 
     _game = widget.createGame?.call() ?? GammonState();
@@ -318,6 +394,7 @@ class _GameViewState extends State<GameView> {
   }
 
   void _reportEngineUnavailable(String message) {
+    _engineErrors++;
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
@@ -392,6 +469,7 @@ class _GameViewState extends State<GameView> {
             child: ChangeNotifierBuilder<GameViewController>(
               notifier: widget.controller,
               builder: (context, controller, child) => GameBoard(
+                key: _boardProbeKey,
                 game: _game!,
                 animator: _animator,
                 legalMoves: _legalMovesForPips,

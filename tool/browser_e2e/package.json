@@ -1,0 +1,11 @@
+{
+  "name": "fibscli-browser-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:computer": "node computer_games.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.0"
+  }
+}

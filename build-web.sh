@@ -30,4 +30,5 @@ flutter build web --release \
   --dart-define=app_version="$APP_VERSION" \
   --dart-define=gnubg_publishable_key="$GNUBG_PUBLISHABLE_KEY" \
   --dart-define=gnubg_turnstile_sitekey="$GNUBG_TURNSTILE_SITEKEY" \
-  --dart-define=gnubg_service_url="$GNUBG_SERVICE_URL"
+  --dart-define=gnubg_service_url="$GNUBG_SERVICE_URL" \
+  "$@"

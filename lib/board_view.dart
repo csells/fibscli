@@ -226,27 +226,28 @@ class BoardView extends StatelessWidget {
               PieceLayout.getLayouts(game.board, _pieceHighlights),
               pieceAnimations.keys.toSet(),
             ))
-              pieceAnimations.containsKey(layout.pieceID)
-                  ? AnimatedPiece.fromLayouts(
-                      layouts: pieceAnimations[layout.pieceID]!,
-                      delay: pieceDelays[layout.pieceID] ?? Duration.zero,
-                      onEnd: () => onPieceAnimationEnd?.call(layout.pieceID),
-                      child: GestureDetector(
-                        onTap: onTapPip == null
-                            ? null
-                            : () => onTapPip!(layout.pipNo),
-                        child: PieceView(layout: layout.animated),
-                      ),
-                    )
-                  : Positioned.fromRect(
-                      rect: layout.rect,
-                      child: GestureDetector(
-                        onTap: onTapPip == null
-                            ? null
-                            : () => onTapPip!(layout.pipNo),
-                        child: PieceView(layout: layout),
-                      ),
-                    ),
+              if (pieceAnimations.containsKey(layout.pieceID))
+                AnimatedPiece.fromLayouts(
+                  layouts: pieceAnimations[layout.pieceID]!,
+                  delay: pieceDelays[layout.pieceID] ?? Duration.zero,
+                  onEnd: () => onPieceAnimationEnd?.call(layout.pieceID),
+                  child: GestureDetector(
+                    onTap: onTapPip == null
+                        ? null
+                        : () => onTapPip!(layout.pipNo),
+                    child: PieceView(layout: layout.animated),
+                  ),
+                )
+              else
+                Positioned.fromRect(
+                  rect: layout.rect,
+                  child: GestureDetector(
+                    onTap: onTapPip == null
+                        ? null
+                        : () => onTapPip!(layout.pipNo),
+                    child: PieceView(layout: layout),
+                  ),
+                ),
 
             // dice (only once someone has rolled)
             if (game.dice.length == 2 || game.dice.length == 4)

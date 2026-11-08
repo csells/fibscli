@@ -1,6 +1,8 @@
 import 'dart:convert';
 
-import 'package:bg_engine/bg_engine.dart';
+import 'package:fibscli/dice.dart';
+import 'package:fibscli/local_ai_driver.dart';
+import 'package:fibscli/model.dart';
 import 'package:fibscli/session_gnubg_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gnubg_service/gnubg_service.dart';
@@ -80,6 +82,99 @@ BgPosition _opening({
 
 void main() {
   group('SessionGnubgClient.playMove', () {
+    test(
+      'blocked dice retain the original roll in the service Match ID',
+      () async {
+        final board = Position(
+          points: const [
+            -2,
+            -3,
+            1,
+            0,
+            0,
+            -2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            -5,
+            0,
+            0,
+            2,
+            3,
+            0,
+            3,
+            0,
+            2,
+            0,
+            0,
+            -3,
+          ],
+          twoBar: 2,
+        ).toBoard();
+        final game = GammonState.from(
+          board: board,
+          dice: [DieState(4), DieState(2)..available = false],
+          turnPlayer: GammonPlayer.two,
+        );
+        final svc = _FakeService({
+          '/v1/token': [_mintOk()],
+          '/v1/play/move': [
+            _ok({
+              'play': 'bar/21',
+              'hops': [
+                {'from': 25, 'to': 21},
+              ],
+              'level': 7,
+            }),
+          ],
+        });
+        final ai = GnubgAiPlayer(_client(svc, level: 7));
+        final turn = await ai.chooseTurn(positionFromState(game));
+        final positionId = gnubgPositionId(board, GammonPlayer.two);
+        final matchId = gnubgMatchId(die0: 4, die1: 2);
+        expect(
+          svc.dataCalls.single.url.queryParameters['id'],
+          '$positionId:$matchId',
+        );
+        expect(turn.moves, hasLength(1));
+        ai.dispose();
+      },
+    );
+
+    test(
+      'an asymmetric board round-trips from request id to a legal turn',
+      () async {
+        final board = GammonRules.initialBoard();
+        board[16].add(board[24].removeLast());
+        final svc = _FakeService({
+          '/v1/token': [_mintOk()],
+          '/v1/play/move': [
+            _ok({
+              'play': '24/22 13/8',
+              'hops': [
+                {'from': 24, 'to': 22},
+                {'from': 13, 'to': 8},
+              ],
+              'level': 7,
+            }),
+          ],
+        });
+        final ai = GnubgAiPlayer(_client(svc, level: 7));
+        final turn = await ai.chooseTurn(
+          BgPosition(board: board, onRoll: GammonPlayer.two, dice: [5, 2]),
+        );
+        expect(
+          svc.dataCalls.single.url.queryParameters['id'],
+          '4HPwESDgc/ABMA:MIEKAAAAAAAE',
+        );
+        expect(turn.moves, isNotEmpty);
+        ai.dispose();
+      },
+    );
+
     test('sends the in-roll id, level, and seed under a minted '
         'bearer token', () async {
       final svc = _FakeService({

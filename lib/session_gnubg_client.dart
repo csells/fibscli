@@ -143,7 +143,7 @@ class SessionGnubgClient implements GnubgClient {
   // [preRoll] encodes dice 0,0 -- the cube/take/resign decision point --
   // instead of the dice the position carries.
   static String _gnubgId(BgPosition position, {required bool preRoll}) {
-    final dice = position.dice;
+    final dice = position.rolledDice;
     final positionId = gnubgPositionId(position.board, position.onRoll);
     final cubeOwner = position.cubeOwner;
     final matchId = gnubgMatchId(

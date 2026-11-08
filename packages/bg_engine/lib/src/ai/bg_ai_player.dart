@@ -14,9 +14,10 @@ class BgPosition {
     required this.board,
     required this.onRoll,
     required this.dice,
+    List<int>? rolledDice,
     this.cubeValue = 1,
     this.cubeOwner,
-  });
+  }) : rolledDice = rolledDice ?? dice;
 
   /// The canonical 26-cell board (signed piece ids).
   final List<List<int>> board;
@@ -26,6 +27,10 @@ class BgPosition {
 
   /// The die values available to play (doubles expanded to four entries).
   final List<int> dice;
+
+  /// The original roll, including dice currently blocked by the board.
+  /// Remote engines encode this roll while local search uses [dice].
+  final List<int> rolledDice;
 
   /// The current doubling-cube value (a power of two, 1..64).
   final int cubeValue;

@@ -134,3 +134,18 @@ the deal moves it to a pause the player already expects. And retrying a refused
 attestation just re-runs the challenge, so the adapter's transient-failure retry
 loop must not apply to it: `GnubgUnavailableException` rethrows immediately,
 while an outage stays an `ApiException` that is retried.
+
+## Available dice and original rolls have distinct contracts
+
+**Decision:** `BgPosition.dice` carries the dice available to local move search;
+`rolledDice` carries the original roll for remote Match ID encoding. A model die
+remains available when it can be used after another move in the same turn.
+Position IDs encode opponent counts before mover counts.
+
+**Why:** a die blocked by bar-entry priority can become usable later in a legal
+turn. A genuinely unusable die still belongs to the rolled pair: duplicating the
+remaining die represents doubles and asks the service a different question.
+Keeping both representations preserves local search and the remote wire contract
+without fabricating dice or allowing an unusable move. Asymmetric-position,
+blocked-bar and session-adapter regressions pin these boundaries; the gated browser
+suite plays complete games against the real service through the rendered UI.

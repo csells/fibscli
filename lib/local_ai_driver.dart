@@ -11,6 +11,7 @@ BgPosition positionFromState(GammonState state) => BgPosition(
     for (final die in state.dice)
       if (die.available) die.roll,
   ],
+  rolledDice: [for (final die in state.dice) die.roll],
   cubeValue: state.cube.value,
   cubeOwner: state.cube.owner,
 );

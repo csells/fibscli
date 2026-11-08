@@ -25,7 +25,9 @@ is load-bearing: anything needing Flutter or a network client lives in the app
 layer instead.
 
 - `BgPosition` — a representation-neutral snapshot (canonical engine board, the
-  player on roll, dice, cube value/owner).
+  player on roll, available dice, original roll, and cube value/owner). Local
+  search uses available dice; remote Match IDs retain the original roll, including
+  blocked dice.
 - `BgTurn` — the full chosen turn (a list of `GammonMove`s), so the engine owns
   sequencing and the driver just applies and commits. An empty list is a dance.
 - `BgAiPlayer` — the engine contract: `prepare()` (warm anything costly at a

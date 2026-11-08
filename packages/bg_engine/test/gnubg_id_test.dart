@@ -12,6 +12,16 @@ void main() {
       );
     });
 
+    test(
+      'encodes an asymmetric position with the opponent before the mover',
+      () {
+        final board = GammonRules.initialBoard();
+        board[16].add(board[24].removeLast());
+        expect(gnubgPositionId(board, GammonPlayer.two), '4HPwESDgc/ABMA');
+        expect(gnubgPositionId(board, GammonPlayer.one), '4HPwATDgc/ARIA');
+      },
+    );
+
     test('is symmetric: the opening is the same id from either side', () {
       expect(
         gnubgPositionId(GammonRules.initialBoard(), GammonPlayer.two),

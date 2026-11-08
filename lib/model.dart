@@ -339,6 +339,8 @@ class GammonState extends ChangeNotifier {
     // check all the pips for legal moves (forced-move rules applied so that a
     // die the player is not allowed to play counts as unusable; issue #4)
     final rolls = _dice.where((d) => d.available).map((d) => d.roll).toList();
+    // A die can become usable after another checker enters from the bar.
+    if (GammonRules.maxPlayableDice(board, _turnPlayer, rolls) > 1) return;
     final moves = GammonRules.getForcedLegalMoves(board, _turnPlayer, rolls);
 
     // find all of the possible hops
