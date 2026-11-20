@@ -27,7 +27,7 @@ jobs:
 
       - name: Checkout repository
         if: steps.detect.outputs.hit == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
