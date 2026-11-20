@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Check for @cline mention
         id: detect
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const body = context.payload.comment?.body || "";
@@ -163,7 +163,7 @@ jobs:
 
       - name: Post response
         if: steps.detect.outputs.hit == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           ISSUE_NUMBER: ${{ steps.detect.outputs.issue_number }}
           RESULT: ${{ steps.analyze.outputs.result }}
